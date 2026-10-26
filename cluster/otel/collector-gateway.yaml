@@ -1,0 +1,118 @@
+# OpenTelemetryCollector — gateway for all agent/LLM telemetry in the workshop.
+#
+# Pipeline shape:
+#   kagent agents / instrumented workloads
+#        │  OTLP (gRPC 4317 / HTTP 4318)
+#        ▼
+#   otel-gateway-collector  ──fan-out──▶ Dynatrace tenant (OTLP ingest)   [observe]
+#                            └──────────▶ Phoenix (OTLP gRPC 4317)        [eval/trace UI]
+#
+# A single gateway (Deployment) is plenty for a single-node Codespace. The
+# operator reconciles this CR into a Deployment + Service named
+# `otel-gateway-collector`. Agents point OTLP at:
+#   otel-gateway-collector.opentelemetry-operator-system.svc.cluster.local:4317
+#
+# The Dynatrace exporter credentials come from secret/dynatrace-otlp (created by
+# secrets.sh). If that secret is absent the Dynatrace exporter still renders but
+# the collector logs auth errors — Phoenix export keeps working regardless.
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-gateway
+  namespace: opentelemetry-operator-system
+spec:
+  mode: deployment
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+  env:
+    - name: DT_OTLP_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace-otlp
+          key: endpoint
+          optional: true
+    - name: DT_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: dynatrace-otlp
+          key: apiToken
+          optional: true
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch:
+        send_batch_size: 512
+        timeout: 5s
+      k8sattributes:
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.deployment.name
+            - k8s.node.name
+      resource:
+        attributes:
+          - key: k8s.cluster.name
+            value: workshop
+            action: upsert
+      # Normalise OpenInference / Traceloop LLM span attributes to OpenTelemetry
+      # gen_ai.* semconv so Dynatrace AI Observability and Phoenix agree on names.
+      transform/genai-normalize:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements:
+              - set(attributes["gen_ai.usage.input_tokens"], attributes["llm.token_count.prompt"]) where attributes["llm.token_count.prompt"] != nil
+              - set(attributes["gen_ai.usage.output_tokens"], attributes["llm.token_count.completion"]) where attributes["llm.token_count.completion"] != nil
+              - set(attributes["gen_ai.request.model"], attributes["llm.model_name"]) where attributes["llm.model_name"] != nil
+              - set(attributes["gen_ai.system"], attributes["llm.provider"]) where attributes["llm.provider"] != nil
+
+    exporters:
+      debug:
+        verbosity: basic
+      # Dynatrace tenant OTLP ingest (traces + metrics + logs).
+      otlphttp/dynatrace:
+        endpoint: ${env:DT_OTLP_ENDPOINT}
+        headers:
+          Authorization: "Api-Token ${env:DT_API_TOKEN}"
+      # Phoenix is a terminal OTLP backend (fan-out here, not a relay chain).
+      otlp/phoenix:
+        endpoint: phoenix.phoenix.svc.cluster.local:4317
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, transform/genai-normalize, batch]
+          exporters: [otlphttp/dynatrace, otlp/phoenix, debug]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otlphttp/dynatrace, debug]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otlphttp/dynatrace, debug]

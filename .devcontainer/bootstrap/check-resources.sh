@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate the Codespace resource ceiling (plan §7.1 open question).
+# Validate the Codespace resource ceiling.
 # Runs at onCreate. Non-fatal: warns loudly if the machine is too small for the
 # full workshop stack, but never blocks the build.
 set -uo pipefail

@@ -1,0 +1,22 @@
+# Helm values for the OpenTelemetry Operator (chart open-telemetry/opentelemetry-operator).
+# Installed by cluster/install.sh into namespace `opentelemetry-operator-system`.
+#
+# CRITICAL for a fresh k3d/kind cluster: there is NO cert-manager, so the
+# operator's admission webhook must use a self-signed cert the chart generates
+# itself. Without this the operator CrashLoops waiting for cert-manager.
+admissionWebhooks:
+  certManager:
+    enabled: false
+  autoGenerateCert:
+    enabled: true
+
+manager:
+  # The "k8s" collector distribution ships every processor/receiver this
+  # workshop needs (otlp, k8sattributes, resource, transform, batch, debug,
+  # prometheus, kubeletstats). No need for the heavier contrib image.
+  collectorImage:
+    repository: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi

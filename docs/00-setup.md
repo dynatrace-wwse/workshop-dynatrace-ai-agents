@@ -66,4 +66,4 @@ Open the forwarded port **8000**.
 ## Next
 
 Phase 2 installs the platform (Dynatrace Operator, OpenTelemetry Operator,
-kagent, Tetragon, Agent Sandbox, Phoenix). That module lands with ISI-6715.
+kagent, Tetragon, Agent Sandbox, Phoenix).

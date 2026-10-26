@@ -1,0 +1,36 @@
+# DynaKube — Kubernetes monitoring mode (k8smonitoring), ActiveGate only.
+#
+# This configures Dynatrace to monitor the Codespace cluster via its ActiveGate
+# (cluster-level metrics, events, Kubernetes topology) WITHOUT installing node
+# OneAgents — the lightest mode, right for a single-node Codespace.
+#
+# install.sh runs this file through `envsubst` to inject ${DT_TENANT_URL}.
+# The API token lives in secret/dynakube (created by secrets.sh); by operator
+# convention the token secret name MUST equal the DynaKube name.
+apiVersion: dynatrace.com/v1beta6
+kind: DynaKube
+metadata:
+  name: dynakube
+  namespace: dynatrace
+  annotations:
+    # Skip the OneAgent/host checks — this DynaKube does no full-stack injection.
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring: "true"
+spec:
+  # ${DT_TENANT_URL} e.g. https://abc12345.live.dynatrace.com  ->  .../api
+  apiUrl: ${DT_TENANT_URL}/api
+
+  # ActiveGate providing Kubernetes monitoring + the Dynatrace API route used by
+  # metadata enrichment. No `oneAgent:` block => no node OneAgent is deployed.
+  activeGate:
+    capabilities:
+      - kubernetes-monitoring
+    resources:
+      requests:
+        cpu: 150m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+
+  # Enrich pod/workload metadata into logs & OTLP signals.
+  metadataEnrichment:
+    enabled: true

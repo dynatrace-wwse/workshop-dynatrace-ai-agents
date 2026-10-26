@@ -36,6 +36,6 @@ cat <<'EOF'
  Next:
    kubectl get nodes
    mkdocs serve -a 0.0.0.0:8000      # workshop site on forwarded port 8000
-   # Phase 2 (ISI-6715) installs the operators + kagent + Tetragon + Phoenix.
+   # Phase 2 installs the operators + kagent + Tetragon + Phoenix.
 ================================================================
 EOF

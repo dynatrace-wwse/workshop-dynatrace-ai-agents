@@ -1,7 +1,7 @@
-# Phase 1 Decisions — Devcontainer & Codespace Bootstrap (ISI-6713)
+# Architecture Notes — Devcontainer & Codespace Bootstrap
 
-Decisions recorded per the issue's "Decisions to record" section and plan
-[ISI-6696](../README.md) §7 open questions.
+Why the devcontainer and bootstrap are set up the way they are — cluster engine,
+machine type, and tooling choices for the Codespace that runs the workshop.
 
 ## 1. Cluster engine: **k3d** (default), kind supported as a fallback
 
@@ -24,10 +24,10 @@ Tetragon + Agent Sandbox + Phoenix + agent workloads), the deciding factor is th
 **memory headroom** and the built-in LB. k3d wins on both. kind stays available
 because some attendees/CI may prefer it and Tetragon eBPF behavior can differ.
 
-> **Tetragon/eBPF note (hand-off to Phase 2):** Tetragon needs host-kernel eBPF.
-> Both k3d and kind run nodes as containers sharing the Codespace host kernel.
-> Phase 2 must validate Tetragon loads its BPF programs in the Codespace kernel;
-> if blocked, fall back to Tetragon's limited/monitoring mode and document it.
+> **Tetragon/eBPF note:** Tetragon needs host-kernel eBPF. Both k3d and kind run
+> nodes as containers sharing the Codespace host kernel. The platform install
+> validates that Tetragon loads its BPF programs in the Codespace kernel; if
+> blocked, it falls back to Tetragon's limited/monitoring mode.
 
 ## 2. Recommended Codespace machine type: **4-core / 16 GB** (min), prebuild on
 
@@ -36,10 +36,11 @@ full workshop. Declared in `devcontainer.json` `hostRequirements`. Enable a
 **Codespace prebuild** on the repo so the devcontainer image + pinned tools are
 cached (fast, reliable boots for attendees).
 
-**Rationale (plan §7.1 resource ceiling):**
+**Rationale (resource ceiling):**
 
-- The default **2-core / 4 GB** Codespace is **insufficient** for Phase 2 onward.
-  Phase 1 alone (cluster + toolchain) fits a small machine, but Dynatrace operator,
+- The default **2-core / 4 GB** Codespace is **insufficient** once the platform
+  stack is installed. The cluster + toolchain alone fit a small machine, but the
+  Dynatrace operator,
   OTel collectors, kagent, Tetragon, Phoenix, and the two agent sets together need
   well over 4 GB. `onCreate` runs `check-resources.sh`, which warns when under the
   recommended floor.
@@ -62,10 +63,10 @@ cluster creation checks existence first; namespace/helm-repo prep is
 create-if-missing; `postStart` restarts stopped k3d/kind node containers rather
 than recreating the cluster. Re-running `postCreate` by hand is safe.
 
-## Open questions deferred to later phases (not blocking Phase 1)
+## Open questions deferred to later phases
 
-- §7.2 BindPlane live vs. illustrated — Phase 2.
-- §7.3 LLM provider powering agents + attendee key distribution — Phase 3
+- BindPlane live vs. illustrated — platform install.
+- LLM provider powering agents + attendee key distribution — agent wiring
   (secrets contract scaffolded in `SECRETS.md`).
-- §7.4 Dynatrace tenant shared vs. per-attendee — Phase 4/5.
-- §7.5 Agent Sandbox implementation choice — Architect / Phase 2.
+- Dynatrace tenant shared vs. per-attendee — evaluation/optimization modules.
+- Agent Sandbox implementation choice — platform install.

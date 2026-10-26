@@ -41,8 +41,9 @@ markdown_extensions:
       permalink: true
   - tables
 
-# Nav mirrors the learning arc (plan §2). Phase 6 fills in modules 01..08;
+# Nav mirrors the learning arc. Phase 6 fills in modules 01..08;
 # Phase 1 ships the shell + the setup module so `mkdocs build` passes today.
 nav:
   - Home: index.md
   - "00 — Setup (Codespace)": 00-setup.md
+  - "01 — Platform install": 01-platform-install.md
