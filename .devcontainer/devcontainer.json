@@ -1,0 +1,68 @@
+{
+  "name": "Dynatrace AI Agent Workshop",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+
+  // Docker-in-Docker is required so kind/k3d can run a cluster inside the Codespace.
+  // The GitHub CLI feature provides `gh` for the GitHub MCP / repo operations.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    }
+  },
+
+  // Tool versions are pinned in the Dockerfile; override here per-Codespace if needed.
+  "containerEnv": {
+    // Cluster engine: "k3d" (default, recommended) or "kind". See .devcontainer/DECISIONS.md.
+    "CLUSTER_TOOL": "k3d",
+    "CLUSTER_NAME": "workshop",
+    "KUBECONFIG": "/home/vscode/.kube/config"
+  },
+
+  // Ports surfaced to the attendee. Phase 2 wires the actual Services behind these.
+  "forwardPorts": [8000, 6006, 8080, 8001],
+  "portsAttributes": {
+    "8000": { "label": "mkdocs (workshop site)", "onAutoForward": "openBrowserOnce" },
+    "6006": { "label": "Phoenix (eval/trace UI)", "onAutoForward": "silent" },
+    "8080": { "label": "kagent UI", "onAutoForward": "silent" },
+    "8001": { "label": "spare / port-forward", "onAutoForward": "silent" }
+  },
+
+  // Idempotent, re-runnable. postCreate builds the cluster + preps the stack install.
+  // postStart ensures the cluster is up again after a Codespace resume.
+  "onCreateCommand": "bash .devcontainer/bootstrap/check-resources.sh",
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "postStartCommand": "bash .devcontainer/postStart.sh",
+
+  // Recommended machine type for the full workshop stack. 2-core/4GB is NOT enough
+  // (see DECISIONS.md §Resource ceiling); request 4-core/16GB when creating the Codespace.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+
+  "remoteUser": "vscode"
+}

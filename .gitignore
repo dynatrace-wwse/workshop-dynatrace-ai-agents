@@ -1,0 +1,25 @@
+# Kubernetes / local cluster
+.kube/
+kubeconfig*
+*.kubeconfig
+
+# Secrets — never commit (contract: .devcontainer/SECRETS.md)
+.env
+.env.*
+*.secret
+*-token
+*.pem
+
+# Python / uv / dt-evals
+.venv/
+__pycache__/
+*.pyc
+.uv/
+.ruff_cache/
+
+# MkDocs build output
+site/
+
+# Editor / OS
+.DS_Store
+*.swp

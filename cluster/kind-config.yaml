@@ -1,0 +1,27 @@
+# kind cluster config for the Dynatrace AI Agent Workshop (alternate engine).
+# Used when CLUSTER_TOOL=kind. Docs: https://kind.sigs.k8s.io/docs/user/configuration/
+#
+# kind has no built-in service LB, so Phase 2 must install an ingress controller
+# (or use `kubectl port-forward`). extraPortMappings expose the control-plane
+# node's ingress ports to the Codespace host.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: workshop
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.31.4
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8000
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP
+  - role: worker
+    image: kindest/node:v1.31.4
