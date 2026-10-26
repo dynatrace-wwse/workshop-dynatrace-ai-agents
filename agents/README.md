@@ -5,7 +5,7 @@ kagent agent manifests and MCP wiring — **Phase 3** (ISI-6716).
 ```
 agents/
 ├── mcp/                      # shared ModelConfig + MCP tool servers
-│   ├── 00-modelconfig.yaml   # workshop-llm — the shared OpenAI brain
+│   ├── 00-modelconfig.yaml   # workshop-llm — the shared DeepSeek brain
 │   ├── 10-github-mcp.yaml    # GitHub MCP  (MCPServer + RemoteMCPServer)
 │   └── 20-dynatrace-mcp.yaml # Dynatrace MCP (MCPServer + RemoteMCPServer)
 ├── sre/                      # SRE agent (kubectl + k8s-networking + dynatrace)
@@ -23,8 +23,9 @@ agents/
 | **Dynatrace** | `dynatrace-mcp-remote` → in-cluster `@dynatrace-oss/dynatrace-mcp-server` | SRE agent |
 | **GitHub** (issues/PRs/repos) | `github-mcp-remote` → in-cluster `ghcr.io/github/github-mcp-server` | BMAD crew |
 
-All agents share one **`workshop-llm`** ModelConfig (OpenAI by default, reading
-`secret/kagent-openai`). kagent's `otel.tracing` (wired in Phase 2) sends every
+All agents share one **`workshop-llm`** ModelConfig (**DeepSeek** by default —
+OpenAI-API compatible, reading `secret/kagent-deepseek`; swap to OpenAI/Anthropic
+in one file). kagent's `otel.tracing` (wired in Phase 2) sends every
 agent's LLM/tool spans to Dynatrace + Phoenix automatically.
 
 ## Install

@@ -18,8 +18,9 @@ CRD).
 
 ## Workshop deltas vs upstream
 
-- **Model**: every agent uses the shared **`workshop-llm`** ModelConfig (OpenAI,
-  `agents/mcp/00-modelconfig.yaml`) instead of the upstream Mac-Studio Ollama one.
+- **Model**: every agent uses the shared **`workshop-llm`** ModelConfig
+  (**DeepSeek**, `agents/mcp/00-modelconfig.yaml`) instead of the upstream
+  Mac-Studio Ollama one.
 - **GitHub MCP**: provided once by `agents/mcp/10-github-mcp.yaml`
   (`github-mcp-remote`); this folder no longer ships its own copy.
 
