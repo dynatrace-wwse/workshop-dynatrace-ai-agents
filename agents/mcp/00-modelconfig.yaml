@@ -1,0 +1,28 @@
+# ── Phase 3 · shared agent LLM (the "brain") ─────────────────────────────────
+# Every workshop agent — the SRE agent and the whole BMAD crew — points at THIS
+# ModelConfig by name (`modelConfig: workshop-llm`). Defining it once here keeps
+# the model/provider choice in a single place.
+#
+# Default: OpenAI, reading the key from secret/kagent-openai (created by
+# cluster/secrets.sh from LLM_API_KEY or OPENAI_API_KEY — the same secret the
+# kagent chart's default provider uses). The model MUST support function/tool
+# calling (the BMAD crew is multi-hop tool use); gpt-4.1-mini is a cheap, capable
+# default — bump to gpt-4.1 for heavier BMAD runs (change here, re-apply).
+#
+# To run on Anthropic instead: set provider: Anthropic, apiKeySecretRef:
+# kagent-anthropic, apiKeySecretKey: ANTHROPIC_API_KEY, model: a Claude model id,
+# and swap the `openAI: {}` block for `anthropic: {}` (secret created by
+# secrets.sh from ANTHROPIC_API_KEY).
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: workshop-llm
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: workshop-agents
+spec:
+  provider: OpenAI
+  model: gpt-4.1-mini            # keep in sync with WORKSHOP_LLM_MODEL in cluster/versions.env
+  apiKeySecretRef: kagent-openai
+  apiKeySecretKey: OPENAI_API_KEY
+  openAI: {}

@@ -1,0 +1,105 @@
+# ── Phase 3 · SRE agent ──────────────────────────────────────────────────────
+# A single kagent Agent that investigates and operates the workshop cluster.
+# Tools (plan §4/§5):
+#   • kubectl / k8s      — the built-in `kagent-tool-server` k8s_* tools.
+#   • k8s-networking     — `k8s_check_service_connectivity` from the same server.
+#   • dynatrace          — the `dynatrace-mcp-remote` MCP server (agents/mcp/20-*).
+#
+# `kagent-tool-server` is the built-in RemoteMCPServer the kagent chart creates
+# when kagent-tools is enabled (turned ON for Phase 3 in cluster/kagent/values.yaml).
+# We enumerate k8s tool names explicitly (least privilege + small-model discipline):
+# read/investigate tools plus a focused set of operate tools. No destructive-by-
+# default surprises — the model still decides, but only these tools are exposed.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: sre-agent
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: workshop-agents
+    workshop.role: sre
+spec:
+  description: SRE agent — investigates and operates the Kubernetes cluster with Dynatrace observability.
+  type: Declarative
+  declarative:
+    modelConfig: workshop-llm
+    systemMessage: |
+      You are the SRE agent for a Kubernetes cluster that is monitored by Dynatrace.
+      Your job is to INVESTIGATE problems and, when asked, safely OPERATE the cluster.
+
+      How you work:
+      1. Start from evidence. When asked about an incident or the health of a
+         workload, gather facts first: list/describe the relevant resources
+         (k8s_get_resources, k8s_describe_resource), read pod logs
+         (k8s_get_pod_logs) and recent events (k8s_get_events), and check service
+         reachability (k8s_check_service_connectivity) before forming a hypothesis.
+      2. Correlate with Dynatrace. Use the dynatrace tools to pull open problems,
+         affected entities, Davis root-cause findings, logs (DQL/Grail) and metrics
+         for the same workload, so your conclusion is grounded in observability data,
+         not just cluster state. Cite the Dynatrace problem/entity you relied on.
+      3. Diagnose. State the most likely root cause in one or two sentences, with the
+         specific evidence (a log line, an event, a Dynatrace problem id) that supports it.
+      4. Operate only when asked, and minimally. If the user asks you to remediate,
+         use the smallest safe change (scale, rollout restart, patch, re-apply a
+         manifest) and say exactly what you changed. Never delete a resource unless
+         the user explicitly asks for that resource by name. Always report the result
+         and how to verify it.
+
+      Be concise and structured. Prefer a short "Findings → Root cause → Action →
+      Verify" shape. If you lack a tool or permission to answer, say so plainly
+      instead of guessing.
+    tools:
+      # Built-in Kubernetes + networking tools (kagent-tool-server).
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
+          toolNames:
+            # investigate (read)
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_resource_yaml
+            - k8s_get_pod_logs
+            - k8s_get_events
+            - k8s_get_available_api_resources
+            - k8s_get_cluster_configuration
+            # k8s-networking
+            - k8s_check_service_connectivity
+            # operate (write) — minimal, non-destructive-by-default set
+            - k8s_apply_manifest
+            - k8s_patch_resource
+            - k8s_scale
+            - k8s_rollout
+            - k8s_label_resource
+            - k8s_annotate_resource
+            - k8s_execute_command
+      # Dynatrace observability (dynatrace-mcp-remote). toolNames omitted on
+      # purpose: expose every discovered Dynatrace tool (problems/entities/logs/
+      # metrics/Davis) — the server itself is read-oriented. Narrow this later if
+      # you want to restrict the surface.
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: dynatrace-mcp-remote
+    a2aConfig:
+      skills:
+        - id: investigate-incident
+          name: Investigate Incident
+          description: Correlate cluster state with Dynatrace problems to find a root cause.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [sre, kubernetes, dynatrace, troubleshooting]
+          examples:
+            - "The checkout pods are crash-looping — what is the root cause?"
+            - "Is there an open Dynatrace problem affecting the frontend service?"
+        - id: operate-cluster
+          name: Operate Cluster
+          description: Perform a minimal, safe remediation (scale, restart, patch) on request.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [sre, kubernetes, remediation]
+          examples:
+            - "Restart the frontend deployment."
+            - "Scale the payment service to 3 replicas."

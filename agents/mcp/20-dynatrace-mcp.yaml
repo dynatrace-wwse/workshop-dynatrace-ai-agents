@@ -1,0 +1,70 @@
+# ── Phase 3 · Dynatrace MCP tool server ──────────────────────────────────────
+# Gives the SRE agent REAL Dynatrace access — query problems, entities, logs
+# (Grail/DQL), metrics and the Davis AI findings for the cluster it operates.
+# This is the `dynatrace` tool in the SRE agent's toolset (plan §4/§5).
+#
+# There is no official published container for the Dynatrace MCP server, so we
+# run the official npm package (@dynatrace-oss/dynatrace-mcp-server) via npx
+# inside a Node base image, as a kagent-managed MCPServer (stdio) — same pattern
+# as github-mcp. kagent fronts it behind its agentgateway at
+# http://dynatrace-mcp.kagent:3000/mcp, which the RemoteMCPServer registers.
+#
+# ── CREDENTIALS (never commit a token) ───────────────────────────────────────
+# The server needs a PLATFORM token (dt0s16.*) and the PLATFORM (apps) URL —
+# BOTH distinct from the Phase-2 DT_API_TOKEN / DT_TENANT_URL (which are the OTLP
+# ingest token and the .live. endpoint). kagent's MCPServer env is a static map,
+# so these are injected at APPLY TIME via envsubst by agents/install-agents.sh:
+#   DT_PLATFORM_TOKEN  — a Dynatrace platform token (dt0s16.*) with the scopes
+#                        your demo needs, e.g. storage:logs:read, storage:events:read,
+#                        storage:metrics:read, storage:entities:read, environment-api:*.
+#   DT_ENVIRONMENT     — the platform URL, e.g. https://abc12345.apps.dynatrace.com
+#                        (NOT the .live. OTLP endpoint). secrets.sh derives this
+#                        from DT_TENANT_URL (.live.->.apps.) when you don't set it.
+# Leave the ${...} placeholders empty in git; provide them in the environment.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: dynatrace-mcp
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: workshop-agents
+    workshop.tool: dynatrace
+spec:
+  transportType: stdio
+  stdioTransport: {}
+  deployment:
+    # Node base image (DYNATRACE_MCP_NODE_IMAGE) runs the pinned npm package
+    # (DYNATRACE_MCP_PACKAGE) — both in cluster/versions.env, injected at apply time.
+    image: ${DYNATRACE_MCP_NODE_IMAGE}
+    cmd: npx
+    args: ["-y", "${DYNATRACE_MCP_PACKAGE}"]   # default transport is stdio (no --http)
+    port: 3000
+    env:
+      DT_ENVIRONMENT: "${DT_ENVIRONMENT}"
+      DT_PLATFORM_TOKEN: "${DT_PLATFORM_TOKEN}"
+      # npx needs a writable cache/home if kagent runs the pod as non-root.
+      HOME: "/tmp"
+      npm_config_cache: "/tmp/.npm"
+    resources:
+      requests: { cpu: "50m", memory: "128Mi" }
+      limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: dynatrace-mcp-remote
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: workshop-agents
+    workshop.tool: dynatrace
+spec:
+  description: Dynatrace MCP (problems, entities, logs/DQL, metrics, Davis findings) fronting the in-cluster dynatrace-mcp stdio server
+  protocol: STREAMABLE_HTTP
+  url: http://dynatrace-mcp.kagent:3000/mcp
+  timeout: 60s          # DQL/Grail queries can be slower than a GitHub call
+  sseReadTimeout: 5m0s
+  terminateOnClose: true
+# After apply, confirm the tools registered before relying on them:
+#   kubectl -n kagent get remotemcpserver dynatrace-mcp-remote \
+#     -o jsonpath='{.status.discoveredTools[*].name}'
+#   (tokenless, discovery will be empty / error — provide DT_PLATFORM_TOKEN first.)

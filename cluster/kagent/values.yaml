@@ -17,9 +17,14 @@ cilium-policy-agent:  { enabled: false }
 cilium-manager-agent: { enabled: false }
 cilium-debug-agent:   { enabled: false }
 
-# --- Clean base: disable the bundled tool servers ---------------------------
-kagent-tools: { enabled: false }   # built-in tool bundle
-grafana-mcp:  { enabled: false }   # default Grafana MCP tool server
+# --- Tool servers -----------------------------------------------------------
+# kagent-tools is the built-in `kagent-tool-server` RemoteMCPServer — the
+# "default Kubernetes tooling" Phase 3 (ISI-6716) wires into the SRE agent:
+# the k8s_* tools (get/describe/logs/events/apply/scale/rollout/exec …) plus the
+# k8s-networking tool `k8s_check_service_connectivity`. Phase 2 shipped it OFF
+# (clean base); Phase 3 turns it ON so `agents/sre` can reference it by name.
+kagent-tools: { enabled: true }    # built-in k8s/helm/istio/argo/cilium tools
+grafana-mcp:  { enabled: false }   # default Grafana MCP tool server (unused here)
 
 # kmcp (the MCP controller framework) stays ENABLED — it is platform plumbing,
 # not an agent/tool, and Phase 3 needs it to register MCP servers.

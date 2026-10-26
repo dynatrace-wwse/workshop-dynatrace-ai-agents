@@ -1,0 +1,18 @@
+# Apply the whole BMAD crew with:  kubectl apply -k agents/bmad-crew
+#
+# Prereqs (applied by agents/install-agents.sh BEFORE this):
+#   • agents/mcp — the workshop-llm ModelConfig and the github-mcp-remote server
+#     the agents reference by name.
+# Order below matters only for readability — the controller reconciles the
+# reference graph as objects appear; the orchestrator's `type: Agent` tools
+# resolve once the child agents exist.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kagent
+resources:
+  - 01-bmad-analyst.yaml
+  - 02-bmad-pm.yaml
+  - 03-bmad-architect.yaml
+  - 04-bmad-developer.yaml
+  - 05-bmad-qa.yaml
+  - 06-bmad-orchestrator.yaml

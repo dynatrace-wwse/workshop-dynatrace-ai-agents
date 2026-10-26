@@ -1,0 +1,71 @@
+# ── Phase 3 · GitHub MCP tool server ─────────────────────────────────────────
+# Gives the BMAD crew REAL GitHub access (read/write issues, PRs, repo contents)
+# so the crew can run the full software-delivery chain against a target repo.
+# Adapted from isItObservable/Kagent manifests/bmad-crew/07-github-mcp.yaml.
+#
+# Shape (unchanged from the reference — it is the native kagent pattern):
+#   (a) MCPServer      — kagent runs GitHub's OFFICIAL server (stdio) behind its
+#                        agentgateway adapter, exposing http://github-mcp.kagent:3000/mcp
+#   (b) RemoteMCPServer — registers that endpoint; its status.discoveredTools are
+#                        what agents reference by name (see agents/bmad-crew/*).
+#
+# Least privilege is PER AGENT via the `toolNames` each Agent lists — the server
+# enables the issues+pull_requests+repos toolsets and GITHUB_READ_ONLY=0, but no
+# agent is granted a merge tool (merge stays a human/CI step).
+#
+# ── PAT / SECRET (never commit a token) ──────────────────────────────────────
+# github-mcp-server reads GITHUB_PERSONAL_ACCESS_TOKEN from env. kagent's
+# MCPServer CRD `deployment.env` is a static map and cannot source a value from a
+# Secret, so the PAT is injected at APPLY TIME via envsubst (${GITHUB_PAT}) by
+# agents/install-agents.sh — it is NEVER written into this file or git.
+# Provide it as the GITHUB_PAT env var (fine-grained PAT, scoped to the ONE demo
+# repo: Contents RW · Issues RW · Pull requests RW; NO org/admin). Rotate it
+# after the workshop.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: github-mcp
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: workshop-agents
+    workshop.tool: github
+spec:
+  transportType: stdio
+  stdioTransport: {}
+  deployment:
+    # Pinned in cluster/versions.env (GITHUB_MCP_IMAGE); injected at apply time.
+    image: ${GITHUB_MCP_IMAGE}
+    cmd: /server/github-mcp-server
+    args: ["stdio"]
+    port: 3000
+    env:
+      GITHUB_READ_ONLY: "0"
+      GITHUB_TOOLSETS: "issues,pull_requests,repos,context"
+      # Injected at apply time from the GITHUB_PAT env var (see header). Empty in
+      # git. Tokenless, the server starts but reads return an auth prompt, not data.
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_PAT}"
+    resources:
+      requests: { cpu: "50m", memory: "64Mi" }
+      limits:   { cpu: "300m", memory: "256Mi" }
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: github-mcp-remote
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: workshop-agents
+    workshop.tool: github
+spec:
+  description: GitHub MCP (issues+PRs+repos, per-agent least-privilege) fronting the in-cluster github-mcp stdio server
+  protocol: STREAMABLE_HTTP
+  url: http://github-mcp.kagent:3000/mcp
+  timeout: 30s
+  sseReadTimeout: 5m0s
+  terminateOnClose: true
+# After apply, confirm the tools registered before relying on them:
+#   kubectl -n kagent get remotemcpserver github-mcp-remote \
+#     -o jsonpath='{.status.discoveredTools[*].name}'
+#   → expect: list_issues issue_read issue_write search_issues add_issue_comment
+#     get_file_contents create_branch create_or_update_file push_files
+#     create_pull_request pull_request_read pull_request_review_write …

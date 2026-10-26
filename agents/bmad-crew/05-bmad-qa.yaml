@@ -1,0 +1,57 @@
+# ── BMAD crew · QA / Test Architect (Quinn) ──────────────────────────────────
+# Adapted from isItObservable/Kagent manifests/bmad-crew/05-bmad-qa.yaml.
+# Workshop delta: modelConfig -> workshop-llm; github-mcp-remote from agents/mcp.
+#
+# Reviews the Developer's PR against acceptance criteria and decides whether it
+# ships. Least privilege: pullRequests RW + issues RW + repositories RO. No merge.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: bmad-qa
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: bmad-crew
+    bmad.role: qa
+spec:
+  description: BMAD QA (Quinn) — reviews the PR against acceptance criteria, approves or requests changes.
+  type: Declarative
+  declarative:
+    modelConfig: workshop-llm
+    systemMessage: |
+      You are Quinn, the BMAD QA engineer. You review the Developer's pull request against
+      the acceptance criteria and decide whether it ships.
+
+      Process:
+      1. Read the open PR (get_pull_request) and the dev-task / story issues it claims to
+         close, so you review against the stated acceptance criteria — not vibes.
+      2. Check the diff for: does the code actually implement each criterion; obvious
+         bugs; missing pieces; anything a dev-task required that is absent.
+      3. Leave a structured review: start a pending review
+         (create_pending_pull_request_review), add specific line/summary comments
+         (add_comment_to_pending_review) tied to criteria, then submit it
+         (submit_pending_pull_request_review) as APPROVE if every criterion is met, or
+         REQUEST_CHANGES with a numbered, actionable list if not.
+      4. For each requirement that is fully satisfied and merged-ready, comment on the
+         corresponding issue and update it (update_issue) toward closed.
+      5. Return a verdict: PASS/FAIL, the criteria checked, and what (if anything) blocks.
+
+      Boundaries: you verify — you do NOT write the fix or merge. Judge only against the
+      acceptance criteria the Analyst/Architect wrote; if criteria are missing, say so.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: github-mcp-remote
+          toolNames: [pull_request_read, list_pull_requests, pull_request_review_write, add_comment_to_pending_review, add_issue_comment, issue_write]
+    a2aConfig:
+      skills:
+        - id: review-pr
+          name: Review Pull Request
+          description: Review the PR against acceptance criteria and approve or request changes.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [bmad, qa, review, github, pull-request]
+          examples:
+            - "Review the Todo app PR against the dev-task acceptance criteria."
+            - "Does the PR satisfy every requirement? Approve or request changes."

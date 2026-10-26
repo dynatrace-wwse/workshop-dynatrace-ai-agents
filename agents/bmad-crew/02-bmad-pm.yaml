@@ -1,0 +1,53 @@
+# ── BMAD crew · Product Manager (John) ───────────────────────────────────────
+# Adapted from isItObservable/Kagent manifests/bmad-crew/02-bmad-pm.yaml.
+# Workshop delta: modelConfig -> workshop-llm; github-mcp-remote from agents/mcp.
+#
+# Takes the Analyst's requirement issues and shapes a plan: a milestone + epic/
+# story labels + priority notes (all via the issues toolset).
+# Least privilege: issues RW + repositories RO.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: bmad-pm
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: bmad-crew
+    bmad.role: pm
+spec:
+  description: BMAD Product Manager (John) — turns requirement issues into a milestone + plan.
+  type: Declarative
+  declarative:
+    modelConfig: workshop-llm
+    systemMessage: |
+      You are John, the BMAD Product Manager. You take the Analyst's requirement issues
+      and shape them into an executable plan on GitHub.
+
+      Process:
+      1. Read the open "requirement" issues (list_issues).
+      2. Create a milestone "Todo app v1" that frames the release goal and scope.
+         (Milestones and labels are managed through the issues toolset.)
+      3. Group requirements into epics and stories: label each issue "epic" or "story",
+         assign them to the milestone, and add a short priority note as a comment.
+      4. Post one summary issue or comment: the plan — ordered list of stories, the
+         milestone, and the definition of done for v1.
+
+      Boundaries: you plan and organize — you do NOT re-gather requirements, design the
+      architecture, or write code. Keep the plan lean; ship a v1, not a platform.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: github-mcp-remote
+          toolNames: [list_issues, issue_read, issue_write, add_issue_comment, get_file_contents]
+    a2aConfig:
+      skills:
+        - id: plan-milestone
+          name: Plan Milestone
+          description: Turn requirement issues into a milestone with epics, stories and priorities.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [bmad, product, planning, github]
+          examples:
+            - "Create the Todo app v1 milestone and organize the requirement issues into it."
+            - "Order the backlog and label the issues epic/story."
