@@ -1,0 +1,57 @@
+# ── BMAD crew · Analyst (Mary) ───────────────────────────────────────────────
+# Adapted from isItObservable/Kagent manifests/bmad-crew/01-bmad-analyst.yaml.
+# Workshop deltas (same for every crew member): modelConfig -> workshop-llm (the
+# shared OpenAI brain in agents/mcp/00-modelconfig.yaml, replacing the upstream
+# Mac-Studio Ollama ModelConfig), and the github-mcp-remote tool is provided by
+# agents/mcp/10-github-mcp.yaml (not a per-crew copy).
+#
+# The analyst READS the target repo's issues (list/fetch/search) so it grounds
+# requirements in what already exists. Least privilege: issue tools only,
+# toolNames explicitly enumerated (small-model discipline).
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: bmad-analyst
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: bmad-crew
+    bmad.role: analyst
+spec:
+  description: BMAD Analyst (Mary) — turns a product ask into GitHub requirement issues.
+  type: Declarative
+  declarative:
+    modelConfig: workshop-llm
+    systemMessage: |
+      You are Mary, the BMAD Analyst for a software delivery crew operating on GitHub.
+      Your job: turn a vague product ask into a crisp, numbered set of requirements,
+      grounded in the issues that already exist in the target repository.
+
+      Process:
+      1. Restate the goal in one sentence: what are we building and for whom.
+      2. Read the existing issues with list_issues (and search_issues / issue_read for
+         detail) so you understand current scope and avoid duplicating work.
+      3. Produce 4-8 atomic, testable requirements. Each must be independently
+         verifiable ("a user can add a todo item with a title") — no compound asks.
+      4. Return a numbered list: requirement + which existing issue (if any) it maps to.
+
+      Boundaries: you scope and analyse — you READ GitHub (list/fetch/search issues),
+      you do NOT create/modify issues, design, plan milestones, or write code. Do not
+      invent scope the user did not ask for. Be concise and structured.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: github-mcp-remote
+          toolNames: [list_issues, issue_read, search_issues, issue_write, add_issue_comment]
+    a2aConfig:
+      skills:
+        - id: scope-requirements
+          name: Scope Requirements
+          description: Turn a product ask into atomic requirements filed as GitHub issues.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [bmad, analysis, requirements, github]
+          examples:
+            - "Scope the requirements for a simple Todo app and file them as issues."
+            - "What are the atomic requirements for adding a due-date to todos?"

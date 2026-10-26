@@ -16,10 +16,24 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 
 | Variable | Purpose | Example / format |
 |----------|---------|------------------|
-| `DT_TENANT_URL` | Dynatrace tenant used by the Operator (k8smonitoring) and the Dynatrace MCP. | `https://abc12345.live.dynatrace.com` |
-| `DT_API_TOKEN` | Dynatrace API token. Scopes needed by later phases: Kubernetes monitoring / ActiveGate token for the operator, plus read scopes for the MCP (metrics/problems/entities). | `dt0c01.XXXX...` |
-| `GITHUB_TOKEN` | Token for the **GitHub MCP** wired into the agents (Phase 3). In Codespaces a scoped `GITHUB_TOKEN` is usually injected automatically; provide a PAT only if broader scopes are required. | `ghp_...` / `github_pat_...` |
-| `LLM_API_KEY` | Model-provider key that powers the kagent agents. Which provider is chosen in Phase 3 — set whichever matches the chosen model. | provider-specific |
+| `DT_TENANT_URL` | Dynatrace tenant used by the Operator (k8smonitoring) and OTLP export. | `https://abc12345.live.dynatrace.com` |
+| `DT_API_TOKEN` | Dynatrace API token for the operator + OTLP ingest (metrics/traces/logs ingest scopes). | `dt0c01.XXXX...` |
+| `GITHUB_TOKEN` / `GITHUB_PAT` | Token for the **GitHub MCP** wired into the BMAD crew (Phase 3). Codespaces injects a scoped `GITHUB_TOKEN`; for the write demo provide a **fine-grained `GITHUB_PAT`** scoped to the one demo repo (Contents RW · Issues RW · Pull requests RW; no org/admin). The installer prefers `GITHUB_PAT`, falling back to `GITHUB_TOKEN`. | `github_pat_...` |
+| `LLM_API_KEY` | Model-provider key that powers the kagent agents (OpenAI by default). | provider-specific |
+
+## Phase 3 — Dynatrace MCP (SRE agent)
+
+The **Dynatrace MCP server** (`@dynatrace-oss/dynatrace-mcp-server`) authenticates
+against the Dynatrace **platform**, which uses a different token and URL than the
+Phase-2 operator/OTLP pair above:
+
+| Variable | Purpose | Example / format |
+|----------|---------|------------------|
+| `DT_PLATFORM_TOKEN` | Dynatrace **platform** token for the SRE agent's Dynatrace tools (problems/entities/logs/metrics). Distinct from `DT_API_TOKEN`. | `dt0s16.XXXX...` |
+| `DT_ENVIRONMENT` | Dynatrace **platform (apps)** URL. If unset, `agents/install-agents.sh` derives it from `DT_TENANT_URL` by swapping `.live.`→`.apps.`. | `https://abc12345.apps.dynatrace.com` |
+
+These are injected at **apply time** by `agents/install-agents.sh` (into the
+kagent-managed MCP server pods) — not stored as long-lived cluster secrets.
 
 ## Optional secrets
 

@@ -47,3 +47,4 @@ nav:
   - Home: index.md
   - "00 — Setup (Codespace)": 00-setup.md
   - "01 — Platform install": 01-platform-install.md
+  - "02 — Agents & MCP wiring": 02-agents-mcp.md

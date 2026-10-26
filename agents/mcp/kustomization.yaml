@@ -1,0 +1,15 @@
+# Phase 3 · MCP wiring + shared model config.
+#
+# IMPORTANT: 10-github-mcp.yaml and 20-dynatrace-mcp.yaml carry ${...} token/image
+# placeholders, so they must be rendered through envsubst before apply.
+# agents/install-agents.sh applies the three files individually with envsubst —
+# do NOT `kubectl apply -k` this directory: kustomize re-emits the Dynatrace
+# package arg (@dynatrace-oss/...) as an UNQUOTED scalar, which is invalid YAML.
+# This kustomization is kept only as a manifest index / for tooling discovery.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kagent
+resources:
+  - 00-modelconfig.yaml   # workshop-llm — the shared brain every agent references
+  - 10-github-mcp.yaml    # GitHub MCP (BMAD crew write surface)
+  - 20-dynatrace-mcp.yaml # Dynatrace MCP (SRE agent observability surface)
