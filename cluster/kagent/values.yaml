@@ -1,0 +1,55 @@
+# Helm values for kagent (OCI chart oci://ghcr.io/kagent-dev/kagent/helm/kagent).
+# Installed by cluster/install.sh into namespace `kagent`, AFTER the kagent-crds
+# chart. This is a **clean base**: the controller, UI, kmcp (MCP framework) and
+# the bundled database run, but NO default agents and NO default tool servers are
+# installed — Phase 3 (agents & MCP wiring) adds the SRE agent, the BMAD
+# crew, and the GitHub/Dynatrace/k8s MCP servers on top of this.
+
+# --- Clean base: disable every built-in agent -------------------------------
+k8s-agent:            { enabled: false }
+kgateway-agent:       { enabled: false }
+istio-agent:          { enabled: false }
+promql-agent:         { enabled: false }
+observability-agent:  { enabled: false }
+argo-rollouts-agent:  { enabled: false }
+helm-agent:           { enabled: false }
+cilium-policy-agent:  { enabled: false }
+cilium-manager-agent: { enabled: false }
+cilium-debug-agent:   { enabled: false }
+
+# --- Clean base: disable the bundled tool servers ---------------------------
+kagent-tools: { enabled: false }   # built-in tool bundle
+grafana-mcp:  { enabled: false }   # default Grafana MCP tool server
+
+# kmcp (the MCP controller framework) stays ENABLED — it is platform plumbing,
+# not an agent/tool, and Phase 3 needs it to register MCP servers.
+kmcp: { enabled: true }
+
+# --- Model provider ----------------------------------------------------------
+# Provider choice is decided in Phase 3. Default to OpenAI; the key
+# is read from secret/kagent-openai (created by secrets.sh from LLM_API_KEY or
+# OPENAI_API_KEY). Switch `default` to anthropic/ollama/gemini in Phase 3 as
+# decided — the chart generates the matching default ModelConfig.
+providers:
+  default: openAI
+  openAI:
+    apiKeySecretRef: kagent-openai
+    apiKeySecretKey: OPENAI_API_KEY
+
+# --- Observability: export kagent traces to the OTel gateway -----------------
+# So that once Phase 3 adds agents, their LLM/tool spans flow to Dynatrace +
+# Phoenix with zero extra wiring.
+otel:
+  tracing:
+    enabled: true
+    exporter:
+      otlp:
+        endpoint: "otel-gateway-collector.opentelemetry-operator-system.svc.cluster.local:4317"
+        protocol: "grpc"
+        insecure: true
+
+# --- Footprint trims for the Codespace --------------------------------------
+controller:
+  replicas: 1
+ui:
+  replicas: 1

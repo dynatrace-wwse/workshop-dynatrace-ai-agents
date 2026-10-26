@@ -19,7 +19,7 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 | `DT_TENANT_URL` | Dynatrace tenant used by the Operator (k8smonitoring) and the Dynatrace MCP. | `https://abc12345.live.dynatrace.com` |
 | `DT_API_TOKEN` | Dynatrace API token. Scopes needed by later phases: Kubernetes monitoring / ActiveGate token for the operator, plus read scopes for the MCP (metrics/problems/entities). | `dt0c01.XXXX...` |
 | `GITHUB_TOKEN` | Token for the **GitHub MCP** wired into the agents (Phase 3). In Codespaces a scoped `GITHUB_TOKEN` is usually injected automatically; provide a PAT only if broader scopes are required. | `ghp_...` / `github_pat_...` |
-| `LLM_API_KEY` | Model-provider key that powers the kagent agents. Which provider is the §7.3 open question — set whichever matches the chosen model. | provider-specific |
+| `LLM_API_KEY` | Model-provider key that powers the kagent agents. Which provider is chosen in Phase 3 — set whichever matches the chosen model. | provider-specific |
 
 ## Optional secrets
 
@@ -30,10 +30,10 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 
 ## How secrets flow into the cluster
 
-Phase 1 only **verifies presence**. Phase 2 (ISI-6715) consumes them, e.g.:
+The bootstrap only **verifies presence**. The platform install consumes them, e.g.:
 
 ```bash
-# Example only — Phase 2 owns the real manifests/Helm values.
+# Example only — the platform install owns the real manifests/Helm values.
 kubectl -n dynatrace create secret generic dynatrace-tokens \
   --from-literal=apiToken="$DT_API_TOKEN" --dry-run=client -o yaml | kubectl apply -f -
 ```

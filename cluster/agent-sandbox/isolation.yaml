@@ -1,0 +1,54 @@
+# Agent Sandbox — isolation baseline for the `agent-sandbox` namespace.
+#
+# Phase 2 ships a working, self-contained isolation baseline that needs no
+# external project, so the acceptance criteria (all components healthy) are met
+# today. The choice of which upstream sandbox to standardise on for Phase 3+
+# (kagent `substrate` vs. kubernetes-sigs/agent-sandbox) is still open —
+# see README.md. Swapping in that project later is
+# additive and does not change this baseline.
+#
+# What this enforces for anything scheduled into `agent-sandbox`:
+#   1. Pod Security Admission "restricted" — no privilege escalation, drop ALL
+#      caps, non-root, seccomp RuntimeDefault.
+#   2. Default-deny NetworkPolicy — a sandboxed agent cannot talk to the rest of
+#      the cluster; only DNS and egress to the OTel gateway are allowed.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-sandbox
+  labels:
+    # Pod Security Admission: enforce the strictest profile in this namespace.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: agent-sandbox
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  # No ingress rules => deny all ingress.
+  ingress: []
+  egress:
+    # Allow DNS so the sandbox can resolve names.
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # Allow telemetry egress to the OTel gateway so sandboxed agents stay observable.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: opentelemetry-operator-system
+      ports:
+        - { protocol: TCP, port: 4317 }
+        - { protocol: TCP, port: 4318 }

@@ -1,0 +1,82 @@
+# Phoenix (Arize) — LLM trace + eval UI for the workshop.
+# Applied by cluster/install.sh into namespace `phoenix`.
+#
+# Phoenix is a TERMINAL OTLP backend: the OTel gateway fans traces out to it
+# (see cluster/otel/collector-gateway.yaml). Attendees open the UI on the
+# forwarded Codespace port 6006.
+#
+# Ports: 6006 = UI + OTLP/HTTP ingest, 4317 = OTLP/gRPC ingest.
+# Image + layout verified working against Phoenix OTLP ingest.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: phoenix-data
+  namespace: phoenix
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+  # Empty storageClassName => cluster default (k3d: local-path, kind: standard).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix
+  namespace: phoenix
+  labels: { app: phoenix }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # single RWO PVC — never two writers
+  selector:
+    matchLabels: { app: phoenix }
+  template:
+    metadata:
+      labels: { app: phoenix }
+    spec:
+      securityContext:
+        fsGroup: 1000            # let the non-root image write the PVC
+      containers:
+        - name: phoenix
+          image: arizephoenix/phoenix:version-20.19.0-nonroot
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PHOENIX_WORKING_DIR
+              value: /mnt/data
+            - name: PHOENIX_PORT
+              value: "6006"
+            - name: PHOENIX_GRPC_PORT
+              value: "4317"
+          ports:
+            - { name: ui-http, containerPort: 6006 }
+            - { name: otlp-grpc, containerPort: 4317 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 6006 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 6006 }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - { name: data, mountPath: /mnt/data }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: phoenix-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phoenix
+  namespace: phoenix
+  labels: { app: phoenix }
+spec:
+  selector: { app: phoenix }
+  ports:
+    - { name: ui-http, port: 6006, targetPort: 6006 }
+    - { name: otlp-grpc, port: 4317, targetPort: 4317 }

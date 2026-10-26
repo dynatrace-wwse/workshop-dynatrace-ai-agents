@@ -1,1 +1,1 @@
-# agents/bmad-crew — placeholder (Phase 3, ISI-6716).
+# agents/bmad-crew — placeholder (Phase 3).

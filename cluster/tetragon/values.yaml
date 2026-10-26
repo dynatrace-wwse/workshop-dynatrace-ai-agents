@@ -1,0 +1,31 @@
+# Helm values for Tetragon (chart cilium/tetragon) — eBPF runtime security.
+# Installed by cluster/install.sh into namespace `tetragon`.
+#
+# Tetragon observes (and can enforce) process-execution and network behaviour of
+# the agent workloads via eBPF. In the workshop it demonstrates runtime security
+# for AI agents (module 5 of the learning arc).
+#
+# eBPF note (hand-off from Phase 1 DECISIONS.md): k3d/kind nodes are containers
+# sharing the Codespace host kernel. Tetragon needs to load its BPF programs into
+# that kernel. If the host kernel lacks BTF or blocks the probes, install.sh will
+# report the DaemonSet as not-Ready; fall back is documented in README.md.
+tetragon:
+  enabled: true
+  # Export process-exec/exit and the TracingPolicy events to the JSON log so the
+  # workshop can `kubectl logs` them and (later) ship them via the OTel collector.
+  exportFilename: tetragon.log
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+tetragonOperator:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi

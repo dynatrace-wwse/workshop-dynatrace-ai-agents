@@ -2,8 +2,9 @@
 
 Hands-on workshop: cost-efficient AI agent workflows with **BMAD, kagent,
 Kubernetes, and Dynatrace AI Observability**. The entire lab runs inside a
-**GitHub Codespace**. See [ISI-6696](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop)
-for the full workshop plan.
+**GitHub Codespace** — you provision a local Kubernetes cluster, install the
+observability and agent platform, wire up AI agents, and explore how to run and
+evaluate them cost-efficiently.
 
 ## Quick start (Codespace)
 
@@ -33,16 +34,16 @@ mkdocs.yml
 
 ## Phases
 
-| Phase | Scope | Issue |
-|-------|-------|-------|
-| 1 | Devcontainer & Codespace bootstrap | ISI-6713 ✅ |
-| 2 | Platform install (operators, kagent, Tetragon, Agent Sandbox, Phoenix) | ISI-6715 |
-| 3 | Agents & MCP wiring (SRE agent + BMAD crew) | ISI-6716 |
-| 4 | Evaluations (Phoenix + dt-evals) | — |
-| 5 | Optimization module (Dynatrace AI Observability) | — |
-| 6 | mkdocs workshop content | — |
+| Phase | Scope |
+|-------|-------|
+| 1 | Devcontainer & Codespace bootstrap |
+| 2 | Platform install (operators, kagent, Tetragon, Agent Sandbox, Phoenix) |
+| 3 | Agents & MCP wiring (SRE agent + BMAD crew) |
+| 4 | Evaluations (Phoenix + dt-evals) |
+| 5 | Optimization module (Dynatrace AI Observability) |
+| 6 | mkdocs workshop content |
 
 ## Key docs
 
 - [Codespace secrets contract](.devcontainer/SECRETS.md)
-- [Phase 1 decisions (k3d vs kind, machine type)](.devcontainer/DECISIONS.md)
+- [Architecture notes (k3d vs kind, machine type)](.devcontainer/DECISIONS.md)
