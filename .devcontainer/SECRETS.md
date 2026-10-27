@@ -19,7 +19,7 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 | `DT_TENANT_URL` | Dynatrace tenant used by the Operator (k8smonitoring) and OTLP export. | `https://abc12345.live.dynatrace.com` |
 | `DT_API_TOKEN` | Dynatrace API token for the operator + OTLP ingest (metrics/traces/logs ingest scopes). | `dt0c01.XXXX...` |
 | `GITHUB_TOKEN` / `GITHUB_PAT` | Token for the **GitHub MCP** wired into the BMAD crew (Phase 3). Codespaces injects a scoped `GITHUB_TOKEN`; for the write demo provide a **fine-grained `GITHUB_PAT`** scoped to the one demo repo (Contents RW · Issues RW · Pull requests RW; no org/admin). The installer prefers `GITHUB_PAT`, falling back to `GITHUB_TOKEN`. | `github_pat_...` |
-| `LLM_API_KEY` | Model-provider key that powers the kagent agents (OpenAI by default). | provider-specific |
+| `LLM_API_KEY` / `DEEPSEEK_API_KEY` | Model-provider key that powers the kagent agents. **DeepSeek by default** (Phase 3, cost-efficient; `secret/kagent-deepseek`). `DEEPSEEK_API_KEY` is preferred; `LLM_API_KEY` is the generic fallback and should hold the DeepSeek key when DeepSeek is the provider. | `sk-...` (DeepSeek) |
 
 ## Phase 3 — Dynatrace MCP (SRE agent)
 
@@ -39,8 +39,8 @@ kagent-managed MCP server pods) — not stored as long-lived cluster secrets.
 
 | Variable | Purpose |
 |----------|---------|
-| `OPENAI_API_KEY` | If agents target an OpenAI-compatible endpoint. |
-| `ANTHROPIC_API_KEY` | If agents target Anthropic models. |
+| `OPENAI_API_KEY` | If you switch the agents back to OpenAI (`secret/kagent-openai`). |
+| `ANTHROPIC_API_KEY` | If agents target Anthropic models (`secret/kagent-anthropic`). |
 
 ## How secrets flow into the cluster
 

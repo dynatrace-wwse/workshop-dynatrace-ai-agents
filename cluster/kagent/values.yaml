@@ -31,15 +31,21 @@ grafana-mcp:  { enabled: false }   # default Grafana MCP tool server (unused her
 kmcp: { enabled: true }
 
 # --- Model provider ----------------------------------------------------------
-# Provider choice is decided in Phase 3. Default to OpenAI; the key
-# is read from secret/kagent-openai (created by secrets.sh from LLM_API_KEY or
-# OPENAI_API_KEY). Switch `default` to anthropic/ollama/gemini in Phase 3 as
-# decided — the chart generates the matching default ModelConfig.
+# Phase 3 (ISI-6716) decided DeepSeek for the workshop (cost-efficiency theme).
+# DeepSeek's API is OpenAI-compatible, so we use the `openAI` provider with the
+# baseUrl pointed at DeepSeek and the deepseek-chat model; the key is read from
+# secret/kagent-deepseek (created by secrets.sh from DEEPSEEK_API_KEY or LLM_API_KEY).
+# This sets the chart's *default* ModelConfig; the agents themselves reference the
+# `workshop-llm` ModelConfig in agents/mcp/00-modelconfig.yaml (same DeepSeek config).
 providers:
   default: openAI
   openAI:
-    apiKeySecretRef: kagent-openai
-    apiKeySecretKey: OPENAI_API_KEY
+    provider: OpenAI
+    model: deepseek-chat
+    apiKeySecretRef: kagent-deepseek
+    apiKeySecretKey: DEEPSEEK_API_KEY
+    config:
+      baseUrl: https://api.deepseek.com/v1
 
 # --- Observability: export kagent traces to the OTel gateway -----------------
 # So that once Phase 3 adds agents, their LLM/tool spans flow to Dynatrace +

@@ -44,22 +44,32 @@ else
 fi
 
 # --- kagent model-provider secret -------------------------------------------
-# Provider is decided in Phase 3. Default values target OpenAI.
-# Create whichever secret matches the key that is actually present.
-MODEL_KEY="${LLM_API_KEY:-${OPENAI_API_KEY:-}}"
-if [ -n "${MODEL_KEY}" ]; then
+# Phase 3 default provider is DeepSeek (OpenAI-API compatible). LLM_API_KEY is the
+# generic model-provider key — when DeepSeek is the provider it holds the DeepSeek
+# key. Create whichever secret matches the key(s) actually present.
+# DeepSeek (default): secret/kagent-deepseek, key DEEPSEEK_API_KEY.
+DEEPSEEK_KEY="${DEEPSEEK_API_KEY:-${LLM_API_KEY:-}}"
+if [ -n "${DEEPSEEK_KEY}" ]; then
+  kubectl create secret generic kagent-deepseek -n kagent \
+    --from-literal=DEEPSEEK_API_KEY="${DEEPSEEK_KEY}" \
+    --dry-run=client -o yaml | apply_secret
+  ok "secret/kagent-deepseek (kagent) upserted"
+fi
+# OpenAI alternative: secret/kagent-openai, key OPENAI_API_KEY.
+if [ -n "${OPENAI_API_KEY:-}" ]; then
   kubectl create secret generic kagent-openai -n kagent \
-    --from-literal=OPENAI_API_KEY="${MODEL_KEY}" \
+    --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY}" \
     --dry-run=client -o yaml | apply_secret
   ok "secret/kagent-openai (kagent) upserted"
 fi
+# Anthropic alternative: secret/kagent-anthropic, key ANTHROPIC_API_KEY.
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   kubectl create secret generic kagent-anthropic -n kagent \
     --from-literal=ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
     --dry-run=client -o yaml | apply_secret
   ok "secret/kagent-anthropic (kagent) upserted"
 fi
-[ -n "${MODEL_KEY}${ANTHROPIC_API_KEY:-}" ] || \
-  warn "no model key (LLM_API_KEY/OPENAI_API_KEY/ANTHROPIC_API_KEY) — kagent installs clean but agents need a key in Phase 3"
+[ -n "${DEEPSEEK_KEY}${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}" ] || \
+  warn "no model key (DEEPSEEK_API_KEY/LLM_API_KEY/OPENAI_API_KEY/ANTHROPIC_API_KEY) — kagent installs clean but agents need a key for Phase 3"
 
 ok "secret provisioning complete"

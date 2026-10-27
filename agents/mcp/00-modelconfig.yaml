@@ -3,16 +3,19 @@
 # ModelConfig by name (`modelConfig: workshop-llm`). Defining it once here keeps
 # the model/provider choice in a single place.
 #
-# Default: OpenAI, reading the key from secret/kagent-openai (created by
-# cluster/secrets.sh from LLM_API_KEY or OPENAI_API_KEY — the same secret the
-# kagent chart's default provider uses). The model MUST support function/tool
-# calling (the BMAD crew is multi-hop tool use); gpt-4.1-mini is a cheap, capable
-# default — bump to gpt-4.1 for heavier BMAD runs (change here, re-apply).
+# Default: DeepSeek (ISI-6716 — chosen for the workshop's cost-efficiency theme).
+# DeepSeek's API is OpenAI-compatible, so we use kagent's OpenAI provider with the
+# baseUrl pointed at DeepSeek. The model MUST support function/tool calling (the
+# BMAD crew is multi-hop tool use); deepseek-chat (DeepSeek-V3) does.
 #
-# To run on Anthropic instead: set provider: Anthropic, apiKeySecretRef:
-# kagent-anthropic, apiKeySecretKey: ANTHROPIC_API_KEY, model: a Claude model id,
-# and swap the `openAI: {}` block for `anthropic: {}` (secret created by
-# secrets.sh from ANTHROPIC_API_KEY).
+# The key is read from secret/kagent-deepseek (created by cluster/secrets.sh from
+# DEEPSEEK_API_KEY, or LLM_API_KEY as a fallback).
+#
+# ── Alternatives (swap here + the matching secret in cluster/secrets.sh) ──────
+#   OpenAI:    baseUrl: (drop it), model: gpt-4.1-mini,
+#              apiKeySecretRef: kagent-openai,  apiKeySecretKey: OPENAI_API_KEY
+#   Anthropic: provider: Anthropic, model: <claude id>, swap openAI:{} -> anthropic:{},
+#              apiKeySecretRef: kagent-anthropic, apiKeySecretKey: ANTHROPIC_API_KEY
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
@@ -21,8 +24,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: workshop-agents
 spec:
-  provider: OpenAI
-  model: gpt-4.1-mini            # keep in sync with WORKSHOP_LLM_MODEL in cluster/versions.env
-  apiKeySecretRef: kagent-openai
-  apiKeySecretKey: OPENAI_API_KEY
-  openAI: {}
+  provider: OpenAI                  # DeepSeek is OpenAI-API-compatible
+  model: deepseek-chat              # keep in sync with WORKSHOP_LLM_MODEL in cluster/versions.env
+  apiKeySecretRef: kagent-deepseek
+  apiKeySecretKey: DEEPSEEK_API_KEY
+  openAI:
+    baseUrl: https://api.deepseek.com/v1   # DeepSeek OpenAI-compatible endpoint

@@ -6,10 +6,10 @@ two agent sets. Everything lives under
 and installs with one idempotent script.
 
 !!! info "What gets deployed"
-    A shared **`workshop-llm`** ModelConfig (OpenAI), the **GitHub** and
-    **Dynatrace** MCP tool servers, an **SRE agent**, and the six-member **BMAD
-    crew**. kagent's built-in **`kagent-tool-server`** (default Kubernetes
-    tooling) is turned on for this phase.
+    A shared **`workshop-llm`** ModelConfig (**DeepSeek**, OpenAI-API compatible),
+    the **GitHub** and **Dynatrace** MCP tool servers, an **SRE agent**, and the
+    six-member **BMAD crew**. kagent's built-in **`kagent-tool-server`** (default
+    Kubernetes tooling) is turned on for this phase.
 
 ## The tool surfaces
 
@@ -19,7 +19,11 @@ and installs with one idempotent script.
 | Dynatrace (problems, entities, logs/DQL, metrics, Davis) | `dynatrace-mcp-remote` | SRE |
 | GitHub (issues, PRs, repo contents) | `github-mcp-remote` | BMAD crew |
 
-All agents share one model (`workshop-llm`, OpenAI, reading `secret/kagent-openai`).
+All agents share one model: **`workshop-llm`** — **DeepSeek** (`deepseek-chat`,
+DeepSeek-V3), chosen for the workshop's cost-efficiency theme. DeepSeek's API is
+OpenAI-compatible, so kagent's OpenAI provider is pointed at
+`https://api.deepseek.com/v1` and reads the key from `secret/kagent-deepseek`.
+Swap to OpenAI or Anthropic in `agents/mcp/00-modelconfig.yaml` (one-line change).
 
 ## 1. Enable the default Kubernetes tooling
 
