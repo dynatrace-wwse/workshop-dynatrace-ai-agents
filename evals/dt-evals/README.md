@@ -89,6 +89,6 @@ namespace each attendee's agents with a unique `service.name` suffix
 per-attendee scoped API tokens. Expect higher cardinality and cross-talk in
 shared dashboards; document the naming scheme up front.
 
-> This recommendation is pending Henrik's confirmation on ISI-6719. The configs
+> **Confirmed by the board (2026-10-27): per-attendee tenant** (ISI-6719). The configs
 > here work unchanged either way — only `DT_ENVIRONMENT_URL` / `DT_EVAL_SERVICE`
 > differ per model.
