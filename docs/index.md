@@ -29,7 +29,21 @@ Observability** — all from a single GitHub Codespace.
 
 ## Start here
 
-Head to **[00 — Setup (Codespace)](00-setup.md)** to boot your environment.
+New to kagent? Read **[kagent in 5 minutes](kagent-explainer.md)** for the mental
+model, then head to **[00 — Setup (Codespace)](00-setup.md)** to boot your
+environment. The modules run in order:
+
+1. [kagent in 5 minutes](kagent-explainer.md) — the runtime, in one page.
+2. [00 — Setup (Codespace)](00-setup.md) — boot the cluster.
+3. [01 — Platform install](01-platform-install.md) — operators, kagent, Tetragon, Phoenix.
+4. [02 — Agents & MCP wiring](02-agents-mcp.md) — deploy the SRE agent + BMAD crew.
+5. [03 — Secure agents](03-secure.md) — Tetragon + Agent Sandbox.
+6. [04 — Observe with Dynatrace](04-observe.md) — cost, tokens, latency.
+7. [05 — Evaluate (Phoenix + dt-evals)](05-evaluate.md) — score quality + cost.
+8. [06 — Optimize](06-optimize.md) — cut the waste, keep the quality.
+
+Stuck anywhere? The [Troubleshooting](troubleshooting.md) page collects the
+common fixes per module.
 
 > This site is built with MkDocs Material and served from the Codespace on
 > forwarded port **8000** (`mkdocs serve -a 0.0.0.0:8000`).
