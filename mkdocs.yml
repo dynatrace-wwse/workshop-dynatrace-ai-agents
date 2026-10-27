@@ -41,10 +41,17 @@ markdown_extensions:
       permalink: true
   - tables
 
-# Nav mirrors the learning arc. Phase 6 fills in modules 01..08;
-# Phase 1 ships the shell + the setup module so `mkdocs build` passes today.
+# Nav mirrors the plan §2 learning arc end to end:
+# Why (Home) → kagent intro → build cluster → platform → deploy agents →
+# secure → observe → evaluate → optimize, plus a consolidated troubleshooting ref.
 nav:
   - Home: index.md
+  - "kagent in 5 minutes": kagent-explainer.md
   - "00 — Setup (Codespace)": 00-setup.md
   - "01 — Platform install": 01-platform-install.md
   - "02 — Agents & MCP wiring": 02-agents-mcp.md
+  - "03 — Secure agents": 03-secure.md
+  - "04 — Observe with Dynatrace": 04-observe.md
+  - "05 — Evaluate (Phoenix + dt-evals)": 05-evaluate.md
+  - "06 — Optimize": 06-optimize.md
+  - Troubleshooting: troubleshooting.md
