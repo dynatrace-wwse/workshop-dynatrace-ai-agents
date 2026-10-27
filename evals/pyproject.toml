@@ -1,0 +1,21 @@
+# uv project for the Phoenix eval path (Phase 4).
+#   cd evals && uv sync && uv run python phoenix/run_phoenix_eval.py
+#
+# Versions are pinned: the arize-phoenix-evals API moved (1.x -> 3.x) and the
+# workshop must keep working. Bump deliberately, not by floating ranges.
+[project]
+name = "workshop-evals"
+version = "0.1.0"
+description = "Phoenix LLM-judge evals for the Dynatrace AI Agent Workshop"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "arize-phoenix-evals==3.9.4",   # LLM, create_classifier, evaluate_dataframe
+    "arize-phoenix-client==3.5.0",  # fetch spans + log annotations to the UI
+    "openai>=1.40",                 # judge transport (OpenAI-compatible → DeepSeek)
+    "pandas>=2.0",
+    "python-dotenv>=1.0",
+]
+
+[tool.uv]
+# Keep the lock reproducible across attendee machines.
+package = false

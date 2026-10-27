@@ -1,0 +1,69 @@
+# dt-evals config for the workshop agents (Phase 4).
+#   cd evals/dt-evals && ./run-dt-eval.sh
+#
+# dt-evals pulls gen_ai.* spans from Dynatrace, scores them with an LLM judge,
+# and writes gen_ai.evaluation.result bizevents back. Schema + fields verified
+# against dynatrace-oss/dt-evals dt-eval-cli/example.dt-eval.yaml (schemaVersion 3).
+schemaVersion: 3
+
+name: workshop-agents
+
+# --- Dynatrace connection ----------------------------------------------------
+dynatrace:
+  # Platform "apps" URL. Derived from DT_TENANT_URL (.live. -> .apps.) if you use
+  # run-dt-eval.sh. Example: https://abc12345.apps.dynatrace.com
+  environmentUrl: ${DT_ENVIRONMENT_URL}
+  # Token with scopes: bizevents.ingest + storage.read. This is a DEDICATED
+  # dt-evals token — NOT the Phase-2 OTLP ingest token. run-dt-eval.sh reads it
+  # from DYNATRACE_API_TOKEN so it never lands in this file.
+  apiToken: ${DYNATRACE_API_TOKEN}
+
+# --- Judge (LLM-as-a-judge) --------------------------------------------------
+# Same cost-efficient model as the agents: DeepSeek via its OpenAI-compatible API.
+# provider: openai + a custom baseUrl is how dt-evals talks to any OpenAI-API
+# gateway. Swap to real OpenAI by dropping baseUrl and setting model: gpt-4o.
+judge:
+  provider: openai
+  model: deepseek-chat
+  baseUrl: https://api.deepseek.com/v1
+  apiKey: ${OPENAI_API_KEY}
+  timeout: 60000
+  maxRetries: 2
+  concurrency: 3            # keep modest — attendee judge keys are rate-limited
+
+# --- Scope: which spans to evaluate ------------------------------------------
+scope:
+  # service.name of the agent as it appears in Dynatrace. DISCOVER THIS FIRST —
+  # it is set by kagent, not guessed. See README "Discover your service.name".
+  # Common values in this workshop: the SRE agent or a BMAD crew member.
+  service: ${DT_EVAL_SERVICE}
+  since: 2h                 # look-back window for span collection
+  sampling:
+    strategy: latest        # most recent N spans — predictable for a live demo
+    count: 25
+
+# --- Metrics: which evals to run ---------------------------------------------
+# A focused, agent-relevant set. Trim or extend from the full catalogue
+# (dt-evals evaluators list). LLM-judge metrics cost one judge call each.
+metrics:
+  enabled:
+    - relevance             # did the agent answer the question asked
+    - faithfulness          # answer grounded in tool output / retrieved context
+    - hallucination         # fabricated facts not supported by context
+    - coherence             # logical, readable response
+    - toxicity              # safety guardrail
+    - prompt-injection      # adversarial input slipped through a tool result
+
+# --- Alerts: thresholds that make a run exit non-zero (CI-friendly) ----------
+alerts:
+  thresholds:
+    hallucination: 0        # fail if any hallucination detected
+    prompt-injection: 0     # fail on any injection
+    toxicity: 1             # fail above 1/5
+    relevance: 0.6
+    faithfulness: 0.7
+    coherence: 3            # out of 5
+
+# Prompts/responses are NOT written to bizevents by default (PII-safe). Opt in
+# for the workshop only if attendees want to see the evaluated text in Dynatrace:
+# storeEvaluatedPrompt: true

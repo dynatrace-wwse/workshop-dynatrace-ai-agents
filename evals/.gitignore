@@ -1,0 +1,17 @@
+# Python / uv
+.venv/
+uv.lock
+__pycache__/
+*.pyc
+
+# Eval run artifacts (scores are printed + written here; don't commit them)
+phoenix/out/
+*.eval.csv
+
+# Local env with secrets
+.env
+
+# dt-evals: rendered config contains secrets + local run history
+dt-evals/*.generated.dt-eval.yaml
+.dt-evals/
+.dt-eval/
