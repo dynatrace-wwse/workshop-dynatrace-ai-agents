@@ -59,5 +59,4 @@ cd evals/dt-evals && ./run-dt-eval.sh
 
 **Recommendation: per-attendee tenant** (each attendee uses their own Dynatrace
 free trial / sandbox). Rationale and the shared-tenant fallback are documented in
-[`dt-evals/README.md`](dt-evals/README.md#tenant-model-74). This is pending
-Henrik's confirmation on the issue thread (ISI-6719).
+[`dt-evals/README.md`](dt-evals/README.md#tenant-model-74). **Confirmed by the board (2026-10-27): per-attendee tenant** (ISI-6719).
