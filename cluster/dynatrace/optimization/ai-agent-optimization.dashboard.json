@@ -1,0 +1,127 @@
+{
+  "name": "Workshop · AI Agent Optimization (ISI-6720)",
+  "type": "dashboard",
+  "content": {
+    "version": 21,
+    "variables": [],
+    "tiles": {
+      "header": {
+        "type": "markdown",
+        "content": "# AI Agent Optimization\nFind the waste, then cut it. This dashboard reads **`gen_ai.*` spans** emitted by the kagent crew (namespace `kagent`) and surfaces the three highest-leverage optimization signals:\n\n1. **Token spend by agent** — rank who costs the most; a 20% cut on the top spender beats a 50% cut on a rare one.\n2. **Input : output ratio & tools used** — a high input ratio + few distinct tools used = a bloated prompt / unused tool schemas you can trim.\n3. **Inefficient loops** — tasks that burned many `call_llm` hops re-sending the same context.\n\n> Re-measure here **before and after** each change. Keep the change only if cost dropped and the eval pass rate (module 05) held. See `docs/06-optimize.md`."
+      },
+      "sv-total-tokens": {
+        "type": "data",
+        "title": "Total tokens (crew)",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens) | summarize totalTokens = sum(gen_ai.usage.input_tokens) + sum(gen_ai.usage.output_tokens)",
+        "visualization": "singleValue",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "sv-llm-calls": {
+        "type": "data",
+        "title": "LLM calls",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and span.name == \"call_llm\" | summarize llmCalls = count()",
+        "visualization": "singleValue",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "sv-tool-calls": {
+        "type": "data",
+        "title": "Tool calls",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and gen_ai.operation.name == \"execute_tool\" | summarize toolCalls = count()",
+        "visualization": "singleValue",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "sv-tasks": {
+        "type": "data",
+        "title": "Agent tasks",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and span.name == \"call_llm\" | summarize tasks = countDistinct(gen_ai.task.id)",
+        "visualization": "singleValue",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "md-spend": {
+        "type": "markdown",
+        "content": "## 1 · Rank agents by spend — start at the top"
+      },
+      "spend-bar": {
+        "type": "data",
+        "title": "Token spend by agent",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens) | summarize tokens = sum(gen_ai.usage.input_tokens) + sum(gen_ai.usage.output_tokens), by:{service.name} | sort tokens desc",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "ratio-table": {
+        "type": "data",
+        "title": "Input : output ratio (waste signature)",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens) | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens), outputTokens = sum(gen_ai.usage.output_tokens), by:{agent = service.name} | fieldsAdd totalTokens = inputTokens + outputTokens, inOutRatio = round(toDouble(inputTokens) / outputTokens, decimals: 1), avgInputPerCall = round(toDouble(inputTokens) / llmCalls) | sort totalTokens desc",
+        "visualization": "table",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "md-tools": {
+        "type": "markdown",
+        "content": "## 2 · Find unused tools — every granted tool is billed on every prompt\nCompare each agent's **granted** `toolNames` (in `agents/**/**.yaml`) against the tools it **actually calls** below. Tools never called are pure input-token overhead on every request — drop them."
+      },
+      "distinct-tools": {
+        "type": "data",
+        "title": "Distinct tools actually used (per agent)",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and gen_ai.operation.name == \"execute_tool\" and gen_ai.tool.name != \"(merged tools)\" | summarize distinctToolsUsed = countDistinct(gen_ai.tool.name), by:{agent = service.name} | sort distinctToolsUsed desc",
+        "visualization": "categoricalBarChart",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "tools-table": {
+        "type": "data",
+        "title": "Tools called (by agent)",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and gen_ai.operation.name == \"execute_tool\" and gen_ai.tool.name != \"(merged tools)\" | summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name} | sort agent asc, calls desc",
+        "visualization": "table",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "md-loops": {
+        "type": "markdown",
+        "content": "## 3 · Find inefficient loops — multi-hop tasks re-send the same context\nEach row is one agent task. A high `llmCalls` count with large `inputTokens` means the agent looped, re-sending its (bloated) context on every hop. Collapse the hops that don't earn their tokens."
+      },
+      "loops-table": {
+        "type": "data",
+        "title": "Tasks with ≥5 LLM hops (ranked by input tokens)",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and span.name == \"call_llm\" | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens), by:{agent = service.name, task = gen_ai.task.id} | filter llmCalls >= 5 | sort inputTokens desc | limit 25",
+        "visualization": "table",
+        "visualizationSettings": {},
+        "querySettings": {}
+      },
+      "md-trend": {
+        "type": "markdown",
+        "content": "## Token spend trend — watch for drift after each change"
+      },
+      "trend": {
+        "type": "data",
+        "title": "Tokens over time by agent",
+        "query": "fetch spans | filter service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens) | fieldsAdd totalTok = gen_ai.usage.input_tokens + gen_ai.usage.output_tokens | makeTimeseries tokens = sum(totalTok), by:{service.name}",
+        "visualization": "lineChart",
+        "visualizationSettings": {},
+        "querySettings": {}
+      }
+    },
+    "layouts": {
+      "header": { "x": 0, "y": 0, "w": 24, "h": 3 },
+      "sv-total-tokens": { "x": 0, "y": 3, "w": 6, "h": 4 },
+      "sv-llm-calls": { "x": 6, "y": 3, "w": 6, "h": 4 },
+      "sv-tool-calls": { "x": 12, "y": 3, "w": 6, "h": 4 },
+      "sv-tasks": { "x": 18, "y": 3, "w": 6, "h": 4 },
+      "md-spend": { "x": 0, "y": 7, "w": 24, "h": 1 },
+      "spend-bar": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "ratio-table": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "md-tools": { "x": 0, "y": 16, "w": 24, "h": 2 },
+      "distinct-tools": { "x": 0, "y": 18, "w": 8, "h": 8 },
+      "tools-table": { "x": 8, "y": 18, "w": 16, "h": 8 },
+      "md-loops": { "x": 0, "y": 26, "w": 24, "h": 2 },
+      "loops-table": { "x": 0, "y": 28, "w": 24, "h": 8 },
+      "md-trend": { "x": 0, "y": 36, "w": 24, "h": 1 },
+      "trend": { "x": 0, "y": 37, "w": 24, "h": 8 }
+    }
+  }
+}
