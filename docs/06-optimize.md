@@ -33,10 +33,9 @@ cheap agent that gives wrong answers.
 
     ```bash
     dtctl config use-context <your-tenant>
-    bash <dt-app-dashboards-skill>/scripts/deploy_dashboard.sh \
-      cluster/dynatrace/optimization/ai-agent-optimization.dashboard.json
-    dtctl create notebook \
-      -f cluster/dynatrace/optimization/ai-agent-optimization-before-after.notebook.json
+    cd cluster/dynatrace/optimization
+    dtctl apply -f ai-agent-optimization.dashboard.yaml
+    dtctl create notebook -f ai-agent-optimization-before-after.notebook.yaml
     ```
 
     - **Dashboard** — *AI Agent Optimization*: spend ranking, input:output ratio,
@@ -44,7 +43,8 @@ cheap agent that gives wrong answers.
     - **Notebook** — *AI Agent Optimization — before/after*: the observe → find →
       change → re-measure → keep/revert walkthrough, one runnable DQL cell per step.
 
-    Both live in [`cluster/dynatrace/optimization/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization) with a README.
+    All four artifacts (dashboard, notebook, guardian, workflow — §4) are
+    dtctl-ready YAML in [`cluster/dynatrace/optimization/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization) with a README.
 
 ## 1. Rank your agents by spend
 
@@ -203,14 +203,45 @@ Fill the scorecard from those two runs:
     quality dropped, revert — the cheaper agent that's wrong is more expensive
     than the costly one that's right.
 
-## 4. Make it continuous
+## 4. Make it continuous — the guardian + workflow
 
-Optimization isn't a one-off. Because cost and quality are now both telemetry:
+Optimization isn't a one-off. Because cost and quality are now both telemetry,
+the workshop ships two more dtctl-ready artifacts in
+[`cluster/dynatrace/optimization/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization)
+that turn the optimization loop into an automated gate:
+
+**A Site Reliability Guardian** (`ai-agent-quality-cost.guardian.yaml`) — three
+DQL objectives over the crew's `call_llm` spans, so a regression fails loudly:
+
+| Objective | SLI | Rule | target / warning |
+|-----------|-----|------|------------------|
+| Cost per LLM call | avg input tokens / call | `≤` | 20,000 / 18,000 |
+| Loop efficiency | avg hops / task | `≤` | 5 / 4 |
+| Answer substance (quality proxy) | avg output tokens / call | `≥` | 200 / 300 |
+
+```bash
+dtctl create settings -f ai-agent-quality-cost.guardian.yaml \
+  --schema app:dynatrace.site.reliability.guardian:guardians --scope environment
+```
+
+The quality proxy backstops the cost cuts — an agent that got "cheaper" by
+emitting truncated answers trips it. For the full **LLM-judge** quality gate,
+pair the guardian with the Phase-4 dt-evals suite (module 05).
+
+**A scheduled Workflow** (`ai-agent-optimization.workflow.yaml`) runs that
+guardian daily over the last 24h (schedule ships disabled — flip
+`trigger.schedule.isActive: true` to go continuous):
+
+```bash
+dtctl create workflow -f ai-agent-optimization.workflow.yaml
+```
+
+Beyond the guardian:
 
 - Keep the dt-evals suite in CI as a **regression + budget gate** on every agent
   change.
-- Watch the Dynatrace AI Observability cost trend; alert when an agent's
-  tokens-per-task drifts up.
+- Watch the dashboard's **token-trend** tile; the guardian alerts when an
+  agent's tokens-per-call drifts up.
 - Re-rank your agents periodically — usage patterns change, and today's cheap
   agent is tomorrow's top spender.
 
