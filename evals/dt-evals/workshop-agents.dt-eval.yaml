@@ -13,7 +13,7 @@ dynatrace:
   # Platform "apps" URL. Derived from DT_TENANT_URL (.live. -> .apps.) if you use
   # run-dt-eval.sh. Example: https://abc12345.apps.dynatrace.com
   environmentUrl: ${DT_ENVIRONMENT_URL}
-  # Token with scopes: bizevents.ingest + storage.read. This is a DEDICATED
+  # Token with scopes: storage:spans:read + storage:events:write. This is a DEDICATED
   # dt-evals token — NOT the Phase-2 OTLP ingest token. run-dt-eval.sh reads it
   # from DYNATRACE_API_TOKEN so it never lands in this file.
   apiToken: ${DYNATRACE_API_TOKEN}

@@ -7,7 +7,7 @@
 #
 # Required env (put them in evals/.env — see evals/.env.example):
 #   OPENAI_API_KEY        judge key (a DeepSeek key works — OpenAI-compatible)
-#   DYNATRACE_API_TOKEN   dt0c01 token with scopes: bizevents.ingest + storage.read
+#   DYNATRACE_API_TOKEN   dt0c01 token with scopes: storage:spans:read + storage:events:write
 #   DT_EVAL_SERVICE       service.name of the agent to evaluate (discover first!)
 # One of:
 #   DT_ENVIRONMENT_URL    e.g. https://abc12345.apps.dynatrace.com
