@@ -18,6 +18,47 @@
     }
   },
 
+  // Workshop secrets surfaced in the "Create codespace with options…" dialog.
+  // GitHub only prompts for variables declared here; descriptions render verbatim
+  // (keep them short). Source of truth is .devcontainer/SECRETS.md — keep in sync.
+  // Note: GITHUB_TOKEN is reserved/auto-injected by Codespaces and cannot be declared;
+  // attendees provide a fine-grained GITHUB_PAT instead. Preferred keys of each
+  // preferred/fallback pair are declared (check-secrets.sh accepts either half).
+  "secrets": {
+    "DT_TENANT_URL": {
+      "description": "Dynatrace tenant URL for the Operator + OTLP export, e.g. https://abc12345.live.dynatrace.com",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
+    "DT_API_TOKEN": {
+      "description": "Dynatrace API token (dt0c01) for the operator + OTLP ingest (metrics/traces/logs ingest scopes).",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
+    "DT_PLATFORM_TOKEN": {
+      "description": "Dynatrace PLATFORM token (dt0s16) for the SRE MCP + dtctl. Distinct from DT_API_TOKEN.",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
+    "DT_ENVIRONMENT": {
+      "description": "Optional. Dynatrace platform/apps URL (https://<env>.apps.dynatrace.com). Derived from DT_TENANT_URL if unset.",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
+    "DYNATRACE_API_TOKEN": {
+      "description": "Phase 4 dt-evals token (dt0c01). Scopes: storage:spans:read + storage:events:write.",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
+    "DEEPSEEK_API_KEY": {
+      "description": "Model key powering the kagent agents (DeepSeek by default). Fallback var: LLM_API_KEY.",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
+    "GITHUB_PAT": {
+      "description": "Fine-grained PAT for the GitHub MCP / 'bad crew' demo repo (Contents+Issues+PRs RW on one repo).",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
+    "GITHUB_DEMO_REPO": {
+      "description": "The demo repo the GitHub MCP writes to, as owner/repo (e.g. henrikrexed/bad-crew-demo).",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    }
+  },
+
   // Tool versions are pinned in the Dockerfile; override here per-Codespace if needed.
   "containerEnv": {
     // Cluster engine: "k3d" (default, recommended) or "kind". See .devcontainer/DECISIONS.md.
