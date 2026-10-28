@@ -1,0 +1,45 @@
+# Dynatrace Workflow — scheduled AI Agent Guardian (Phase 5 · ISI-6720)
+#
+# Runs the "AI Agent Quality & Cost Guardian" daily over the last 24h so cost
+# and efficiency regressions surface automatically — the "make it continuous"
+# step of docs/06-optimize.md. Ships with the schedule DISABLED
+# (trigger.schedule.isActive: false); flip it to true to go continuous.
+#
+# Deploy:
+#   dtctl create workflow -f ai-agent-optimization.workflow.yaml
+#
+# objectId below points at the guardian created from
+# ai-agent-quality-cost.guardian.yaml. If you recreate the guardian, update it
+# (dtctl get settings --schema app:dynatrace.site.reliability.guardian:guardians).
+title: "Workshop · AI Agent Guardian (daily) (ISI-6720)"
+description: >-
+  Daily Site Reliability Guardian run over the kagent crew's last 24h of
+  gen_ai spans. Pair with the Phase-4 dt-evals suite for the LLM-judge gate.
+isPrivate: false
+tasks:
+  run_validation:
+    action: dynatrace.site.reliability.guardian:validate-guardian-action
+    description: "Validate the AI Agent Quality & Cost Guardian over the last day."
+    name: run_validation
+    position:
+      x: 0
+      y: 1
+    predecessors: []
+    input:
+      executionId: "{{ execution().id }}"
+      objectId: "vu9U3hXa3q0AAAABADFhcHA6ZHluYXRyYWNlLnNpdGUucmVsaWFiaWxpdHkuZ3VhcmRpYW46Z3VhcmRpYW5zAAZ0ZW5hbnQABnRlbmFudAAkZGU1ZGRlOGYtYzU4NS0zZTZhLWExMTUtZGFhN2Y0ZDI2M2Nhvu9U3hXa3q0"
+      timeframeInputType: timeframeSelector
+      timeframeSelector:
+        from: now-24h
+        to: now
+trigger:
+  schedule:
+    isActive: false
+    timezone: "Europe/Paris"
+    rule: null
+    trigger:
+      type: time
+      time: "08:00"
+    filterParameters:
+      earliestStart: "2026-10-28"
+    inputs: {}
