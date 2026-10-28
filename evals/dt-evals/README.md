@@ -22,8 +22,8 @@ Dynatrace gen_ai.* spans ─► dt-evals (sample → mask PII → LLM judge) ─
 - **Node ≥ 22** (the CLI runs via `npx`; pinned to `DT_EVALS_PKG` in `cluster/versions.env`).
 - A Dynatrace environment **already receiving the agents' `gen_ai.*` spans** (the
   Phase-2 OTel gateway does this). **Generate some agent traffic first.**
-- A **dedicated** Dynatrace token (`dt0c01`) with scopes **`bizevents.ingest`** +
-  **`storage.read`**. This is *not* the Phase-2 OTLP ingest token.
+- A **dedicated** Dynatrace token (`dt0c01`) with scopes **`storage:spans:read`** +
+  **`storage:events:write`**. This is *not* the Phase-2 OTLP ingest token.
 - A judge key (`OPENAI_API_KEY`) — a DeepSeek key works (OpenAI-compatible).
 
 Put all of these in `evals/.env` (see `evals/.env.example`).
@@ -76,7 +76,7 @@ environment (a free 15-day trial is enough for the lab). Why:
   `service.name`. On a shared tenant every attendee's spans and eval results pile
   into the same streams — noisy, hard to tell apart, and easy to evaluate someone
   else's traffic by accident.
-- **Token blast radius.** dt-evals needs `bizevents.ingest` + `storage.read`.
+- **Token blast radius.** dt-evals needs `storage:spans:read` + `storage:events:write`.
   Handing every attendee a token on one shared tenant is broad write access to a
   common environment; per-attendee tokens are naturally scoped to their own data.
 - **It matches the existing contract.** The Codespace secrets are already

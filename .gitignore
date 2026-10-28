@@ -6,6 +6,8 @@ kubeconfig*
 # Secrets — never commit (contract: .devcontainer/SECRETS.md)
 .env
 .env.*
+# ...but example templates ARE committed (placeholders only, no secrets):
+!.env.example
 *.secret
 *-token
 *.pem

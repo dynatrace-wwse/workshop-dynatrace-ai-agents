@@ -14,7 +14,11 @@ ARG KIND_VERSION=v0.25.0
 ARG K3D_VERSION=v5.7.5
 ARG KAGENT_VERSION=v0.3.5
 ARG YQ_VERSION=v4.44.6
+ARG DTCTL_VERSION=v0.45.0
 ARG UV_VERSION=0.5.11
+ARG NODE_VERSION=v22.11.0
+# dt-evals CLI — KEEP IN SYNC with DT_EVALS_PKG in cluster/versions.env.
+ARG DT_EVALS_PKG=@dynatrace-oss/dt-evals@0.3.4-alpha
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -24,13 +28,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       apt-transport-https lsb-release make \
     && rm -rf /var/lib/apt/lists/*
 
-# ----- Toolchain install (kubectl, helm, kind, k3d, kagent, yq, uv, mkdocs) -----
+# ----- Toolchain install (kubectl, helm, kind, k3d, kagent, yq, dtctl, uv, node, dt-evals, mkdocs) -----
 COPY bootstrap/install-tools.sh /tmp/install-tools.sh
 RUN chmod +x /tmp/install-tools.sh \
     && KUBECTL_VERSION="${KUBECTL_VERSION}" HELM_VERSION="${HELM_VERSION}" \
        KIND_VERSION="${KIND_VERSION}" K3D_VERSION="${K3D_VERSION}" \
        KAGENT_VERSION="${KAGENT_VERSION}" YQ_VERSION="${YQ_VERSION}" \
-       UV_VERSION="${UV_VERSION}" \
+       DTCTL_VERSION="${DTCTL_VERSION}" UV_VERSION="${UV_VERSION}" \
+       NODE_VERSION="${NODE_VERSION}" DT_EVALS_PKG="${DT_EVALS_PKG}" \
        /tmp/install-tools.sh \
     && rm -f /tmp/install-tools.sh
 
@@ -42,6 +47,7 @@ RUN mkdir -p /home/vscode/.kube \
        'source <(helm completion bash)' \
        'source <(k3d completion bash 2>/dev/null)' \
        'source <(kind completion bash 2>/dev/null)' \
+       'source <(dtctl completion bash 2>/dev/null)' \
        'alias k=kubectl' \
        'complete -o default -F __start_kubectl k' \
        >> /home/vscode/.bashrc \

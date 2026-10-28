@@ -81,7 +81,7 @@ dt-evals needs (put these in `evals/.env`):
 
 | Var | What |
 |-----|------|
-| `DYNATRACE_API_TOKEN` | a **dedicated** `dt0c01` token with `bizevents.ingest` + `storage.read` (not the Phase-2 OTLP token) |
+| `DYNATRACE_API_TOKEN` | a **dedicated** `dt0c01` token with `storage:spans:read` + `storage:events:write` (not the Phase-2 OTLP token) |
 | `DT_ENVIRONMENT_URL` | your `…apps.dynatrace.com` URL (derived from `DT_TENANT_URL` if unset) |
 | `OPENAI_API_KEY` | judge key — a DeepSeek key works |
 | `DT_EVAL_SERVICE` | the agent's `service.name` — **discover it, don't guess** |

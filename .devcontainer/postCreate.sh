@@ -10,10 +10,11 @@ log "postCreate: engine=${CLUSTER_TOOL} cluster=${CLUSTER_NAME}"
 
 # 1. Verify the toolchain baked into the image is present.
 missing=0
-for t in docker kubectl helm yq uv mkdocs "$CLUSTER_TOOL"; do
+for t in docker kubectl helm yq dtctl uv node mkdocs "$CLUSTER_TOOL"; do
   if have "$t"; then ok "tool: $t"; else err "tool MISSING: $t"; missing=1; fi
 done
-have kagent && ok "tool: kagent" || warn "kagent CLI not on PATH (see install-tools.sh notes)"
+have kagent   && ok "tool: kagent"   || warn "kagent CLI not on PATH (see install-tools.sh notes)"
+have dt-evals && ok "tool: dt-evals" || warn "dt-evals CLI not on PATH — run-dt-eval.sh falls back to npx (see evals/dt-evals/README.md)"
 [ "$missing" -eq 0 ] || { err "required tools missing; aborting"; exit 1; }
 
 # 2. Create (or reuse) the cluster.
@@ -31,7 +32,8 @@ cat <<'EOF'
  Phase 1 bootstrap complete.
    - Local Kubernetes cluster is running.
    - Namespaces + Helm repos staged for the Phase 2 platform install.
-   - Toolchain: kubectl, helm, kind, k3d, kagent, uv, mkdocs ready.
+   - Toolchain: kubectl, helm, kind, k3d, kagent, yq, dtctl, uv, node,
+     dt-evals, mkdocs ready.
 
  Next:
    kubectl get nodes
