@@ -1,0 +1,40 @@
+# Scenario 03 — OOMKilled.
+# A throwaway workload with a tight memory limit (32Mi) and a hog that allocates
+# far more (~250Mi), so the kernel OOM-killer reaps the container. It restarts and
+# is killed again, so it lands in CrashLoopBackOff whose LAST termination reason is
+# OOMKilled. Evidence channel: lastState.terminated.reason=OOMKilled (exit 137).
+# Every object pins namespace: workshop-faults (ISI-6846 §1.1 / §5).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-resizer
+  namespace: workshop-faults
+  labels:
+    app: image-resizer
+    workshop.scenario: "03-oomkilled"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: image-resizer
+  template:
+    metadata:
+      labels:
+        app: image-resizer
+        workshop.scenario: "03-oomkilled"
+    spec:
+      containers:
+        - name: image-resizer
+          # polinux/stress is the canonical k8s-docs OOM demo image. It allocates
+          # 250Mi against a 32Mi limit, guaranteeing an immediate OOM kill.
+          image: polinux/stress:1.0.4
+          command: ["stress"]
+          args: ["--vm", "1", "--vm-bytes", "250M", "--vm-hang", "0"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              # The fault: a limit far below what the workload tries to allocate.
+              memory: 32Mi
+              cpu: 100m

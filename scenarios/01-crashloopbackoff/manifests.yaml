@@ -1,0 +1,43 @@
+# Scenario 01 — CrashLoopBackOff.
+# A throwaway workload whose start command exits non-zero immediately, printing a
+# clear diagnostic line first. The kubelet restarts it, backing off into
+# CrashLoopBackOff. Evidence channel: POD LOGS (the fatal line) + the exit code.
+# Every object pins namespace: workshop-faults (ISI-6846 §1.1 / §5).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-worker
+  namespace: workshop-faults
+  labels:
+    app: billing-worker
+    workshop.scenario: "01-crashloopbackoff"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-worker
+  template:
+    metadata:
+      labels:
+        app: billing-worker
+        workshop.scenario: "01-crashloopbackoff"
+    spec:
+      # No restartPolicy override: Deployment pods are Always-restart, which is
+      # exactly what produces the back-off loop.
+      containers:
+        - name: billing-worker
+          image: busybox:1.36
+          # The fault: a start command that logs a fatal error and exits 1.
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              echo "FATAL: BILLING_DB_URL is not set — cannot start billing worker";
+              echo "config load failed, exiting";
+              exit 1
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
