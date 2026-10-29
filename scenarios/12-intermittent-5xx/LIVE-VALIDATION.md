@@ -5,6 +5,12 @@
 
 # Live validation runbook — scenario 12 (intermittent-5xx)
 
+> **Automated equivalent:** `bash scenarios/12-intermittent-5xx/validate-live.sh` runs
+> all of steps 1–4 below in one pass (inject → endpoint assert → 5xx-share probe +
+> gRPC-stickiness verdict → optional Dynatrace Problems API poll when `DT_TENANT_URL`/
+> `DT_API_TOKEN` are set → cleanup), exiting `0`/`2`/`3` per the ISI-6846 §2 contract.
+> Use this runbook to capture/paste evidence by hand, or the script for a one-shot run.
+
 **What this proves (ISI-6858 steps 1–4):** that `scenarios/run.sh inject 12` adds a
 faulty `product-catalog` backend to the real `otel-demo-product-catalog` Service,
 that a **fraction** (not all) of frontend product requests 5xx, that **Dynatrace
