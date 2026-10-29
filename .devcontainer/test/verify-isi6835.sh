@@ -203,12 +203,22 @@ else
     else
       record L2 "kind ${CLUSTER_NAME} node Ready" FAIL "no Ready node"
     fi
-    # L3 — pods reconciled or cleanly skipped, never a hard crash loop
+    # L3 — stack actually deployed: pods present in the component namespaces AND
+    # none crash-looping. The pods-present check catches the ISI-6860 failure mode
+    # where install.sh aborts (unregistered helm repos) and leaves empty namespaces
+    # — a crash-only count passes on zero pods and would miss it entirely.
+    pods=0
+    for ns in kagent phoenix tetragon; do
+      n="$(kubectl get pods -n "$ns" --no-headers 2>/dev/null | grep -c . || true)"
+      pods=$(( pods + ${n:-0} ))
+    done
     crash="$(kubectl get pods -A --no-headers 2>/dev/null | grep -cE 'CrashLoopBackOff|Error|ImagePullBackOff' || true)"
-    if [ "${crash:-0}" -eq 0 ]; then
-      record L3 "pods reconciled / no crash" PASS "no CrashLoop/Error pods across namespaces"
+    if [ "${pods:-0}" -eq 0 ]; then
+      record L3 "stack deployed / no crash" FAIL "no pods in kagent/phoenix/tetragon — stack did not deploy (helm repos unregistered? see ISI-6860)"
+    elif [ "${crash:-0}" -eq 0 ]; then
+      record L3 "stack deployed / no crash" PASS "${pods} workload pod(s) present, no CrashLoop/Error across namespaces"
     else
-      record L3 "pods reconciled / no crash" FAIL "${crash} pod(s) crashing: $(kubectl get pods -A --no-headers 2>/dev/null | grep -E 'CrashLoopBackOff|Error|ImagePullBackOff' | head -1)"
+      record L3 "stack deployed / no crash" FAIL "${crash} pod(s) crashing: $(kubectl get pods -A --no-headers 2>/dev/null | grep -E 'CrashLoopBackOff|Error|ImagePullBackOff' | head -1)"
     fi
     # L4 — Phoenix on 6006
     if have curl && curl -sf -o /dev/null --max-time 5 http://localhost:6006; then
