@@ -1,0 +1,172 @@
+# ISI-6864 — Agent-runnable §5 live acceptance for the ISI-6835 Codespace
+# bootstrap remediation, on a GitHub-hosted runner instead of a Codespace.
+#
+# WHY THIS EXISTS
+#   ISI-6863 asked the board to *manually* run the §5 acceptance in a Codespace
+#   ("no agent can do it"). A Codespace create is a hard 403 for the repo PAT,
+#   but the Actions API is reachable and ubuntu-latest ships Docker + can run
+#   `kind`. So §5 can be run by an agent — on CI, not a Codespace — which
+#   permanently removes the board from the loop (ISI-6855 / ISI-6859).
+#
+# WHAT IT EXERCISES  (the exact artifacts the first manual run failed on)
+#   - cluster/install.sh — the script ISI-6860 fixed to self-register the
+#     dynatrace / open-telemetry / cilium Helm repos (it aborted at
+#     `repo dynatrace not found` before that fix).
+#   - .devcontainer/postCreate.sh — kind `workshop` cluster + deploy-on-create.
+#   - .devcontainer/test/verify-isi6835.sh — LIVE L1–L5 auto-run when a cluster
+#     is present (postCreate exits 0 + idempotent, node Ready, no crash-loops,
+#     Phoenix :6006 + kagent-UI :8080 answer via kind NodePort mappings).
+#
+# HONESTY NOTE
+#   A hosted ubuntu-latest runner is NOT literally a Codespace devcontainer, but
+#   it runs the same scripts against a real kind cluster. The toolchain is
+#   installed with the SAME .devcontainer/bootstrap/install-tools.sh the image
+#   uses, pinned to the SAME versions as .devcontainer/Dockerfile. Secrets are
+#   optional (see the env block): when a repo secret is unset the value is empty
+#   and the matching component degrades gracefully — exactly as a secret-less
+#   Codespace — never fatal. The verifier's exit code is the job's exit code and
+#   is never masked; the full raw log is uploaded as an artifact.
+#
+# HOW TO RUN
+#   - workflow_dispatch from the Actions tab (needs the file on the default
+#     branch), OR
+#   - push a `ci/live-acceptance/**` branch (no actions:write PAT scope needed —
+#     the push itself is the trigger).
+
+name: live-acceptance (ISI-6835 §5)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'ci/live-acceptance/**'
+
+permissions:
+  contents: read
+
+jobs:
+  live-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CLUSTER_TOOL: kind
+      CLUSTER_NAME: workshop
+      # --- Pinned toolchain versions — KEEP IN SYNC with .devcontainer/Dockerfile ARGs ---
+      KUBECTL_VERSION: v1.31.4
+      HELM_VERSION: v3.16.3
+      KIND_VERSION: v0.25.0
+      YQ_VERSION: v4.44.6
+      DTCTL_VERSION: v0.45.0
+      UV_VERSION: 0.5.11
+      NODE_VERSION: v22.11.0
+      DT_EVALS_PKG: '@dynatrace-oss/dt-evals@0.3.4-alpha'
+      # --- Optional secrets — identical contract to .devcontainer/SECRETS.md ---
+      # Unset repo secret => empty env => component degrades gracefully (as a
+      # secret-less Codespace). Add these as repo/environment secrets to get a
+      # fully-authenticated run (Dynatrace ingest + kagent model provider).
+      DT_TENANT_URL: ${{ secrets.DT_TENANT_URL }}
+      DT_API_TOKEN: ${{ secrets.DT_API_TOKEN }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Runner facts
+        run: |
+          echo "== runner =="
+          uname -a
+          echo "nproc=$(nproc)  mem:"; free -h || true
+          echo "docker:"; docker version --format '{{.Server.Version}}' 2>/dev/null || docker --version
+          echo "disk:"; df -h / | tail -1
+
+      - name: Install workshop toolchain (same script as the devcontainer image)
+        run: |
+          # install-tools.sh needs root for /usr/local/bin and is arch-aware. Run it
+          # with ROOT's own HOME (/root), NOT `sudo -E` (which keeps HOME=/home/runner):
+          # uv/npm/mkdocs write caches under $HOME, and as root under the runner's HOME
+          # they create root-owned ~/.cache & ~/.config dirs that later block helm with
+          # `mkdir /home/runner/.cache/helm: permission denied` once postCreate runs as
+          # the unprivileged runner. Pass the pinned versions explicitly since -E is gone.
+          # The optional tail (mkdocs/dt-evals) is best-effort; required tools install
+          # first, so a non-zero tail exit must not fail this step — asserted below.
+          sudo env HOME=/root \
+            KUBECTL_VERSION="$KUBECTL_VERSION" HELM_VERSION="$HELM_VERSION" \
+            KIND_VERSION="$KIND_VERSION" YQ_VERSION="$YQ_VERSION" \
+            DTCTL_VERSION="$DTCTL_VERSION" UV_VERSION="$UV_VERSION" \
+            NODE_VERSION="$NODE_VERSION" DT_EVALS_PKG="$DT_EVALS_PKG" \
+            bash .devcontainer/bootstrap/install-tools.sh \
+            || echo "::warning::install-tools.sh exited non-zero (optional mkdocs/dt-evals tail); verifying required tools next"
+          # Belt-and-suspenders: reclaim any runner dotdirs a root-HOME write may own
+          # so helm/kubectl/uv can write their caches as the runner user.
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache" "$HOME/.config" "$HOME/.local" 2>/dev/null || true
+
+      - name: Assert required toolchain present
+        run: |
+          miss=0
+          for t in kubectl helm kind dtctl node; do
+            if command -v "$t" >/dev/null 2>&1; then echo "ok: $t -> $(command -v $t)"; else echo "MISSING: $t"; miss=1; fi
+          done
+          [ "$miss" -eq 0 ] || { echo "::error::required toolchain incomplete"; exit 1; }
+
+      - name: Ensure envsubst + curl present
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gettext-base curl >/dev/null
+
+      - name: Bootstrap — postCreate (kind workshop cluster + cluster/install.sh deploy)
+        id: bootstrap
+        # Non-fatal here: the authoritative pass/fail is the verifier below, which
+        # re-runs postCreate (L1 idempotency) and inspects the live cluster. We let
+        # a bootstrap hiccup through so the verifier can record the honest state.
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bash .devcontainer/postCreate.sh 2>&1 | tee postCreate.log
+
+      - name: Cluster snapshot (pre-verify, informational)
+        if: always()
+        run: |
+          echo "== nodes =="; kubectl get nodes -o wide 2>&1 || echo "(no cluster)"
+          echo "== pods -A =="; kubectl get pods -A 2>&1 || true
+
+      - name: Wait for NodePort UIs to answer (Phoenix :6006 / kagent-UI :8080)
+        # Pure NodePort path — kind maps containerPort 30606->6006 and 30080->8080
+        # to the runner host (cluster/kind-config.yaml), so no port-forward is
+        # needed and none is added (a port-forward fallback would falsify the
+        # NodePort reachability the verifier's L4/L5 are meant to prove). This is
+        # only a readiness grace window; the verifier makes the real assertion.
+        if: always()
+        run: |
+          for svc in "Phoenix:6006" "kagent-UI:8080"; do
+            name="${svc%%:*}"; port="${svc##*:}"; ok=0
+            for i in $(seq 1 60); do
+              if curl -sf -o /dev/null --max-time 5 "http://localhost:${port}"; then
+                echo "ready: ${name} on :${port} (after ~$((i*5))s)"; ok=1; break
+              fi
+              sleep 5
+            done
+            [ "$ok" -eq 1 ] || echo "::warning::${name} did not answer on :${port} within 300s (verifier will record L4/L5)"
+          done
+
+      - name: Run acceptance verifier (STATIC A1–A12 + LIVE L1–L5)
+        id: verify
+        # `set -o pipefail` is MANDATORY here: the runner's step shell is `bash -e`
+        # (no pipefail by default on this image), so without it `verifier | tee`
+        # returns tee's 0 and masks the verifier's non-zero exit — a FAIL run would
+        # go green. With pipefail, any applicable FAIL fails this step and the job.
+        # tee preserves the full raw log for the artifact. Exit code is never masked.
+        run: |
+          set -o pipefail
+          bash .devcontainer/test/verify-isi6835.sh 2>&1 | tee verify-isi6835.log
+
+      - name: Upload raw logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isi6835-acceptance-logs
+          path: |
+            verify-isi6835.log
+            postCreate.log
+          if-no-files-found: warn
+          retention-days: 30
