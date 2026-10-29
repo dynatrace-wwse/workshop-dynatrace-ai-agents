@@ -32,12 +32,6 @@ curl -fsSL -o /usr/local/bin/kind \
   "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${GOARCH}"
 chmod +x /usr/local/bin/kind
 
-# --- k3d ---
-log "k3d ${K3D_VERSION} (${GOARCH})"
-curl -fsSL -o /usr/local/bin/k3d \
-  "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-${GOARCH}"
-chmod +x /usr/local/bin/k3d
-
 # --- yq ---
 log "yq ${YQ_VERSION} (${GOARCH})"
 curl -fsSL -o /usr/local/bin/yq \
@@ -56,17 +50,9 @@ curl -fsSL "https://github.com/Dynatrace/dtctl/releases/download/${DTCTL_VERSION
 install -m 0755 /tmp/dtctl /usr/local/bin/dtctl
 rm -f /tmp/dtctl
 
-# --- kagent CLI ---
-# Released as a per-OS/arch binary on github.com/kagent-dev/kagent.
-# Best-effort with a clear failure message; Phase 2/3 need this CLI present.
-log "kagent ${KAGENT_VERSION} (${GOARCH})"
-KAGENT_URL="https://github.com/kagent-dev/kagent/releases/download/${KAGENT_VERSION}/kagent-linux-${GOARCH}"
-if curl -fsSL -o /usr/local/bin/kagent "$KAGENT_URL"; then
-  chmod +x /usr/local/bin/kagent
-else
-  log "WARN: could not download kagent from ${KAGENT_URL}."
-  log "WARN: pin a valid KAGENT_VERSION or install via 'curl -fsSL https://kagent.dev/install.sh | bash' in postCreate."
-fi
+# NOTE: no kagent command-line binary is installed. kagent is deployed entirely
+# via its OCI Helm charts (cluster/install.sh); the standalone binary was
+# vestigial and has been retired.
 
 # --- uv (Python package/venv manager: Phoenix eval path + mkdocs) ---
 log "uv ${UV_VERSION} (${GOARCH})"
@@ -113,12 +99,10 @@ log "versions:"
 kubectl version --client --output=yaml 2>/dev/null | head -3 || true
 helm version --short || true
 kind --version || true
-k3d --version || true
 yq --version || true
 dtctl version 2>/dev/null | head -1 || true
 uv --version || true
 node --version || true
 mkdocs --version || true
-command -v kagent >/dev/null && kagent version 2>/dev/null || echo "kagent: (verify in postCreate)"
 command -v dt-evals >/dev/null && dt-evals --version 2>/dev/null || echo "dt-evals: (verify in postCreate; npx fallback available)"
 log "done"

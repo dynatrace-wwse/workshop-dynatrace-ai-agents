@@ -8,7 +8,7 @@ install fills in the component directories and the install scripts.
 
 | Path | What |
 |------|------|
-| `k3d-config.yaml` / `kind-config.yaml` | Local cluster definitions (Phase 1). |
+| `kind-config.yaml` | Local kind cluster definition (Phase 1). |
 | `versions.env` | Pinned chart/image versions — bump here to upgrade the stack. |
 | `secrets.sh` | Creates the k8s secrets from Codespace env vars (never committed). |
 | `install.sh` | Installs the whole stack, idempotently, in dependency order. |
@@ -38,7 +38,7 @@ Skip a component with `INSTALL_<NAME>=false`, e.g. `INSTALL_DYNATRACE=false bash
 kubectl get pods -A                                   # all operators/components Ready
 kubectl get dynakube -n dynatrace                     # Dynatrace k8s monitoring
 kubectl get otelcol -n opentelemetry-operator-system  # gateway collector
-kubectl -n phoenix port-forward svc/phoenix 6006:6006 # Phoenix UI (or forwarded port 6006)
+kubectl -n phoenix get svc phoenix                    # NodePort 30606 -> http://localhost:6006
 ```
 
 Telemetry flows once agents run (Phase 3): agent/LLM spans → `otel-gateway-collector`

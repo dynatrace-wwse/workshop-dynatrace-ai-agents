@@ -1,0 +1,33 @@
+# Companion NodePort Service for the kagent UI.
+#
+# WHY A COMPANION SERVICE: the kagent Helm chart (0.10.4) exposes `ui.service.type`
+# but offers NO knob to pin the nodePort — setting type=NodePort alone yields a
+# random port in 30000-32767, which cannot be mapped by kind ahead of time. So we
+# leave the chart's `kagent-ui` Service at its default ClusterIP and add this small
+# NodePort Service with a FIXED nodePort (30080) that kind maps to the forwarded
+# Codespace port 8080 (see cluster/kind-config.yaml). Applied by cluster/install.sh
+# step 4, right after the kagent chart.
+#
+# Selector + target port match the chart's UI pod/Service (verified against 0.10.4).
+apiVersion: v1
+kind: Service
+metadata:
+  name: kagent-ui-nodeport
+  namespace: kagent
+  labels:
+    app.kubernetes.io/name: kagent
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/part-of: kagent
+    workshop.isitobservable/exposure: nodeport
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: kagent
+    app.kubernetes.io/instance: kagent
+    app.kubernetes.io/component: ui
+  ports:
+    - name: ui
+      port: 8080
+      targetPort: 8080
+      nodePort: 30080
+      protocol: TCP

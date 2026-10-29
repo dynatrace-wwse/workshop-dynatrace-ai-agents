@@ -11,8 +11,6 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 ARG KUBECTL_VERSION=v1.31.4
 ARG HELM_VERSION=v3.16.3
 ARG KIND_VERSION=v0.25.0
-ARG K3D_VERSION=v5.7.5
-ARG KAGENT_VERSION=v0.3.5
 ARG YQ_VERSION=v4.44.6
 ARG DTCTL_VERSION=v0.45.0
 ARG UV_VERSION=0.5.11
@@ -28,12 +26,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       apt-transport-https lsb-release make \
     && rm -rf /var/lib/apt/lists/*
 
-# ----- Toolchain install (kubectl, helm, kind, k3d, kagent, yq, dtctl, uv, node, dt-evals, mkdocs) -----
+# ----- Toolchain install (kubectl, helm, kind, yq, dtctl, uv, node, dt-evals, mkdocs) -----
+# kind is the single cluster engine; kagent ships via its OCI Helm chart (no CLI).
 COPY bootstrap/install-tools.sh /tmp/install-tools.sh
 RUN chmod +x /tmp/install-tools.sh \
     && KUBECTL_VERSION="${KUBECTL_VERSION}" HELM_VERSION="${HELM_VERSION}" \
-       KIND_VERSION="${KIND_VERSION}" K3D_VERSION="${K3D_VERSION}" \
-       KAGENT_VERSION="${KAGENT_VERSION}" YQ_VERSION="${YQ_VERSION}" \
+       KIND_VERSION="${KIND_VERSION}" YQ_VERSION="${YQ_VERSION}" \
        DTCTL_VERSION="${DTCTL_VERSION}" UV_VERSION="${UV_VERSION}" \
        NODE_VERSION="${NODE_VERSION}" DT_EVALS_PKG="${DT_EVALS_PKG}" \
        /tmp/install-tools.sh \
@@ -45,7 +43,6 @@ RUN mkdir -p /home/vscode/.kube \
     && printf '%s\n' \
        'source <(kubectl completion bash)' \
        'source <(helm completion bash)' \
-       'source <(k3d completion bash 2>/dev/null)' \
        'source <(kind completion bash 2>/dev/null)' \
        'source <(dtctl completion bash 2>/dev/null)' \
        'alias k=kubectl' \

@@ -1,7 +1,7 @@
 # Helm values for the OpenTelemetry Operator (chart open-telemetry/opentelemetry-operator).
 # Installed by cluster/install.sh into namespace `opentelemetry-operator-system`.
 #
-# CRITICAL for a fresh k3d/kind cluster: there is NO cert-manager, so the
+# CRITICAL for a fresh kind cluster: there is NO cert-manager, so the
 # operator's admission webhook must use a self-signed cert the chart generates
 # itself. Without this the operator CrashLoops waiting for cert-manager.
 admissionWebhooks:

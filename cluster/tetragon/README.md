@@ -8,9 +8,9 @@ module 5 of the workshop learning arc (securing agents).
 |------|------|
 | `values.yaml` | Helm values for `cilium/tetragon` (DaemonSet + operator, trimmed). |
 
-## eBPF on k3d / kind (important)
+## eBPF on kind (important)
 
-k3d/kind nodes are containers sharing the **Codespace host kernel**. Tetragon
+kind nodes are containers sharing the **Codespace host kernel**. Tetragon
 loads its BPF programs into that kernel, which needs BTF (`/sys/kernel/btf/vmlinux`)
 and permission to attach probes. On most GitHub Codespaces hosts this works.
 

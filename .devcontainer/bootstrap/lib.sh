@@ -3,7 +3,7 @@
 # Everything here is written to be idempotent and safe to re-run.
 
 # shellcheck disable=SC2034
-CLUSTER_TOOL="${CLUSTER_TOOL:-k3d}"
+CLUSTER_TOOL="${CLUSTER_TOOL:-kind}"
 CLUSTER_NAME="${CLUSTER_NAME:-workshop}"
 KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export KUBECONFIG
@@ -30,13 +30,9 @@ wait_for_docker() {
   return 1
 }
 
-# True if the workshop cluster already exists (per selected engine).
+# True if the workshop kind cluster already exists.
 cluster_exists() {
-  case "$CLUSTER_TOOL" in
-    k3d)  k3d cluster list -o json 2>/dev/null | jq -r '.[].name' 2>/dev/null | grep -qx "$CLUSTER_NAME" ;;
-    kind) kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME" ;;
-    *) err "unknown CLUSTER_TOOL=$CLUSTER_TOOL"; return 2 ;;
-  esac
+  kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"
 }
 
 # True if kubectl can reach the API server.
