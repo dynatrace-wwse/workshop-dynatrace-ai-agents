@@ -3,31 +3,43 @@
 Why the devcontainer and bootstrap are set up the way they are — cluster engine,
 machine type, and tooling choices for the Codespace that runs the workshop.
 
-## 1. Cluster engine: **k3d** (default), kind supported as a fallback
+## 1. Cluster engine: **kind** (single engine) + NodePort exposure
 
-**Decision:** default `CLUSTER_TOOL=k3d`. `kind` is fully supported — set
-`CLUSTER_TOOL=kind` in `devcontainer.json` `containerEnv` (or export it before
-re-running `postCreate.sh`).
+**Decision:** `kind` is the one supported cluster engine (`CLUSTER_TOOL=kind`,
+set in `devcontainer.json` `containerEnv`). The workshop UIs are exposed as
+**NodePort** Services whose fixed nodePorts are mapped straight through to the
+forwarded Codespace ports by `cluster/kind-config.yaml` `extraPortMappings` — no
+ingress controller, no manual `kubectl port-forward`.
+
+| UI        | Service type | nodePort | kind hostPort | Codespace port |
+|-----------|--------------|----------|---------------|----------------|
+| Phoenix   | NodePort     | 30606    | 6006          | 6006           |
+| kagent UI | NodePort     | 30080    | 8080          | 8080           |
+| mkdocs    | bare `mkdocs serve` process (not in-cluster) | — | — | 8000 |
 
 **Rationale:**
 
-| Factor | k3d (k3s) | kind (kubeadm) |
-|--------|-----------|----------------|
-| Memory footprint | **Lowest** — k3s is a single lightweight binary; best fit for the heavy Phase 2 stack. | Higher — full kubeadm control plane per node. |
-| Boot time | **Seconds.** | ~1 min. |
-| Built-in LoadBalancer | **Yes** (klipper servicelb) + Traefik ingress → workshop UIs reachable with no extra install. | No service LB; needs an ingress controller or `port-forward`. |
-| Docker-in-Docker | Works well. | Works well; the de-facto standard for CI. |
-| Ubiquity / portability | Common. | Most widely used for local k8s demos. |
+- **One engine, no ambiguity.** The earlier dual k3d/kind setup made bootstrap
+  behavior depend on a toggle and doubled the surface to test. kind is the
+  de-facto standard for local/CI Kubernetes, runs nodes as plain Docker
+  containers (so Docker-in-Docker restarts them on resume), and is well understood.
+- **NodePort over ingress/LB.** kind has no built-in service LB. Rather than
+  install an ingress controller just to reach two UIs, we pin each UI Service to a
+  known nodePort and let kind forward the node's port to the Codespace host. This
+  is the smallest, most predictable wiring and needs zero extra components.
+- **Fixed nodePorts.** Phoenix's manifest sets `nodePort: 30606` directly. The
+  kagent Helm chart (0.10.4) exposes `ui.service.type` but **cannot pin a
+  nodePort**, so a small companion `NodePort` Service (`cluster/kagent/ui-nodeport.yaml`,
+  `nodePort: 30080`) ships alongside the chart and is applied by `cluster/install.sh`.
 
-Given the Codespace runs the **entire** stack (Dynatrace operator + OTel + kagent +
-Tetragon + Agent Sandbox + Phoenix + agent workloads), the deciding factor is the
-**memory headroom** and the built-in LB. k3d wins on both. kind stays available
-because some attendees/CI may prefer it and Tetragon eBPF behavior can differ.
+> **Memory trade-off:** k3d (k3s) had a lighter footprint, which is why it was the
+> original default on a 4c/16GB machine. kind + the full stack is tighter but fits;
+> `onCreate`'s `check-resources.sh` still warns under the recommended floor.
 
-> **Tetragon/eBPF note:** Tetragon needs host-kernel eBPF. Both k3d and kind run
-> nodes as containers sharing the Codespace host kernel. The platform install
-> validates that Tetragon loads its BPF programs in the Codespace kernel; if
-> blocked, it falls back to Tetragon's limited/monitoring mode.
+> **Tetragon/eBPF note:** Tetragon needs host-kernel eBPF. kind runs nodes as
+> containers sharing the Codespace host kernel. The platform install validates
+> that Tetragon loads its BPF programs in the Codespace kernel; if blocked, it
+> falls back to Tetragon's limited/monitoring mode.
 
 ## 2. Recommended Codespace machine type: **4-core / 16 GB** (min), prebuild on
 
@@ -56,12 +68,22 @@ Docker-in-Docker and the GitHub CLI (complex to hand-roll).
 **Rationale:** reproducible prebuilds, explicit upgrade control, arch-aware
 (`amd64`/`arm64`) downloads for both Intel and ARM Codespaces.
 
+**Toolchain:** `kubectl`, `helm`, `kind`, `yq`, `dtctl`, `uv`, `node`, `dt-evals`,
+and `mkdocs`. There is **no k3d** (single engine) and **no kagent CLI** — kagent is
+deployed entirely via its OCI Helm chart (`cluster/install.sh`). Only
+`kubectl helm kind dtctl node` are hard-required by `postCreate.sh`; `mkdocs`
+(local docs preview) and `dt-evals` (npx fallback exists) are best-effort soft
+warnings and never abort the bootstrap.
+
 ## 4. Idempotency model
 
 `postCreate.sh` (once) and `postStart.sh` (every resume) are both re-runnable:
-cluster creation checks existence first; namespace/helm-repo prep is
-create-if-missing; `postStart` restarts stopped k3d/kind node containers rather
-than recreating the cluster. Re-running `postCreate` by hand is safe.
+cluster creation checks existence first; `postCreate` now **deploys the full
+platform** by invoking `cluster/install.sh` (every step is `helm upgrade --install`
+or `kubectl apply`, and the call is non-fatal so a single failing component — e.g.
+a missing secret — never bricks the Codespace). `postStart` restarts stopped kind
+node containers rather than recreating the cluster. Re-running `postCreate` by hand
+is safe and idempotent.
 
 ## Open questions deferred to later phases
 

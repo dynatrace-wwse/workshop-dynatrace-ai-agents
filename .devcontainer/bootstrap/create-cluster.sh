@@ -9,27 +9,15 @@ source "${SCRIPT_DIR}/lib.sh"
 wait_for_docker 90
 
 if cluster_exists; then
-  ok "cluster '${CLUSTER_NAME}' already exists (${CLUSTER_TOOL}) — reusing"
+  ok "cluster '${CLUSTER_NAME}' already exists (kind) — reusing"
 else
-  log "creating '${CLUSTER_NAME}' with ${CLUSTER_TOOL}..."
-  case "$CLUSTER_TOOL" in
-    k3d)
-      k3d cluster create --config "${REPO_ROOT}/cluster/k3d-config.yaml"
-      ;;
-    kind)
-      kind create cluster --config "${REPO_ROOT}/cluster/kind-config.yaml" --wait 120s
-      ;;
-    *)
-      err "unknown CLUSTER_TOOL=${CLUSTER_TOOL} (use k3d or kind)"; exit 1 ;;
-  esac
+  log "creating kind cluster '${CLUSTER_NAME}'..."
+  kind create cluster --config "${REPO_ROOT}/cluster/kind-config.yaml" --wait 120s
   ok "cluster created"
 fi
 
 # Make sure kubeconfig points at the workshop cluster.
-case "$CLUSTER_TOOL" in
-  k3d)  kubectl config use-context "k3d-${CLUSTER_NAME}" >/dev/null 2>&1 || true ;;
-  kind) kubectl config use-context "kind-${CLUSTER_NAME}" >/dev/null 2>&1 || true ;;
-esac
+kubectl config use-context "kind-${CLUSTER_NAME}" >/dev/null 2>&1 || true
 
 log "waiting for the cluster API to respond..."
 for i in {1..30}; do

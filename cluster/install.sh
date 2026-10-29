@@ -94,6 +94,9 @@ if [ "$INSTALL_KAGENT" = "true" ]; then
   helm upgrade --install kagent "${KAGENT_OCI_REPO}/kagent" \
     --version "${KAGENT_CHART_VERSION}" --namespace kagent \
     -f "${SCRIPT_DIR}/kagent/values.yaml" --wait --timeout 5m
+  # Fixed-nodePort Service for the UI (chart 0.10.4 can't pin a nodePort itself).
+  # kind maps nodePort 30080 -> forwarded Codespace port 8080.
+  kubectl apply -f "${SCRIPT_DIR}/kagent/ui-nodeport.yaml" && ok "kagent UI NodePort (30080 -> localhost:8080) applied"
 else
   warn "INSTALL_KAGENT=false — skipping kagent"
 fi
@@ -123,9 +126,9 @@ cat <<'EOF'
    kubectl get dynakube -n dynatrace
    kubectl get otelcol -n opentelemetry-operator-system
 
- UIs (forwarded Codespace ports):
-   Phoenix   -> port 6006
-   kagent UI -> kubectl -n kagent port-forward svc/kagent-ui 8080:8080
+ UIs (NodePort -> forwarded Codespace ports, no port-forward needed):
+   Phoenix   -> http://localhost:6006   (NodePort 30606)
+   kagent UI -> http://localhost:8080   (NodePort 30080)
 
  Telemetry: once agents run (Phase 3), spans fan out to Dynatrace + Phoenix
  via otel-gateway-collector.opentelemetry-operator-system.svc:4317.

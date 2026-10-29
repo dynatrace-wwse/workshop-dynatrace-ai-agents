@@ -46,5 +46,5 @@ Dynatrace + Phoenix with no extra wiring.
 ```bash
 kubectl -n kagent get pods                 # controller + ui + kmcp + db Ready
 kubectl -n kagent get agents 2>/dev/null   # empty — clean base, as intended
-kubectl -n kagent port-forward svc/kagent-ui 8080:8080
+kubectl -n kagent get svc kagent-ui-nodeport   # NodePort 30080 -> http://localhost:8080
 ```

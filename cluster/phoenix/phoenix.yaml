@@ -6,6 +6,9 @@
 # forwarded Codespace port 6006.
 #
 # Ports: 6006 = UI + OTLP/HTTP ingest, 4317 = OTLP/gRPC ingest.
+# The Service is a NodePort: 6006 is pinned to nodePort 30606, which kind maps
+# through to the forwarded Codespace port 6006 (see cluster/kind-config.yaml).
+# 4317 stays cluster-internal (the OTel gateway reaches it in-cluster).
 # Image + layout verified working against Phoenix OTLP ingest.
 ---
 apiVersion: v1
@@ -18,7 +21,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  # Empty storageClassName => cluster default (k3d: local-path, kind: standard).
+  # Empty storageClassName => the kind cluster default (standard / local-path).
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -76,7 +79,8 @@ metadata:
   namespace: phoenix
   labels: { app: phoenix }
 spec:
+  type: NodePort
   selector: { app: phoenix }
   ports:
-    - { name: ui-http, port: 6006, targetPort: 6006 }
+    - { name: ui-http, port: 6006, targetPort: 6006, nodePort: 30606 }
     - { name: otlp-grpc, port: 4317, targetPort: 4317 }

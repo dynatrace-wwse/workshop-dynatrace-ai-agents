@@ -5,7 +5,7 @@
     "context": "."
   },
 
-  // Docker-in-Docker is required so kind/k3d can run a cluster inside the Codespace.
+  // Docker-in-Docker is required so kind can run a cluster inside the Codespace.
   // The GitHub CLI feature provides `gh` for the GitHub MCP / repo operations.
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
@@ -64,8 +64,8 @@
 
   // Tool versions are pinned in the Dockerfile; override here per-Codespace if needed.
   "containerEnv": {
-    // Cluster engine: "k3d" (default, recommended) or "kind". See .devcontainer/DECISIONS.md.
-    "CLUSTER_TOOL": "k3d",
+    // Cluster engine: kind is the single supported engine. See .devcontainer/DECISIONS.md.
+    "CLUSTER_TOOL": "kind",
     "CLUSTER_NAME": "workshop",
     "KUBECONFIG": "/home/vscode/.kube/config"
   },

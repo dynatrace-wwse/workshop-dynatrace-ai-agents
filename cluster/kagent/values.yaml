@@ -64,3 +64,7 @@ controller:
   replicas: 1
 ui:
   replicas: 1
+  # UI exposure: the chart's own `kagent-ui` Service stays ClusterIP. The chart
+  # (0.10.4) has no knob to pin a nodePort, so a fixed-nodePort NodePort Service
+  # ships alongside in cluster/kagent/ui-nodeport.yaml (applied by install.sh);
+  # kind maps nodePort 30080 -> forwarded Codespace port 8080.
