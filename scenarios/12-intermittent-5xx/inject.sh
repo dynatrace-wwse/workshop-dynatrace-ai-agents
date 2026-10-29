@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Scenario 12 — inject hook (override path per ISI-6846 §1.2).
+# Scenario 12 — inject hook (override path per ISI-6846 §1.2 / §4.4 rev 2).
 #
-# MECHANISM NOTE (divergence from ISI-6846 §4.4, surfaced to ISI-6847/Architect):
-#   The contract assumed the fault was a *flagd feature-flag flip*. The selected
-#   fork `henrikrexed/opentelemetry-demo-light` SHIPS NO flagd — it trims the
+# MECHANISM (ratified by the Architect in ISI-6846 §4.4 rev 2, ISI-6856):
+#   The fork `henrikrexed/opentelemetry-demo-light` SHIPS NO flagd — it trims the
 #   upstream OTel Demo to frontend/product-catalog/cart/checkout/payment (+postgres,
 #   valkey, loadgen), confirmed in the fork tree and in cluster/versions.env
-#   (ISI-6847). So there is no flag to flip. This hook instead injects an
-#   equivalent, additive, reversible, release-name-agnostic fault that produces the
-#   same observable (intermittent 5xx on the product path correlated in Dynatrace):
+#   (ISI-6847). So the contract's original flagd flag-flip has no flag to flip; §4.4
+#   rev 2 replaces it with the additive, reversible, release-name-agnostic fault
+#   implemented here, which produces the same observable (intermittent 5xx on the
+#   product path, correlated in Dynatrace to the product-catalog entity):
 #
 #   It discovers the `product-catalog` Service in otel-demo and adds a SECOND
 #   backend Deployment carrying that Service's exact selector labels, but which
@@ -17,10 +17,14 @@
 #   5xx. cleanup.sh removes only that injected Deployment; the healthy demo is never
 #   touched and the otel-demo namespace is never deleted (Platform owns it).
 #
-#   !! NOT YET VALIDATED against a live deploy — ISI-6847 had not finished deploying
-#      the demo at authoring time. Live round-trip validation is tracked as a child
-#      issue blocked on ISI-6847. The selector-discovery below is written to adapt
-#      to whatever release name ISI-6847 picks.
+#   !! LIVE ROUND-TRIP VALIDATION STILL OWED (ISI-6848) — ISI-6847's demo deploy is
+#      now done (PR #14), which unblocks it. Before marking #12 validated, close the
+#      three §4.4-rev-2 hardening items: (1) resolve a NAMED gRPC targetPort to a
+#      number (the PORT=3550 fallback below only fires when the lookup is empty, not
+#      when it is a name like "grpc"); (2) sanity-check the failing share (~50% with
+#      one healthy replica — intermittent but high); (3) confirm the injected pod
+#      joins the Service endpoints and the 5xx raises a Dynatrace problem with Davis
+#      root-cause = product-catalog. Selector-discovery adapts to any release name.
 set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
@@ -39,15 +43,29 @@ log "found ${SVC}"
 
 # 2. Read the Service's selector labels + target port — the faulty backend must
 #    carry the SAME labels so the Service routes a share of traffic to it.
-PORT="$(kubectl -n "${DEMO_NS}" get "${SVC}" -o jsonpath='{.spec.ports[0].targetPort}')"
-[ -n "${PORT}" ] || PORT=3550
-# selector as "k=v,k=v" -> rebuild as YAML label lines.
-mapfile -t SEL < <(kubectl -n "${DEMO_NS}" get "${SVC}" -o jsonpath='{range .spec.selector}{@}{"\n"}{end}' 2>/dev/null) || true
-# jsonpath over a map is awkward; read keys/values explicitly instead.
+#    targetPort may be a NUMBER (3550) or a NAMED port ("grpc"). Resolve both:
+#      - numeric targetPort  -> the faulty container listens on that number, unnamed.
+#      - named targetPort    -> the faulty container exposes a port with that NAME,
+#        bound to the Service's numeric .spec.ports[0].port (3550 fallback), so the
+#        Service (targetPort=<name>) still routes to the faulty pod.
+#    (§4.4-rev-2 hardening item 1 — ISI-6856.)
+TARGET_PORT="$(kubectl -n "${DEMO_NS}" get "${SVC}" -o jsonpath='{.spec.ports[0].targetPort}' 2>/dev/null)"
+SVC_PORT="$(kubectl -n "${DEMO_NS}" get "${SVC}" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null)"
+if [[ "${TARGET_PORT}" =~ ^[0-9]+$ ]]; then
+  LISTEN_PORT="${TARGET_PORT}"; PORT_NAME=""
+else
+  # named (or empty) targetPort -> listen on the numeric Service port, keep the name.
+  LISTEN_PORT="${SVC_PORT:-3550}"; PORT_NAME="${TARGET_PORT}"
+fi
+# selector as a map -> YAML label lines (jsonpath over a map is awkward; use python).
 SELECTOR_YAML="$(kubectl -n "${DEMO_NS}" get "${SVC}" -o json \
   | python3 -c 'import sys,json; s=json.load(sys.stdin)["spec"]["selector"]; print("\n".join(f"        {k}: \"{v}\"" for k,v in s.items()))')"
 [ -n "${SELECTOR_YAML}" ] || { err "could not read ${SVC} selector labels"; exit 2; }
-log "faulty backend will carry the product-catalog Service selector on port ${PORT}"
+# Build the container port block (add `name:` only for a named targetPort).
+PORT_BLOCK="            - containerPort: ${LISTEN_PORT}"
+[ -n "${PORT_NAME}" ] && PORT_BLOCK="${PORT_BLOCK}
+              name: ${PORT_NAME}"
+log "faulty backend will carry the ${SVC##*/} selector, listening on ${LISTEN_PORT}${PORT_NAME:+ (named ${PORT_NAME})}"
 
 # 3. Apply the faulty backend. It binds the gRPC port with netcat but never speaks
 #    gRPC, so calls routed to it fail — and it has NO readiness probe, so it stays
@@ -76,9 +94,9 @@ ${SELECTOR_YAML}
         - name: broken-backend
           image: busybox:1.36
           # Accept TCP connects on the gRPC port but never answer -> gRPC calls fail.
-          command: ["/bin/sh", "-c", "while true; do nc -l -p ${PORT} >/dev/null 2>&1 || sleep 1; done"]
+          command: ["/bin/sh", "-c", "while true; do nc -l -p ${LISTEN_PORT} >/dev/null 2>&1 || sleep 1; done"]
           ports:
-            - containerPort: ${PORT}
+${PORT_BLOCK}
           resources:
             requests: { cpu: 10m, memory: 16Mi }
             limits:   { cpu: 50m, memory: 32Mi }
