@@ -44,8 +44,8 @@ check DT_ENVIRONMENT    optional "platform apps URL (https://<env>.apps.dynatrac
 
 echo "[Phase 3] Agents LLM + GitHub MCP (BMAD 'bad crew')"
 check_either DEEPSEEK_API_KEY LLM_API_KEY required "model-provider key powering the kagent agents + eval judge (DeepSeek by default)"
-check_either GITHUB_PAT GITHUB_TOKEN       required "GitHub token for the GitHub MCP; fine-grained PAT for the write demo (Codespaces injects GITHUB_TOKEN)"
-check GITHUB_DEMO_REPO required "BMAD/'bad crew' demo repo (owner/repo) the GitHub MCP writes to"
+check_either GH_PAT GITHUB_TOKEN       required "GitHub token for the GitHub MCP; fine-grained PAT for the write demo (Codespaces injects GITHUB_TOKEN)"
+check GH_DEMO_REPO required "BMAD/'bad crew' demo repo (owner/repo) the GitHub MCP writes to"
 
 echo "[Phase 4] dt-evals (trace-sourced LLM-as-judge)"
 check_either DT_ENV_URL DT_ENVIRONMENT_URL optional "dt-evals tenant URL; derived from DT_TENANT_URL if unset"
