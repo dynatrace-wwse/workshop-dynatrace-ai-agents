@@ -37,7 +37,23 @@ command -v envsubst >/dev/null || warn "envsubst not found — Dynatrace apiUrl 
 for ns in dynatrace opentelemetry-operator-system kagent tetragon agent-sandbox phoenix; do
   kubectl get ns "$ns" >/dev/null 2>&1 || kubectl create ns "$ns" >/dev/null
 done
-helm repo update dynatrace open-telemetry cilium >/dev/null 2>&1 || warn "helm repo update had warnings (offline?)"
+# Register the classic Helm repos ourselves (mirrors prep-stack.sh's add_repo):
+# a no-op when they already exist, so deploy-on-create works even when
+# postCreate.sh calls install.sh directly without first running prep-stack.sh.
+# Without this, `helm repo update <name>` errors on repos that were never added
+# and the first `helm upgrade --install dynatrace/...` hard-fails under set -e
+# ("repo dynatrace not found"), aborting all install steps (ISI-6860).
+# kagent charts are OCI pulls and need no repo add — left as-is below.
+add_repo() {
+  local n="$1" u="$2"
+  helm repo list 2>/dev/null | awk '{print $1}' | grep -qx "$n" \
+    || helm repo add "$n" "$u" >/dev/null 2>&1 \
+    || warn "could not add helm repo '$n' ($u)"
+}
+add_repo dynatrace       https://raw.githubusercontent.com/Dynatrace/dynatrace-operator/main/config/helm/repos/stable
+add_repo open-telemetry  https://open-telemetry.github.io/opentelemetry-helm-charts
+add_repo cilium          https://helm.cilium.io
+helm repo update >/dev/null 2>&1 || warn "helm repo update had warnings (offline?)"
 
 # ---------------------------------------------------------------------------
 log "0/6  Provisioning secrets from the environment"
