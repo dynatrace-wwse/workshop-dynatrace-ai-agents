@@ -154,7 +154,36 @@ tenant/token scopes include `openTelemetryTrace.ingest`.
 
 ---
 
-## Module 05 — Evaluate
+## Module 05 — Diagnose
+
+**`run.sh inject 12` exits 2 with "requires the otel-demo app".** Scenario 12 is
+the opt-in app scenario. Either skip it (run 01–03) or deploy the demo once:
+`INSTALL_OTEL_DEMO=true bash cluster/install.sh`. Scenarios 01–03 have no such
+dependency.
+
+**`unknown/ambiguous scenario id`.** Pass a numeric prefix (`01`, `12`) or the
+full dir name (`01-crashloopbackoff`); run `bash scenarios/run.sh list` to see
+valid ids.
+
+**The injected pod never appears.** `run.sh` applies into the `workshop-faults`
+namespace — watch there, not `default`: `kubectl get pods -n workshop-faults`.
+A fail-closed allowlist rejects (exit 2) any manifest referencing a platform
+namespace *before* applying, so if inject refused, check the manifest's
+`namespace:` is `workshop-faults`.
+
+**The agent cites the wrong failure class** (e.g. "OOMKilled" for the crash
+loop). That's a graded *fail*, not a tooling bug — the infra scenarios sit on
+distinct evidence channels on purpose. Re-run and, if it persists, confirm the
+`sre-agent` has its k8s read tools (`k8s_get_pod_logs`, `k8s_get_events`) from
+module 02.
+
+**Cleanup left something behind.** `bash scenarios/run.sh cleanup <id>` is
+idempotent; for infra scenarios it deletes the whole `workshop-faults`
+namespace. Re-run it, or `kubectl delete ns workshop-faults --ignore-not-found`.
+
+---
+
+## Module 06 — Evaluate
 
 **Phoenix UI empty.** Same root cause as "no traces" above — fix the OTel
 pipeline, then re-send prompts. Confirm the forward:
