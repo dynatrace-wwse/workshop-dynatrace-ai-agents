@@ -12,6 +12,9 @@ kubectl delete -f "${SCRIPT_DIR}/phoenix/phoenix.yaml" --ignore-not-found
 kubectl delete -f "${SCRIPT_DIR}/agent-sandbox/isolation.yaml" --ignore-not-found
 
 log "uninstalling helm releases"
+# opentelemetry-demo-light (scenario #12, opt-in) — released as 'otel-demo' in ns otel-demo.
+helm uninstall otel-demo -n otel-demo 2>/dev/null || true
+kubectl delete ns otel-demo --ignore-not-found
 helm uninstall kagent -n kagent 2>/dev/null || true
 helm uninstall kagent-crds -n kagent 2>/dev/null || true
 helm uninstall tetragon -n tetragon 2>/dev/null || true
