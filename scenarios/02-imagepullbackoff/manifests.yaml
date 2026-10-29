@@ -1,0 +1,38 @@
+# Scenario 02 — ImagePullBackOff.
+# A throwaway workload referencing an image tag that does not exist, so the kubelet
+# cannot pull it and the pod is stuck Pending/ImagePullBackOff. Evidence channel:
+# POD EVENTS (Failed to pull image ... not found / ErrImagePull -> ImagePullBackOff).
+# Every object pins namespace: workshop-faults (ISI-6846 §1.1 / §5).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-renderer
+  namespace: workshop-faults
+  labels:
+    app: report-renderer
+    workshop.scenario: "02-imagepullbackoff"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: report-renderer
+  template:
+    metadata:
+      labels:
+        app: report-renderer
+        workshop.scenario: "02-imagepullbackoff"
+    spec:
+      containers:
+        - name: report-renderer
+          # The fault: a non-existent tag on an otherwise-real public image. The
+          # registry resolves the repo but has no such tag -> manifest not found.
+          image: busybox:v0-does-not-exist-9q9q9q
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "sleep 3600"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
