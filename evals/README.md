@@ -27,9 +27,26 @@ OpenAI/Anthropic with one env change (documented in each subfolder).
 
 | Path | What |
 |------|------|
-| [`phoenix/`](phoenix/) | Phoenix eval walkthrough — `run_phoenix_eval.py` + a bundled sample dataset so you get scores even before generating live traffic. |
-| [`dt-evals/`](dt-evals/) | dt-evals config (`workshop-agents.dt-eval.yaml`) + a `run-dt-eval.sh` wrapper. |
+| [`phoenix/`](phoenix/) | Phoenix eval walkthrough — `run_phoenix_eval.py` + a bundled sample dataset so you get scores even before generating live traffic. Plus `run_diagnosis_eval.py` (module-05 diagnosis grading). |
+| [`dt-evals/`](dt-evals/) | dt-evals configs (`workshop-agents.dt-eval.yaml` + `scenario-diagnosis.dt-eval.yaml`) + a `run-dt-eval.sh` wrapper. |
+| [`ground-truth/`](ground-truth/) | **Module-05 answer keys** — the scenario `expected-diagnosis.md` files registered as diagnosis-grading fixtures (ISI-6850). |
+| [`tests/`](tests/) | Offline tests (`python -m pytest tests/`): fixture drift guard + grader spread. |
+| [`ground_truth.py`](ground_truth.py) | Fixture loader + the deterministic diagnosis grader (pure stdlib). |
 | [`pyproject.toml`](pyproject.toml) | `uv` project pinning the Python eval tooling (Phoenix path). |
+
+### Diagnosis grading (module 05, the diagnostic module's answer keys)
+
+The fault-injection scenarios (`scenarios/`) ship objective answer keys
+(`expected-diagnosis.md`). They are **registered as ground truth** here so an SRE
+diagnosis can be graded — did it cite the required signals and reach the right
+root cause? This closes the **04 → 05 → 06** loop. See
+[`ground-truth/README.md`](ground-truth/).
+
+```bash
+cd evals
+python -m pytest tests/                      # offline: fixtures + grader
+python phoenix/run_diagnosis_eval.py         # grade bundled golden/confab diagnoses
+```
 
 ## Prerequisites
 

@@ -16,8 +16,23 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
-TEMPLATE="$HERE/workshop-agents.dt-eval.yaml"
-RENDERED="$HERE/workshop-agents.generated.dt-eval.yaml"
+
+# Optional `--config <file>` picks a different eval template (e.g. the module-05
+# diagnosis config). Default is the general workshop-agents config. The flag is
+# parsed out here; everything else still passes straight through to `dt-evals run`.
+CONFIG="workshop-agents.dt-eval.yaml"
+PASSTHRU=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --config) CONFIG="$2"; shift 2 ;;
+    --config=*) CONFIG="${1#--config=}"; shift ;;
+    *) PASSTHRU+=("$1"); shift ;;
+  esac
+done
+set -- "${PASSTHRU[@]+"${PASSTHRU[@]}"}"
+case "$CONFIG" in /*) TEMPLATE="$CONFIG" ;; *) TEMPLATE="$HERE/$CONFIG" ;; esac
+[ -f "$TEMPLATE" ] || { echo "ERROR: config not found: $TEMPLATE" >&2; exit 1; }
+RENDERED="${TEMPLATE%.yaml}.generated.yaml"
 
 # Pinned CLI version (single source of truth in cluster/versions.env).
 # shellcheck disable=SC1091

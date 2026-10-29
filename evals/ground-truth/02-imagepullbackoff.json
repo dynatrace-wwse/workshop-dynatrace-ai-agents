@@ -1,0 +1,23 @@
+{
+  "scenario": "02-imagepullbackoff",
+  "title": "ImagePullBackOff",
+  "fault_family": "infra",
+  "namespace": "workshop-faults",
+  "requires": ["cluster-state"],
+  "pass_threshold": 3,
+  "ground_truth_md": "scenarios/02-imagepullbackoff/expected-diagnosis.md",
+  "reference_answer": "The report-renderer container references an image tag that does not exist (busybox:v0-does-not-exist-9q9q9q), so the kubelet cannot pull it and the pod is stuck in ImagePullBackOff.",
+  "required_signals": [
+    {"id": "imagepull-reason", "desc": "reason: ImagePullBackOff and/or ErrImagePull on the status", "any_of": ["imagepullbackoff", "errimagepull"]},
+    {"id": "failed-pull-event", "desc": "the event 'Failed to pull image' (manifest not found)", "any_of": ["failed to pull image", "manifest unknown", "manifest not found", "not found: manifest", "manifest ", "cannot pull", "cannot be pulled"]},
+    {"id": "bad-image-ref", "desc": "the specific bad / non-existent image tag named", "any_of": ["busybox:v0-does-not-exist-9q9q9q", "does-not-exist", "non-existent tag", "nonexistent tag", "tag that does not exist", "bad tag", "missing tag", "tag does not exist"]},
+    {"id": "never-running", "desc": "pod never reaches Running / containers waiting / 0/1 Ready", "any_of": ["waiting", "0/1", "never reaches running", "never starts", "cannot start", "can't start", "not running", "never runs"]}
+  ],
+  "root_cause_any_of": ["image tag", "image", "tag", "pull", "registry", "does not exist", "cannot be pulled", "non-existent"],
+  "must_not_claim": [
+    {"id": "wrong-family-crashloop", "desc": "a crash loop of a running process / app exit code (scenario 01)", "any_of": ["crashloopbackoff", "crash loop", "crash-loop", "exit code 1", "exit 1", "non-zero exit", "exits non-zero", "application crash"]},
+    {"id": "wrong-family-oom", "desc": "out-of-memory kill (scenario 03)", "any_of": ["oomkilled", "out of memory", "out-of-memory", "exit 137", "137"]},
+    {"id": "wrong-auth-cause", "desc": "a private-registry auth / ImagePullSecret failure (the image is public; only the tag is missing)", "any_of": ["imagepullsecret", "image pull secret", "authentication", "auth failure", "unauthorized", "credentials", "private registry", "login"]},
+    {"id": "wrong-probe-rootcause", "desc": "a liveness/readiness probe failure", "any_of": ["liveness probe", "readiness probe", "probe failed", "probe failure"]}
+  ]
+}

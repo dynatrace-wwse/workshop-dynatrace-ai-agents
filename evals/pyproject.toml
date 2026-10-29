@@ -16,6 +16,14 @@ dependencies = [
     "python-dotenv>=1.0",
 ]
 
+[dependency-groups]
+# Offline module-05 tests (fixture drift guard + diagnosis grader). The grader
+# itself is pure stdlib; only pytest is extra. Run: uv run --group dev pytest tests/
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.uv]
 # Keep the lock reproducible across attendee machines.
 package = false

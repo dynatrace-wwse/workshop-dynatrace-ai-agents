@@ -1,0 +1,24 @@
+{
+  "scenario": "12-intermittent-5xx",
+  "title": "Intermittent 5xx on the product path (Dynatrace correlation)",
+  "fault_family": "app",
+  "namespace": "otel-demo",
+  "requires": ["cluster-state", "dynatrace", "otel-demo"],
+  "pass_threshold": 4,
+  "ground_truth_md": "scenarios/12-intermittent-5xx/expected-diagnosis.md",
+  "reference_answer": "A faulty product-catalog backend has joined the product-catalog Service's endpoints, so a fraction of the frontend's product requests are load-balanced to it and fail — surfacing as intermittent 5xx on the astronomy-shop product/browse path, which Dynatrace raises as a problem with Davis pointing at the product-catalog service.",
+  "required_signals": [
+    {"id": "dt-problem-open", "desc": "an open Dynatrace problem affecting the frontend / product-catalog path", "any_of": ["dynatrace problem", "open problem", "davis problem", "problem p-", "problem id", "problem title", "raises a problem", "raised a problem"]},
+    {"id": "davis-rootcause-pc", "desc": "Davis root-cause entity = product-catalog (not the frontend)", "any_of": ["davis", "root cause", "root-cause entity"]},
+    {"id": "intermittent-partial", "desc": "failures are intermittent / a fraction of requests (not 100%)", "any_of": ["intermittent", "a fraction", "fraction of", "partial", "some requests", "some product requests", "a share of", "elevated", "not all", "not 100", "percentage of requests"]},
+    {"id": "errors-5xx-grpc", "desc": "5xx / gRPC errors on the frontend -> product-catalog call path", "any_of": ["5xx", "grpc", "getproduct", "listproducts", "error rate", "failed request", "500 error", "http 500", "gateway error"]},
+    {"id": "k8s-extra-endpoint", "desc": "product-catalog Service has more than one endpoint and one is unhealthy/faulty", "any_of": ["endpoint", "extra backend", "two backend", "second backend", "more than one", "faulty backend", "bad backend", "unhealthy pod", "extra pod", "additional pod"]}
+  ],
+  "root_cause_any_of": ["product-catalog", "product catalog", "productcatalog", "faulty backend", "bad backend", "upstream service"],
+  "must_not_claim": [
+    {"id": "wrong-frontend-root", "desc": "the frontend itself is the root cause (Davis attributes it to product-catalog)", "any_of": ["frontend is the root cause", "root cause is the frontend", "frontend itself is", "blame the frontend", "caused by the frontend"]},
+    {"id": "wrong-total-outage", "desc": "a total outage / every request failing (signal is intermittent)", "any_of": ["total outage", "every request", "100% of requests", "all requests fail", "complete outage", "entirely down", "completely down"]},
+    {"id": "wrong-infra-family", "desc": "a CrashLoopBackOff / OOMKilled / ImagePullBackOff of the healthy pod (scenarios 01-03)", "any_of": ["crashloopbackoff", "oomkilled", "imagepullbackoff", "errimagepull", "exit 137"]},
+    {"id": "wrong-db-cause", "desc": "a database / cart / checkout / payment outage as the primary cause without evidence", "any_of": ["postgres", "database outage", "cart outage", "checkout outage", "payment outage", "database is down"]}
+  ]
+}

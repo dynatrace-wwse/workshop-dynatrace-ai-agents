@@ -127,6 +127,60 @@ fetch bizevents
 
 ---
 
+## Part C — grade a *diagnosis* against the answer key
+
+Parts A/B judge generic quality (grounded? relevant? toxic?). The **diagnostic
+module** ([05 — Diagnose](05-diagnose.md)) asks a sharper question: when the SRE
+agent investigates a *real* injected fault, **did it reach the right root
+cause?** Each scenario ships an objective answer key —
+`scenarios/<id>/expected-diagnosis.md` — and those keys are **registered as this
+module's diagnosis-grading ground truth** under
+[`evals/ground-truth/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/evals/ground-truth).
+
+The grading check:
+
+> Did the diagnosis cite **≥ `pass_threshold`** of the answer key's required
+> signals (root cause + evidence channel), identify the root cause, and avoid the
+> forbidden cross-channel claims?
+
+Because scenarios 01–03 sit on **distinct evidence channels** (logs vs. events vs.
+`OOMKilled` status), a cross-channel claim is an unambiguous fail — so this grades
+objectively, even with no judge model.
+
+### Deterministic grade (offline, no key)
+
+```bash
+cd evals
+python phoenix/run_diagnosis_eval.py        # bundled golden + confab diagnoses
+```
+
+It prints a PASS/FAIL per diagnosis and writes
+`phoenix/out/diagnosis_eval_results.csv`. Add `--llm-judge` (needs a judge key) to
+also run an LLM root-cause grader, or `--from-phoenix` to grade the agent's *live*
+diagnosis spans and annotate them back onto the traces.
+
+### In Dynatrace (dt-evals)
+
+Each answer key is also rendered into a dt-evals custom evaluator. Register the
+one for the scenario you ran, then grade its spans:
+
+```bash
+cd evals/dt-evals
+npx -y "$DT_EVALS_PKG" evaluators add            # paste evaluators/diagnosis-<id>.md
+./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-<id>
+```
+
+Correct diagnoses score 1, misses score 0 — a per-scenario pass/fail bizevent next
+to the trace. Details:
+[`evals/ground-truth/README.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/ground-truth/README.md).
+
+!!! tip "Closing the diagnose → evaluate → optimize loop"
+    The same diagnosis runs you grade here emit the `gen_ai.*` spans whose
+    token/cost/latency drive **[07 — Optimize](07-optimize.md)**. Break it
+    ([05 — Diagnose](05-diagnose.md)), grade it (06), cut the waste (07).
+
+---
+
 ## What to measure for *these* agents
 
 | Agent | Good eval questions |
@@ -140,6 +194,9 @@ fetch bizevents
   CSV) — even offline against the bundled dataset.
 - A dt-evals run scores the agents' real traces and lands the results in
   Dynatrace as queryable bizevents, with a CI-friendly pass/fail gate.
+- A diagnosis-grading run (Part C) scores an SRE-agent diagnosis against a
+  scenario answer key — PASS/FAIL against registered ground truth, offline or in
+  Dynatrace.
 
 Next: **[07 — Optimize](07-optimize.md)** — now that you can *measure* cost and
 quality, go cut the waste.

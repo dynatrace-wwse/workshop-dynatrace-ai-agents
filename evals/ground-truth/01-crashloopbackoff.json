@@ -1,0 +1,23 @@
+{
+  "scenario": "01-crashloopbackoff",
+  "title": "CrashLoopBackOff",
+  "fault_family": "infra",
+  "namespace": "workshop-faults",
+  "requires": ["cluster-state"],
+  "pass_threshold": 3,
+  "ground_truth_md": "scenarios/01-crashloopbackoff/expected-diagnosis.md",
+  "reference_answer": "The billing-worker container's start command exits non-zero immediately (it logs a fatal \"BILLING_DB_URL is not set\" config error and exit 1), so the kubelet keeps restarting it and backs the pod off into CrashLoopBackOff.",
+  "required_signals": [
+    {"id": "crashloop-reason", "desc": "reason: CrashLoopBackOff on the pod/container status", "any_of": ["crashloopbackoff"]},
+    {"id": "backoff-event", "desc": "the event 'Back-off restarting failed container'", "any_of": ["back-off restarting", "backoff restarting", "back off restarting"]},
+    {"id": "nonzero-exit", "desc": "lastState.terminated.exitCode = 1 / reason: Error / non-zero exit", "any_of": ["exitcode", "exit code 1", "exit 1", "reason: error", "non-zero exit", "nonzero exit", "exits non-zero"]},
+    {"id": "fatal-log", "desc": "the failing start command / fatal log line from the pod logs", "any_of": ["billing_db_url", "config load failed", "config error", "exiting", "is not set"]}
+  ],
+  "root_cause_any_of": ["crash-loop", "crash loop", "crashloop", "exits", "exit 1", "startup", "start command", "config", "non-zero"],
+  "must_not_claim": [
+    {"id": "wrong-family-imagepull", "desc": "image-pull / registry failure (scenario 02)", "any_of": ["imagepullbackoff", "errimagepull", "image pull", "pull the image", "image tag", "registry"]},
+    {"id": "wrong-family-oom", "desc": "out-of-memory kill (scenario 03)", "any_of": ["oomkilled", "out of memory", "out-of-memory", "exit 137", "exitcode 137", "137"]},
+    {"id": "wrong-probe-rootcause", "desc": "a liveness/readiness probe failure as the root cause", "any_of": ["liveness probe", "readiness probe", "probe failed", "probe failure"]},
+    {"id": "wrong-node-scheduling", "desc": "a node / scheduling / resource-quota problem", "any_of": ["node pressure", "unschedulable", "scheduling", "resource quota", "resourcequota", "evicted"]}
+  ]
+}

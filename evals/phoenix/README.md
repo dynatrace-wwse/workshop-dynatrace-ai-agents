@@ -44,6 +44,23 @@ purely by env vars — see `evals/.env.example`:
 | `JUDGE_MODEL` | `deepseek-chat` |
 | `PHOENIX_ENDPOINT` / `PHOENIX_PROJECT` | only for `--from-phoenix` |
 
+## Grade diagnoses against the scenario answer keys (module 05)
+
+`run_diagnosis_eval.py` is the diagnostic-module companion: it grades an SRE
+diagnosis against its scenario's **ground truth**
+([`evals/ground-truth/`](../ground-truth/), ISI-6850) — did it cite the required
+signals and reach the right root cause?
+
+```bash
+cd evals
+python phoenix/run_diagnosis_eval.py        # bundled golden+confab diagnoses (offline, no key)
+python phoenix/run_diagnosis_eval.py --llm-judge      # + LLM root-cause grader (needs a judge key)
+uv run python phoenix/run_diagnosis_eval.py --from-phoenix   # grade live diagnosis spans + annotate
+```
+
+The core grader is deterministic (pure stdlib) so it runs with no judge key; the
+LLM root-cause grader is optional. Results go to `phoenix/out/diagnosis_eval_results.csv`.
+
 ## The bundled dataset
 
 `data/sample_llm_interactions.jsonl` holds a mix of good and deliberately
