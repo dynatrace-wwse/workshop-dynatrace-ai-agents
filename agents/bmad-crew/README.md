@@ -27,7 +27,7 @@ CRD).
 ## Apply
 
 ```bash
-export GITHUB_PAT='<fine-grained PAT, demo repo only: Contents/Issues/PRs RW>'
+export GH_PAT='<fine-grained PAT, demo repo only: Contents/Issues/PRs RW>'
 bash ../install-agents.sh                     # applies mcp + sre + this crew
 # or, once agents/mcp is applied:
 kubectl apply -k agents/bmad-crew

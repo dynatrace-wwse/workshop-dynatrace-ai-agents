@@ -16,9 +16,9 @@
 # ── PAT / SECRET (never commit a token) ──────────────────────────────────────
 # github-mcp-server reads GITHUB_PERSONAL_ACCESS_TOKEN from env. kagent's
 # MCPServer CRD `deployment.env` is a static map and cannot source a value from a
-# Secret, so the PAT is injected at APPLY TIME via envsubst (${GITHUB_PAT}) by
+# Secret, so the PAT is injected at APPLY TIME via envsubst (${GH_PAT}) by
 # agents/install-agents.sh — it is NEVER written into this file or git.
-# Provide it as the GITHUB_PAT env var (fine-grained PAT, scoped to the ONE demo
+# Provide it as the GH_PAT env var (fine-grained PAT, scoped to the ONE demo
 # repo: Contents RW · Issues RW · Pull requests RW; NO org/admin). Rotate it
 # after the workshop.
 apiVersion: kagent.dev/v1alpha1
@@ -41,9 +41,9 @@ spec:
     env:
       GITHUB_READ_ONLY: "0"
       GITHUB_TOOLSETS: "issues,pull_requests,repos,context"
-      # Injected at apply time from the GITHUB_PAT env var (see header). Empty in
+      # Injected at apply time from the GH_PAT env var (see header). Empty in
       # git. Tokenless, the server starts but reads return an auth prompt, not data.
-      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_PAT}"
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GH_PAT}"
     resources:
       requests: { cpu: "50m", memory: "64Mi" }
       limits:   { cpu: "300m", memory: "256Mi" }

@@ -44,12 +44,12 @@ These are injected **at apply time** and never committed:
 
 | Variable | Used by | Notes |
 |----------|---------|-------|
-| `GITHUB_PAT` | GitHub MCP | Fine-grained PAT scoped to the **one** demo repo: Contents RW · Issues RW · Pull requests RW. No org/admin. |
+| `GH_PAT` | GitHub MCP | Fine-grained PAT scoped to the **one** demo repo: Contents RW · Issues RW · Pull requests RW. No org/admin. |
 | `DT_PLATFORM_TOKEN` | Dynatrace MCP | Dynatrace **platform** token (`dt0s16.*`) — distinct from the Phase-2 OTLP `DT_API_TOKEN`. |
 | `DT_ENVIRONMENT` | Dynatrace MCP | Platform **apps** URL, e.g. `https://abc12345.apps.dynatrace.com`. Derived from `DT_TENANT_URL` (`.live.`→`.apps.`) if unset. |
 
 ```bash
-export GITHUB_PAT='github_pat_...'
+export GH_PAT='github_pat_...'
 export DT_PLATFORM_TOKEN='dt0s16....'
 export DT_ENVIRONMENT='https://<env>.apps.dynatrace.com'
 ```

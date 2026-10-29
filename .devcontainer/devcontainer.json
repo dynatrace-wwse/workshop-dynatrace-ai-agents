@@ -21,9 +21,12 @@
   // Workshop secrets surfaced in the "Create codespace with options…" dialog.
   // GitHub only prompts for variables declared here; descriptions render verbatim
   // (keep them short). Source of truth is .devcontainer/SECRETS.md — keep in sync.
-  // Note: GITHUB_TOKEN is reserved/auto-injected by Codespaces and cannot be declared;
-  // attendees provide a fine-grained GITHUB_PAT instead. Preferred keys of each
-  // preferred/fallback pair are declared (check-secrets.sh accepts either half).
+  // Note: GitHub rejects any Codespaces secret whose name begins with the reserved
+  // GITHUB_ prefix, so these use GH_ instead — GH_PAT (fine-grained PAT) and
+  // GH_DEMO_REPO. GITHUB_TOKEN is itself reserved/auto-injected by Codespaces and
+  // need not be declared; the installer prefers GH_PAT and falls back to it.
+  // Preferred keys of each preferred/fallback pair are declared (check-secrets.sh
+  // accepts either half).
   "secrets": {
     "DT_TENANT_URL": {
       "description": "Dynatrace tenant URL for the Operator + OTLP export, e.g. https://abc12345.live.dynatrace.com",
@@ -49,11 +52,11 @@
       "description": "Model key powering the kagent agents (DeepSeek by default). Fallback var: LLM_API_KEY.",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     },
-    "GITHUB_PAT": {
+    "GH_PAT": {
       "description": "Fine-grained PAT for the GitHub MCP / 'bad crew' demo repo (Contents+Issues+PRs RW on one repo).",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     },
-    "GITHUB_DEMO_REPO": {
+    "GH_DEMO_REPO": {
       "description": "The demo repo the GitHub MCP writes to, as owner/repo (e.g. henrikrexed/bad-crew-demo).",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     }

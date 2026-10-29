@@ -34,7 +34,7 @@ Run **after** the Phase 2 platform install (`cluster/install.sh`), which brings
 up kagent with `kagent-tool-server` enabled:
 
 ```bash
-export GITHUB_PAT='<fine-grained PAT, demo repo only>'   # BMAD crew → GitHub
+export GH_PAT='<fine-grained PAT, demo repo only>'   # BMAD crew → GitHub
 export DT_PLATFORM_TOKEN='dt0s16....'                     # SRE agent → Dynatrace
 export DT_ENVIRONMENT='https://<env>.apps.dynatrace.com'  # or derived from DT_TENANT_URL
 bash agents/install-agents.sh

@@ -104,7 +104,7 @@ kubectl -n kagent describe remotemcpserver dynatrace-mcp-remote
 kubectl -n kagent logs deploy/kagent-controller
 ```
 
-- `GITHUB_PAT` must be a fine-grained PAT scoped to the demo repo (Contents /
+- `GH_PAT` must be a fine-grained PAT scoped to the demo repo (Contents /
   Issues / Pull requests RW).
 - Dynatrace MCP needs the **platform** token (`dt0s16.*`) and `DT_ENVIRONMENT`
   (the `.apps.dynatrace.com` URL) — **distinct** from the Phase-2 OTLP

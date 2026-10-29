@@ -7,7 +7,7 @@
 #   bash agents/install-agents.sh
 #
 # Credentials (read from the environment, injected at apply time — never committed):
-#   GITHUB_PAT         fine-grained PAT scoped to the ONE demo repo
+#   GH_PAT         fine-grained PAT scoped to the ONE demo repo
 #                      (Contents RW · Issues RW · Pull requests RW; NO org/admin).
 #                      Required for the BMAD crew to touch GitHub.
 #   DT_PLATFORM_TOKEN  Dynatrace platform token (dt0s16.*) for the SRE agent's
@@ -41,9 +41,9 @@ fi
 
 # --- credentials ------------------------------------------------------------
 export GITHUB_MCP_IMAGE DYNATRACE_MCP_NODE_IMAGE DYNATRACE_MCP_PACKAGE
-# Accept GITHUB_TOKEN (Codespaces injects one) as a fallback for GITHUB_PAT. A
+# Accept GITHUB_TOKEN (Codespaces injects one) as a fallback for GH_PAT. A
 # fine-grained PAT scoped to the demo repo is strongly preferred for the write demo.
-export GITHUB_PAT="${GITHUB_PAT:-${GITHUB_TOKEN:-}}"
+export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
 export DT_PLATFORM_TOKEN="${DT_PLATFORM_TOKEN:-}"
 # Derive the platform (apps) URL from the Phase-2 tenant URL if not given.
 if [ -z "${DT_ENVIRONMENT:-}" ] && [ -n "${DT_TENANT_URL:-}" ]; then
@@ -52,11 +52,11 @@ if [ -z "${DT_ENVIRONMENT:-}" ] && [ -n "${DT_TENANT_URL:-}" ]; then
 fi
 export DT_ENVIRONMENT="${DT_ENVIRONMENT:-}"
 
-[ -n "${GITHUB_PAT}" ]        || warn "GITHUB_PAT unset — BMAD crew installs but GitHub tools will not authenticate."
+[ -n "${GH_PAT}" ]        || warn "GH_PAT unset — BMAD crew installs but GitHub tools will not authenticate."
 [ -n "${DT_PLATFORM_TOKEN}" ] || warn "DT_PLATFORM_TOKEN unset — SRE agent installs but Dynatrace tools will not authenticate."
 
 # Only these vars are substituted; every other $ in the manifests is left intact.
-SUBST_VARS='${GITHUB_MCP_IMAGE} ${GITHUB_PAT} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN}'
+SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN}'
 
 # --- 1/3  MCP layer: shared ModelConfig + GitHub + Dynatrace tool servers ----
 # Applied file-by-file (NOT via kustomize): kustomize round-trips flow scalars and
