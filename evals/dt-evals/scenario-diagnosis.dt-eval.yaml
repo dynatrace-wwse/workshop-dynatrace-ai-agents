@@ -1,0 +1,66 @@
+# dt-evals config — grade SRE-agent DIAGNOSES against the scenario answer keys.
+#   cd evals/dt-evals && ./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml
+#
+# Companion to workshop-agents.dt-eval.yaml. That config runs generic quality
+# metrics over all agent spans; THIS one grades the module-04 diagnostic scenarios
+# against their ground truth (scenarios/<id>/expected-diagnosis.md, registered as
+# fixtures under evals/ground-truth/ — ISI-6850).
+#
+# How the ground truth reaches the judge:
+#   * The per-scenario custom evaluators (diagnosis-<id>) carry the answer key's
+#     required signals + must-not-claim as their rubric prompt. Register them with
+#     `dt-evals evaluators add` — one-time; see evaluators/diagnosis-<id>.md.
+#   * `factual-accuracy` scores the diagnosis against a reference answer (the
+#     root-cause line).
+#
+# dt-evals is trace-sourced: it grades whichever spans the scope selects, so run
+# this scoped to ONE scenario's diagnosis at a time (inject the fault, diagnose,
+# then run with the matching --metric) — the custom rubric is scenario-specific.
+schemaVersion: 3
+
+name: scenario-diagnosis
+
+dynatrace:
+  environmentUrl: ${DT_ENVIRONMENT_URL}
+  apiToken: ${DYNATRACE_API_TOKEN}
+
+judge:
+  provider: openai
+  model: deepseek-chat
+  baseUrl: https://api.deepseek.com/v1
+  apiKey: ${OPENAI_API_KEY}
+  timeout: 60000
+  maxRetries: 2
+  concurrency: 3
+
+scope:
+  # The SRE agent's service.name (discover it — see README "Discover your service.name").
+  service: ${DT_EVAL_SERVICE}
+  # Narrow to the single diagnosis you just ran. 'latest' + a small count keeps
+  # the run pinned to the scenario under test rather than historical traffic.
+  since: 1h
+  sampling:
+    strategy: latest
+    count: 5
+
+# Enable the custom per-scenario evaluator for the scenario you are running
+# (register it first via `dt-evals evaluators add`), plus the reference-answer
+# accuracy metric. Pass --metric diagnosis-<id> on the CLI to pick one scenario,
+# or list them here. Names must match the evaluators you registered.
+metrics:
+  enabled:
+    - factual-accuracy          # built-in: diagnosis vs. the answer-key root cause
+    # - diagnosis-01-crashloopbackoff
+    # - diagnosis-02-imagepullbackoff
+    # - diagnosis-03-oomkilled
+    # - diagnosis-12-intermittent-5xx
+
+# A diagnosis that misses the answer key should fail the run (CI-friendly gate).
+alerts:
+  thresholds:
+    factual-accuracy: 0.7
+    # Custom binary evaluators score 1 (correct) / 0 (incorrect); fail below 1.
+    diagnosis-01-crashloopbackoff: 1
+    diagnosis-02-imagepullbackoff: 1
+    diagnosis-03-oomkilled: 1
+    diagnosis-12-intermittent-5xx: 1

@@ -14,8 +14,29 @@ Dynatrace gen_ai.* spans ─► dt-evals (sample → mask PII → LLM judge) ─
 
 | File | What |
 |------|------|
-| `workshop-agents.dt-eval.yaml` | The eval config (template with `${…}` placeholders). schemaVersion 3. |
-| `run-dt-eval.sh` | Renders the template with your env values (envsubst), then `validate` + `run`. |
+| `workshop-agents.dt-eval.yaml` | The general eval config (template with `${…}` placeholders). schemaVersion 3. |
+| `scenario-diagnosis.dt-eval.yaml` | Module-05 config: grade a scenario **diagnosis** against its answer key. |
+| `evaluators/diagnosis-<id>.md` | Per-scenario custom-evaluator rubrics (generated from the ground-truth fixtures). |
+| `gen_diagnosis_evaluators.py` | Regenerates `evaluators/` from `evals/ground-truth/`. |
+| `run-dt-eval.sh` | Renders a template with your env values (envsubst), then `validate` + `run`. `--config <file>` picks the template (default: `workshop-agents.dt-eval.yaml`). |
+
+## Grade a diagnosis against its answer key (module 05)
+
+The fault-injection scenarios ship objective answer keys
+(`scenarios/<id>/expected-diagnosis.md`), registered as ground truth under
+[`evals/ground-truth/`](../ground-truth/) (ISI-6850). Each is rendered into a
+dt-evals **custom evaluator** whose rubric carries the required signals +
+must-not-claim. Register the one for the scenario you ran, then grade its spans:
+
+```bash
+cd evals/dt-evals
+npx -y "$DT_EVALS_PKG" evaluators add                 # paste evaluators/diagnosis-<id>.md
+./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-<id>
+```
+
+dt-evals is trace-sourced, so run this scoped to **one** scenario's diagnosis at a
+time (inject → diagnose → grade). Correct diagnoses score 1, misses 0. Regenerate
+the rubrics after an answer key changes: `python gen_diagnosis_evaluators.py`.
 
 ## Prerequisites
 

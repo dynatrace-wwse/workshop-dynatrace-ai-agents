@@ -18,6 +18,13 @@ __pycache__/
 *.pyc
 .uv/
 .ruff_cache/
+.pytest_cache/
+
+# Rendered dt-evals configs contain secrets (token/judge key) — never commit.
+evals/dt-evals/*.generated.yaml
+evals/dt-evals/*.generated.dt-eval.yaml
+# Eval run artifacts (scores/CSVs).
+evals/phoenix/out/
 
 # MkDocs build output
 site/
