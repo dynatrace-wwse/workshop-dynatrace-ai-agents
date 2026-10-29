@@ -23,6 +23,10 @@ INSTALL_TETRAGON="${INSTALL_TETRAGON:-true}"
 INSTALL_KAGENT="${INSTALL_KAGENT:-true}"
 INSTALL_PHOENIX="${INSTALL_PHOENIX:-true}"
 INSTALL_AGENT_SANDBOX="${INSTALL_AGENT_SANDBOX:-true}"
+# Opt-in ONLY (the single component defaulting false): the opentelemetry-demo-light
+# app for the diagnostic module's scenario #12. Off by default so the base workshop
+# and scenarios 01-03 fit the minimum 4-core/16GB Codespace. See cluster/otel-demo/.
+INSTALL_OTEL_DEMO="${INSTALL_OTEL_DEMO:-false}"
 
 kubectl cluster-info >/dev/null 2>&1 || { err "cluster not reachable — run .devcontainer/postCreate.sh first"; exit 1; }
 command -v helm >/dev/null || { err "helm not found"; exit 1; }
@@ -118,6 +122,26 @@ else
   warn "INSTALL_AGENT_SANDBOX=false — skipping Agent Sandbox"
 fi
 
+# ---------------------------------------------------------------------------
+# Opt-in app dependency for the fault-injection diagnostic module (scenario #12).
+# Default OFF — keeps the base install inside the 4-core/16GB Codespace floor.
+# Enable with:  INSTALL_OTEL_DEMO=true bash cluster/install.sh
+if [ "$INSTALL_OTEL_DEMO" = "true" ]; then
+  log "opt  opentelemetry-demo-light (scenario #12 app dependency, ns: otel-demo)"
+  kubectl get ns otel-demo >/dev/null 2>&1 || kubectl create ns otel-demo >/dev/null
+  # Light fork publishes its own OCI chart (not a values overlay). Services export
+  # OTLP straight to the workshop gateway (collector.enabled=false in values-light),
+  # so the injected 5xx surfaces as a Dynatrace problem on the astronomy-shop path.
+  helm upgrade --install otel-demo "${OTEL_DEMO_OCI_REPO}" \
+    --version "${OTEL_DEMO_CHART_VERSION}" \
+    --namespace otel-demo \
+    -f "${SCRIPT_DIR}/otel-demo/values-light.yaml" --wait --timeout 8m || \
+    warn "otel-demo-light install reported issues — check pods: kubectl get pods -n otel-demo"
+  ok "opentelemetry-demo-light deployed (scenario #12 unblocked)"
+else
+  warn "INSTALL_OTEL_DEMO=false — opentelemetry-demo-light NOT deployed (scenario #12 needs 'INSTALL_OTEL_DEMO=true bash cluster/install.sh')"
+fi
+
 cat <<'EOF'
 
 ================================================================
@@ -132,5 +156,9 @@ cat <<'EOF'
 
  Telemetry: once agents run (Phase 3), spans fan out to Dynatrace + Phoenix
  via otel-gateway-collector.opentelemetry-operator-system.svc:4317.
+
+ Diagnostic module scenario #12 (opt-in, OFF by default):
+   INSTALL_OTEL_DEMO=true bash cluster/install.sh   # deploys otel-demo-light
+   kubectl get pods -n otel-demo                    # astronomy-shop services
 ================================================================
 EOF

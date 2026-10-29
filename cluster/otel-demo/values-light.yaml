@@ -1,0 +1,119 @@
+# opentelemetry-demo-light — workshop values overlay (ISI-6847, scenario #12).
+#
+# Applied by cluster/install.sh ONLY when INSTALL_OTEL_DEMO=true. Chart + version
+# are pinned in cluster/versions.env (OTEL_DEMO_CHART_VERSION / OTEL_DEMO_OCI_REPO).
+#
+# Two goals:
+#   1. Fit the 4-core/16GB Codespace floor beside the already-resident platform
+#      (kagent + Dynatrace operator + OTel operator/gateway + Phoenix + Tetragon).
+#      We cap CPU/memory on every service and do NOT run the demo's own collector.
+#   2. Make scenario #12 the correlation "money shot": the demo's app telemetry
+#      must reach the workshop gateway collector so an injected 5xx surfaces as a
+#      Dynatrace problem with a Davis root cause (and lands in Phoenix too).
+#
+# Telemetry path: collector.enabled=false, so the chart's otlpEndpoint helper
+# points every service's OTEL_EXPORTER_OTLP_ENDPOINT at otlp.endpoint below —
+# the workshop gateway — instead of spinning up a second in-namespace collector.
+#   demo services ──OTLP gRPC──▶ otel-gateway-collector.opentelemetry-operator-system
+#                                      └─▶ Dynatrace tenant + Phoenix (fan-out)
+
+# Do NOT deploy the demo's bundled collector — route straight to the workshop gateway.
+collector:
+  enabled: false
+
+# Workshop gateway collector (cluster/otel/collector-gateway.yaml). The OTel
+# operator names the Service "otel-gateway-collector" in opentelemetry-operator-system.
+otlp:
+  endpoint: "http://otel-gateway-collector.opentelemetry-operator-system.svc.cluster.local:4317"
+  protocol: grpc
+
+# Dynatrace prefers delta temporality for OTLP metrics ingest.
+metrics:
+  aggregation: delta
+
+# No external ingress for the demo — the SRE agent reaches it in-cluster and
+# Dynatrace observes it; nothing is port-mapped to the Codespace host.
+gateway:
+  enabled: false
+
+# Keep a light, steady traffic stream so the injected 5xx actually produces a
+# Dynatrace problem — but modest (5 VUs) to stay inside the resource floor.
+loadGenerator:
+  enabled: true
+  replicas: 1
+  vus: 5
+  outputMode: otel-extended   # k6 metrics via OTLP → gateway (no dynatrace-credentials secret needed)
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+# --- Per-service sizing for the 4c/16GB floor ------------------------------
+# Conservative requests (low scheduling pressure) with limits that still leave
+# headroom beside the resident platform. Sum of requests ≈ 0.4 CPU / ~0.7 GiB;
+# the demo adds roughly a couple of GB under load, per the Architect's §4.2 target.
+frontend:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+productCatalog:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+cart:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi   # JVM service (-Xmx128m default in-chart)
+
+checkout:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+payment:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+postgres:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+valkey:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
