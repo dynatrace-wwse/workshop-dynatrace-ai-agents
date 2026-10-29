@@ -1,4 +1,4 @@
-# 05 — Evaluate (Phoenix + dt-evals)
+# 06 — Evaluate (Phoenix + dt-evals)
 
 Observability (module 04) tells you *what the agent did* and *what it cost*. It
 does **not** tell you whether the answer was correct, grounded, or useful. That's
@@ -141,5 +141,5 @@ fetch bizevents
 - A dt-evals run scores the agents' real traces and lands the results in
   Dynatrace as queryable bizevents, with a CI-friendly pass/fail gate.
 
-Next: **[06 — Optimize](06-optimize.md)** — now that you can *measure* cost and
+Next: **[07 — Optimize](07-optimize.md)** — now that you can *measure* cost and
 quality, go cut the waste.

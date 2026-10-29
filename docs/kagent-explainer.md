@@ -62,7 +62,7 @@ Two acronyms matter:
 The whole lab is about **cost-efficient** agents. Because kagent makes each tool
 call, model call, and agent hand-off a real span emitted over OpenTelemetry (we
 wire this in module 01), you can *see* where tokens and latency actually go — and
-in module 06 you use that evidence to cut the waste. No runtime, no visibility;
+in module 07 you use that evidence to cut the waste. No runtime, no visibility;
 no visibility, no optimization.
 
 !!! tip "You don't configure kagent by hand here"

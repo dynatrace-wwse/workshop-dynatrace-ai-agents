@@ -1,4 +1,4 @@
-# 06 — Optimize
+# 07 — Optimize
 
 This is where the whole workshop pays off. You can now **run** agents (02),
 **secure** them (03), **observe** their cost (04), and **evaluate** their quality
@@ -188,7 +188,7 @@ The procedure, in order:
 1. Run the query over a window *before* the change — record `avgInputPerCall`.
 2. Make **one** change (trim tools / tighten prompt / collapse hops / right-size model).
 3. Re-apply and replay the **same** prompts.
-4. Run the query over the *after* window and run the dt-evals suite (module 05).
+4. Run the query over the *after* window and run the dt-evals suite (module 06).
 
 Fill the scorecard from those two runs:
 
@@ -196,7 +196,7 @@ Fill the scorecard from those two runs:
 |--------|:---:|:---:|:---:|
 | Avg input tokens / call | *(§5 notebook)* | *(§5 notebook)* | — |
 | Est. cost / task | — | — | — |
-| Eval pass rate | *(module 05)* | *(module 05)* | ✅ only if ≥ before |
+| Eval pass rate | *(module 06)* | *(module 06)* | ✅ only if ≥ before |
 
 !!! success "The rule"
     Ship the change when **cost went down and the eval pass rate did not**. If
@@ -226,7 +226,7 @@ dtctl create settings -f ai-agent-quality-cost.guardian.yaml \
 
 The quality proxy backstops the cost cuts — an agent that got "cheaper" by
 emitting truncated answers trips it. For the full **LLM-judge** quality gate,
-pair the guardian with the Phase-4 dt-evals suite (module 05).
+pair the guardian with the Phase-4 dt-evals suite (module 06).
 
 **A scheduled Workflow** (`ai-agent-optimization.workflow.yaml`) runs that
 guardian daily over the last 24h (schedule ships disabled — flip

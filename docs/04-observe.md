@@ -18,7 +18,7 @@ your agents already emit into cost, token, latency, and quality signals.
         │ OTLP 4317
         ▼
  otel-gateway-collector ──▶ Dynatrace tenant (OTLP ingest)   ← you are here
-   (normalises OpenInference/Traceloop → gen_ai.*)  └▶ Phoenix (module 05)
+   (normalises OpenInference/Traceloop → gen_ai.*)  └▶ Phoenix (module 06)
 ```
 
 The gateway normalises OpenInference/Traceloop LLM attributes onto the
@@ -88,7 +88,7 @@ you additionally see the orchestrator's A2A hops to the analyst → PM → archi
     The Dynatrace MCP server (module 02) lets the SRE agent query this itself,
     but you can also open **Notebooks** and run DQL against the spans, e.g. sum
     `gen_ai.usage.output_tokens` grouped by agent to rank your most expensive
-    agents. That ranking is the raw material for module 06 (Optimize).
+    agents. That ranking is the raw material for module 07 (Optimize).
 
 ## 5. Correlate with the rest of the cluster
 
@@ -104,6 +104,5 @@ node pressure — so "slow agent" vs "starved pod" is one click apart.
 - You can open a single trace and attribute spend to a specific model or tool
   call, and correlate it with Kubernetes health.
 
-Next: **[05 — Evaluate (Phoenix + dt-evals)](05-evaluate.md)** — observability
-tells you *what happened*; evaluation tells you whether the answer was any
-*good*.
+Next: **[05 — Diagnose a broken cluster](05-diagnose.md)** — stop sending toy
+prompts: inject a real failure and watch the SRE agent find the root cause.

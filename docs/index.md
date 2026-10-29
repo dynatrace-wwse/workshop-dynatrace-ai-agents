@@ -39,8 +39,9 @@ environment. The modules run in order:
 4. [02 — Agents & MCP wiring](02-agents-mcp.md) — deploy the SRE agent + BMAD crew.
 5. [03 — Secure agents](03-secure.md) — Tetragon + Agent Sandbox.
 6. [04 — Observe with Dynatrace](04-observe.md) — cost, tokens, latency.
-7. [05 — Evaluate (Phoenix + dt-evals)](05-evaluate.md) — score quality + cost.
-8. [06 — Optimize](06-optimize.md) — cut the waste, keep the quality.
+7. [05 — Diagnose a broken cluster](05-diagnose.md) — inject a fault, let the agent find the root cause.
+8. [06 — Evaluate (Phoenix + dt-evals)](06-evaluate.md) — score quality + cost.
+9. [07 — Optimize](07-optimize.md) — cut the waste, keep the quality.
 
 Stuck anywhere? The [Troubleshooting](troubleshooting.md) page collects the
 common fixes per module.

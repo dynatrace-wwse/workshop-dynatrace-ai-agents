@@ -43,7 +43,9 @@ markdown_extensions:
 
 # Nav mirrors the plan §2 learning arc end to end:
 # Why (Home) → kagent intro → build cluster → platform → deploy agents →
-# secure → observe → evaluate → optimize, plus a consolidated troubleshooting ref.
+# secure → observe → diagnose → evaluate → optimize, plus a consolidated
+# troubleshooting ref. (05-diagnose sits between Observe and Evaluate: Dynatrace
+# correlation is already live there, and its runs feed 06 evals + 07 cost data.)
 nav:
   - Home: index.md
   - "kagent in 5 minutes": kagent-explainer.md
@@ -52,6 +54,7 @@ nav:
   - "02 — Agents & MCP wiring": 02-agents-mcp.md
   - "03 — Secure agents": 03-secure.md
   - "04 — Observe with Dynatrace": 04-observe.md
-  - "05 — Evaluate (Phoenix + dt-evals)": 05-evaluate.md
-  - "06 — Optimize": 06-optimize.md
+  - "05 — Diagnose a broken cluster": 05-diagnose.md
+  - "06 — Evaluate (Phoenix + dt-evals)": 06-evaluate.md
+  - "07 — Optimize": 07-optimize.md
   - Troubleshooting: troubleshooting.md
