@@ -84,13 +84,24 @@ jobs:
 
       - name: Install workshop toolchain (same script as the devcontainer image)
         run: |
-          # install-tools.sh writes to /usr/local/bin (needs root) and is arch-aware.
-          # -E preserves the pinned *_VERSION env above. The script's optional tail
-          # (mkdocs / dt-evals) is best-effort; required tools install first, so a
-          # non-zero tail exit must not fail this step — we assert the required
-          # toolchain explicitly below.
-          sudo -E bash .devcontainer/bootstrap/install-tools.sh \
+          # install-tools.sh needs root for /usr/local/bin and is arch-aware. Run it
+          # with ROOT's own HOME (/root), NOT `sudo -E` (which keeps HOME=/home/runner):
+          # uv/npm/mkdocs write caches under $HOME, and as root under the runner's HOME
+          # they create root-owned ~/.cache & ~/.config dirs that later block helm with
+          # `mkdir /home/runner/.cache/helm: permission denied` once postCreate runs as
+          # the unprivileged runner. Pass the pinned versions explicitly since -E is gone.
+          # The optional tail (mkdocs/dt-evals) is best-effort; required tools install
+          # first, so a non-zero tail exit must not fail this step — asserted below.
+          sudo env HOME=/root \
+            KUBECTL_VERSION="$KUBECTL_VERSION" HELM_VERSION="$HELM_VERSION" \
+            KIND_VERSION="$KIND_VERSION" YQ_VERSION="$YQ_VERSION" \
+            DTCTL_VERSION="$DTCTL_VERSION" UV_VERSION="$UV_VERSION" \
+            NODE_VERSION="$NODE_VERSION" DT_EVALS_PKG="$DT_EVALS_PKG" \
+            bash .devcontainer/bootstrap/install-tools.sh \
             || echo "::warning::install-tools.sh exited non-zero (optional mkdocs/dt-evals tail); verifying required tools next"
+          # Belt-and-suspenders: reclaim any runner dotdirs a root-HOME write may own
+          # so helm/kubectl/uv can write their caches as the runner user.
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache" "$HOME/.config" "$HOME/.local" 2>/dev/null || true
 
       - name: Assert required toolchain present
         run: |
@@ -140,10 +151,13 @@ jobs:
 
       - name: Run acceptance verifier (STATIC A1–A12 + LIVE L1–L5)
         id: verify
-        # GitHub's default shell is `bash -eo pipefail`, so a non-zero verifier
-        # exit (any applicable FAIL) fails this step and the job — the exit code
-        # is never masked. tee preserves the full raw log for the artifact.
+        # `set -o pipefail` is MANDATORY here: the runner's step shell is `bash -e`
+        # (no pipefail by default on this image), so without it `verifier | tee`
+        # returns tee's 0 and masks the verifier's non-zero exit — a FAIL run would
+        # go green. With pipefail, any applicable FAIL fails this step and the job.
+        # tee preserves the full raw log for the artifact. Exit code is never masked.
         run: |
+          set -o pipefail
           bash .devcontainer/test/verify-isi6835.sh 2>&1 | tee verify-isi6835.log
 
       - name: Upload raw logs
