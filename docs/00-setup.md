@@ -66,5 +66,5 @@ Open the forwarded port **8000**.
 
 ## Next
 
-Phase 2 installs the platform (Dynatrace Operator, OpenTelemetry Operator,
+Module 01 installs the platform (Dynatrace Operator, OpenTelemetry Operator,
 kagent, Tetragon, Agent Sandbox, Phoenix).

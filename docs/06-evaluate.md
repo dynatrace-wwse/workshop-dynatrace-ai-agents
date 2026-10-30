@@ -87,7 +87,7 @@ for exact scopes and where each is generated:
 
 | Var | What |
 |-----|------|
-| `DYNATRACE_API_TOKEN` | a **dedicated** `dt0c01` token with `storage:spans:read` + `storage:events:write` (not the Phase-2 OTLP token) — [token C](start-benchmark.md#c-dynatrace-dt-evals-token-dynatrace_api_token) |
+| `DYNATRACE_API_TOKEN` | a **dedicated** `dt0c01` token with `storage:spans:read` + `storage:events:write` (not the module 01 OTLP token) — [token C](start-benchmark.md#c-dynatrace-dt-evals-token-dynatrace_api_token) |
 | `DT_ENVIRONMENT_URL` | your `…apps.dynatrace.com` URL (derived from `DT_TENANT_URL` if unset) |
 | `OPENAI_API_KEY` | judge key — a DeepSeek key works ([token D](start-benchmark.md#d-llm-deepseek-api-key-deepseek_api_key)) |
 | `DT_EVAL_SERVICE` | the agent's `service.name` — **discover it, don't guess** |

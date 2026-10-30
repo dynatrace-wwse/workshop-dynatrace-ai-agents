@@ -25,7 +25,8 @@ flowchart LR
     Cluster --> Deploy[Deploy agents]
     Deploy --> Secure[Secure]
     Secure --> Observe[Observe]
-    Observe --> Evaluate[Evaluate]
+    Observe --> Diagnose[Diagnose]
+    Diagnose --> Evaluate[Evaluate]
     Evaluate --> Optimize[Optimize]
 ```
 
@@ -35,8 +36,9 @@ flowchart LR
 4. **Deploy two agent sets** — an SRE agent + the BMAD software-building crew.
 5. **Secure agents** — Tetragon runtime security + Agent Sandbox.
 6. **Observe** — Dynatrace AI Observability.
-7. **Evaluate** — Phoenix (Arize) + dt-evals.
-8. **Optimize** — find unused tools/skills and cut token spend.
+7. **Diagnose** — inject a fault, let the agent find the root cause.
+8. **Evaluate** — Phoenix (Arize) + dt-evals.
+9. **Optimize** — find unused tools/skills and cut token spend.
 
 ## Start here
 
