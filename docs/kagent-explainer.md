@@ -35,17 +35,14 @@ MCP plumbing) — runs for you once the platform is installed (module 01).
 
 ## How a tool call actually happens
 
-```
- you ──prompt──▶  Agent (loop)
-                    │  "I need to list pods"
-                    ▼
-              ModelConfig ──▶ LLM picks a tool + arguments
-                    │
-                    ▼
-            MCP tool server (kagent-tool-server / github / dynatrace)
-                    │  returns a result
-                    ▼
-              Agent feeds result back to the LLM ──▶ repeat ──▶ final answer
+```mermaid
+flowchart TD
+    you([you]) -->|prompt| agent["Agent (the loop)"]
+    agent -->|"I need to list pods"| model[ModelConfig]
+    model -->|LLM picks a tool + arguments| mcp["MCP tool server<br/>(kagent-tool-server / github / dynatrace)"]
+    mcp -->|returns a result| feed[Agent feeds the result back to the LLM]
+    feed -->|repeat until done| agent
+    feed --> answer([final answer])
 ```
 
 Two acronyms matter:

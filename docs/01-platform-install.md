@@ -52,13 +52,11 @@ kubectl -n kagent port-forward svc/kagent-ui 8080:8080
 
 ## How telemetry flows
 
-```
- kagent agents / instrumented workloads
-      │ OTLP 4317/4318
-      ▼
- otel-gateway-collector ──▶ Dynatrace tenant (OTLP ingest)   — observe
-      (ns opentelemetry-    └▶ Phoenix :4317                  — eval/trace UI
-       operator-system)
+```mermaid
+flowchart TD
+    src["kagent agents / instrumented workloads"] -->|OTLP 4317/4318| gw["otel-gateway-collector<br/>(ns opentelemetry-operator-system)"]
+    gw -->|observe| dt["Dynatrace tenant (OTLP ingest)"]
+    gw -->|eval / trace UI| phx["Phoenix :4317"]
 ```
 
 The gateway normalises OpenInference/Traceloop LLM attributes to OpenTelemetry

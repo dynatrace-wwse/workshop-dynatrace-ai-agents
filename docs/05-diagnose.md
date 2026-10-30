@@ -25,20 +25,12 @@ something you understand, ask the agent, and check its answer against what you
 [`scenarios/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/scenarios)
 directory encodes:
 
-```
- run.sh inject <id>   ──▶   a real, isolated fault lands in workshop-faults
-          │
-          ▼
- paste <id>/prompt.md into the sre-agent (kagent UI or A2A curl)
-          │
-          ▼
- agent gathers evidence  →  Findings → Root cause → Action → Verify
-          │
-          ▼
- grade the answer against <id>/expected-diagnosis.md  (objective key)
-          │
-          ▼
- run.sh cleanup <id>  ──▶   fault removed, zero residue
+```mermaid
+flowchart TD
+    inject["run.sh inject &lt;id&gt; — a real, isolated fault lands in workshop-faults"] --> paste["paste &lt;id&gt;/prompt.md into the sre-agent (kagent UI or A2A curl)"]
+    paste --> gather["agent gathers evidence → Findings → Root cause → Action → Verify"]
+    gather --> grade["grade the answer against &lt;id&gt;/expected-diagnosis.md (objective key)"]
+    grade --> cleanup["run.sh cleanup &lt;id&gt; — fault removed, zero residue"]
 ```
 
 Each scenario ships three files: `manifests.yaml` (the breakage), `prompt.md`
@@ -64,7 +56,7 @@ ambiguity.
     run 01–03 — you still get the full infra-diagnosis payoff. Only enable 12 if
     you have headroom:
     ```bash
-    INSTALL_OTEL_DEMO=true bash cluster/install.sh   # one-time, opt-in (module 01 / ISI-6847)
+    INSTALL_OTEL_DEMO=true bash cluster/install.sh   # one-time, opt-in (see module 01)
     ```
     If `otel-demo` is not deployed, `run.sh inject 12` fails fast and prints this
     exact command — nothing breaks, you're just told cleanly why 12 is
