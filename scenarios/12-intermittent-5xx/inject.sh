@@ -10,12 +10,12 @@
 #   implemented here, which produces the same observable (intermittent 5xx on the
 #   product path, correlated in Dynatrace to the product-catalog entity):
 #
-#   It discovers the `product-catalog` Service in otel-demo and adds a SECOND
+#   It discovers the `product-catalog` Service in astroshop-lite and adds a SECOND
 #   backend Deployment carrying that Service's exact selector labels, but which
 #   accepts connections on the gRPC port and never answers — so the Service
 #   round-robins a FRACTION of product requests to a broken endpoint => intermittent
 #   5xx. cleanup.sh removes only that injected Deployment; the healthy demo is never
-#   touched and the otel-demo namespace is never deleted (Platform owns it).
+#   touched and the astroshop-lite namespace is never deleted (Platform owns it).
 #
 #   !! LIVE ROUND-TRIP VALIDATION STILL OWED (ISI-6848) — ISI-6847's demo deploy is
 #      now done (PR #14), which unblocks it. Before marking #12 validated, close the
@@ -30,15 +30,15 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${HOOK_DIR}/../lib/common.sh"
 
-DEMO_NS="otel-demo"
+DEMO_NS="astroshop-lite"
 FAULT_NAME="product-catalog-degraded"   # the injected faulty backend
 
-# Hard allowlist guard: this hook may ONLY touch otel-demo.
+# Hard allowlist guard: this hook may ONLY touch astroshop-lite.
 case " ${NS_ALLOWLIST[*]} " in *" ${DEMO_NS} "*) : ;; *) err "hook target ${DEMO_NS} not in allowlist"; exit 2 ;; esac
 
 # 1. Find the product-catalog Service (release-name agnostic: match by name suffix).
 SVC="$(kubectl -n "${DEMO_NS}" get svc -o name 2>/dev/null | grep -E 'product-catalog$' | head -1 || true)"
-[ -n "${SVC}" ] || { err "no product-catalog Service found in ${DEMO_NS} — is the demo deployed? (helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait)"; exit 2; }
+[ -n "${SVC}" ] || { err "no product-catalog Service found in ${DEMO_NS} — is the demo deployed? (deployOtelDemoLight)"; exit 2; }
 log "found ${SVC}"
 
 # 2. Read the Service's selector labels + target port — the faulty backend must
@@ -70,7 +70,7 @@ log "faulty backend will carry the ${SVC##*/} selector, listening on ${LISTEN_PO
 # 3. Apply the faulty backend. It binds the gRPC port with netcat but never speaks
 #    gRPC, so calls routed to it fail — and it has NO readiness probe, so it stays
 #    an endpoint. The labels are the Service selector PLUS a marker label we can
-#    delete by, pinned into otel-demo.
+#    delete by, pinned into astroshop-lite.
 kubectl apply -f - <<YAML || { err "failed to apply faulty backend"; exit 3; }
 apiVersion: apps/v1
 kind: Deployment

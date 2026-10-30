@@ -43,7 +43,7 @@ cmd_list() {
     tag=""
     if [ -f "${d}expected-diagnosis.md" ]; then
       reqs="$(frontmatter_get "${d}expected-diagnosis.md" requires)"
-      case "$reqs" in *otel-demo*) tag="  [app-dep: otel-demo]";; esac
+      case "$reqs" in *astroshop-lite*) tag="  [app-dep: astroshop-lite]";; esac
     fi
     printf '  %-22s %s%s\n' "$name" "${title:-<no prompt.md>}" "$tag"
   done
@@ -62,12 +62,11 @@ cmd_inject() {
   if [ -f "${dir}/expected-diagnosis.md" ]; then
     local reqs; reqs="$(frontmatter_get "${dir}/expected-diagnosis.md" requires)"
     case "$reqs" in
-      *otel-demo*)
-        if ! kubectl get ns otel-demo >/dev/null 2>&1; then
-          err "scenario '${name}' requires the otel-demo app, which is not deployed."
+      *astroshop-lite*)
+        if ! kubectl get ns astroshop-lite >/dev/null 2>&1; then
+          err "scenario '${name}' requires the astroshop-lite app, which is not deployed."
           err "Deploy just the demo (platform stack already installed), then retry:"
-          err "  helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait"
-          err "  (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)"
+          err "  deployOtelDemoLight"
           exit 2
         fi
         ;;

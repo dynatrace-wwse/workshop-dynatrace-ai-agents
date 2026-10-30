@@ -1,0 +1,65 @@
+# Dynatrace tokens this workshop needs, minted per learner by Orbital.
+#
+# Overrides the framework default because the SRE agent's Dynatrace MCP server
+# and dtctl (module 9) call PLATFORM APIs, which only accept a dt0s16 bearer —
+# the framework default declares no DT_PLATFORM_TOKEN at all, and without one
+# the SRE agent is deployed with its Kubernetes tools only.
+#
+# Token naming: enbl-{repo}-{user}-{name_suffix} (auto-prefixed)
+# Token expiry: matches the training session TTL.
+migrationStatus: migrated
+tokens:
+  # ── Dynatrace Operator, Kubernetes-monitoring DynaKube (module 3) ─────────────
+  - name_suffix: operator
+    env_var: DT_OPERATOR_TOKEN
+    scopes:
+      - activeGateTokenManagement.create
+      - activeGateTokenManagement.write
+      - entities.read
+      - settings.read
+      - settings.write
+      - DataExport
+      - InstallerDownload
+    platform_scopes:
+      - fleet-management:activegate.connection-info:read
+      - fleet-management:activegate.tokens:create
+      - fleet-management:container-images:read
+      - fleet-management:oneagent.connection-info:read
+      - fleet-management:oneagents:download
+      - settings:objects:read
+      - settings:objects:write
+  # ── OTel gateway → Dynatrace: the agents' gen_ai.* spans, metrics, logs ───────
+  - name_suffix: ingest
+    env_var: DT_INGEST_TOKEN
+    scopes:
+      - metrics.ingest
+      - logs.ingest
+      - events.ingest
+      - openTelemetryTrace.ingest
+    platform_scopes:
+      - openpipeline:logs:ingest
+      - openpipeline:metrics:ingest
+      - openpipeline:traces:ingest
+      - storage:metrics:write
+  # ── Dynatrace MCP server (SRE agent, module 4/7) + dtctl (module 9) ──────────
+  #    Read-only Grail + Davis: the agent investigates, it never writes.
+  #    Module 9's dashboard/notebook deploy adds document write.
+  - name_suffix: platform
+    env_var: DT_PLATFORM_TOKEN
+    kind: platform
+    scopes:
+      - app-engine:apps:run
+      - app-engine:functions:run
+      - environment-api:entities:read
+      - settings:objects:read
+      - storage:buckets:read
+      - storage:entities:read
+      - storage:events:read
+      - storage:logs:read
+      - storage:metrics:read
+      - storage:spans:read
+      - storage:smartscape:read
+      - davis:analyzers:read
+      - davis:analyzers:execute
+      - document:documents:read
+      - document:documents:write

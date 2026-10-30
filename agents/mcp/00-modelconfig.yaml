@@ -26,7 +26,7 @@ metadata:
 spec:
   provider: OpenAI                  # DeepSeek is OpenAI-API-compatible
   model: deepseek-chat              # keep in sync with WORKSHOP_LLM_MODEL in cluster/versions.env
-  apiKeySecretRef: kagent-deepseek
+  apiKeySecret: kagent-deepseek     # v1alpha2 field name (apiKeySecretRef is v1alpha1 and is pruned here)
   apiKeySecretKey: DEEPSEEK_API_KEY
   openAI:
     baseUrl: https://api.deepseek.com/v1   # DeepSeek OpenAI-compatible endpoint

@@ -1,0 +1,22 @@
+# Offline twin of 00-modelconfig.yaml — same name (`workshop-llm`), so every
+# agent works unchanged; installAgents applies this one only when no DeepSeek
+# key is present. The model must support tool calling (qwen2.5 does).
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: workshop-llm
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: workshop-agents
+spec:
+  provider: Ollama
+  model: ${AIW_OLLAMA_MODEL}
+  ollama:
+    host: http://ollama.ollama.svc.cluster.local:11434
+    options:
+      # Ollama sizes its thread pool from the HOST's core count, which inside a
+      # container capped at 4 cores means 4x oversubscription and ~12x slower
+      # generation (measured: 1.9 vs 24 tok/s). Pin it to the cores we get.
+      num_thread: "${AIW_OLLAMA_THREADS}"
+      # Room for the system prompt + 15 tool schemas + a few tool results.
+      num_ctx: "8192"

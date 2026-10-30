@@ -11,7 +11,7 @@ agent/LLM telemetry flows through, fanning out to the Dynatrace tenant and Phoen
 
 ## Why `autoGenerateCert`
 
-A fresh kind cluster has **no cert-manager**. The operator's admission
+A fresh k3d cluster has **no cert-manager**. The operator's admission
 webhook therefore uses a self-signed cert the chart generates itself
 (`admissionWebhooks.autoGenerateCert.enabled: true`,
 `certManager.enabled: false`). Omitting this makes the operator hang.

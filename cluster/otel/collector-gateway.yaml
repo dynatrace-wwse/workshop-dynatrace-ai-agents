@@ -12,9 +12,11 @@
 # point OTLP at:
 #   otel-gateway-collector.opentelemetry-operator-system.svc.cluster.local:4317
 #
-# Dynatrace exporter credentials come from secret/dynatrace-otlp (created by
-# secrets.sh). If that secret is absent the exporter still renders but the
-# collector logs auth errors — Phoenix export keeps working regardless.
+# Dynatrace exporter credentials come from secret/dynatrace-otlp (written by
+# installOtelGateway in .devcontainer/util/my_functions.sh). Without Dynatrace
+# credentials the exporter is removed before apply — an otlphttp exporter with
+# an empty endpoint fails config validation and crash-loops the collector — so
+# the gateway still feeds Phoenix.
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
@@ -36,11 +38,14 @@ spec:
           name: dynatrace-otlp
           key: endpoint
           optional: true
-    - name: DT_API_TOKEN
+    # Full header value: "Api-Token dt0c01…" for a classic ingest token,
+    # "Bearer dt0s16…" for a platform token (gen3 tenants) — installOtelGateway
+    # picks the scheme from the token prefix.
+    - name: DT_AUTH_HEADER
       valueFrom:
         secretKeyRef:
           name: dynatrace-otlp
-          key: apiToken
+          key: authHeader
           optional: true
     - name: K8S_NODE_NAME
       valueFrom:
@@ -76,7 +81,7 @@ spec:
       resource:
         attributes:
           - key: k8s.cluster.name
-            value: workshop
+            value: ${K8S_CLUSTER_NAME}   # per-learner, set by installOtelGateway (matches the DynaKube name)
             action: upsert
       # Normalise OpenInference / Traceloop LLM span attributes to OpenTelemetry
       # gen_ai.* semconv so Dynatrace AI Observability and Phoenix agree on names.
@@ -112,10 +117,14 @@ spec:
         verbosity: basic
       # Dynatrace tenant OTLP ingest (endpoint base /api/v2/otlp; the exporter
       # appends /v1/traces, /v1/metrics, /v1/logs automatically).
+      # >>> dynatrace-exporter  (installOtelGateway strips this block and the
+      #     pipeline references when no Dynatrace credentials exist: the
+      #     collector refuses to start with an empty endpoint)
       otlphttp/dynatrace:
         endpoint: ${env:DT_OTLP_ENDPOINT}
         headers:
-          Authorization: "Api-Token ${env:DT_API_TOKEN}"
+          Authorization: "${env:DT_AUTH_HEADER}"
+      # <<< dynatrace-exporter
       # Phoenix is a terminal OTLP backend (fan-out here, not a relay chain).
       otlp/phoenix:
         endpoint: phoenix.phoenix.svc.cluster.local:4317

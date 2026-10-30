@@ -1,0 +1,25 @@
+INHERIT: mkdocs-base.yaml
+
+# Orbital display name (ENH-009). A training's identity is <org>/<repo>; this
+# is only what learners see. mkdocs warns about the unknown key — expected.
+training_name: "AI Agent Workshop"
+site_name: "Dynatrace Enablement Lab: AI Agent Workshop"
+site_author: Henrik Rexed
+repo_name: "View Code on GitHub"
+repo_url: "https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents"
+nav:
+  - "Welcome": index.md
+  - "1. kagent in 5 minutes": 1-kagent-in-5-minutes.md
+  - "2. Setup": 2-setup.md
+  - "3. Platform install": 3-platform-install.md
+  - "4. Agents & MCP": 4-agents-mcp.md
+  - "5. Secure": 5-secure.md
+  - "6. Observe": 6-observe.md
+  - "7. Diagnose": 7-diagnose.md
+  - "8. Evaluate": 8-evaluate.md
+  - "9. Optimize": 9-optimize.md
+  - "Run of show": run-of-show.md
+  - "Troubleshooting": troubleshooting.md
+
+extra:
+  rum_snippet: "https://js-cdn.dynatrace.com/jstag/1612cf70810/bf81393wlb/7c50bce5c0cc890f_complete.js"

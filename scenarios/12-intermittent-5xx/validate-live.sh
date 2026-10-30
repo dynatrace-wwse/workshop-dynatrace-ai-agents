@@ -17,11 +17,7 @@
 # PREREQUISITES (the harness checks these and fails fast — exit 2 — if missing):
 #   - a running cluster with the platform stack installed (module 01) AND the opt-in
 #     demo. The platform stack is already up, so the demo is a single Helm install:
-#         helm upgrade --install otel-demo \
-#           oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
-#           -n otel-demo --create-namespace \
-#           -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
-#       (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
+#         deployOtelDemoLight   # framework app astroshop-lite, telemetry to the workshop gateway
 #   - for the Dynatrace assertion (step 3): export DT_TENANT_URL and DT_API_TOKEN
 #     (token needs problems.read). Without them the harness still runs steps 1,2,4
 #     and prints the manual DT capture steps instead of failing.
@@ -30,7 +26,7 @@
 #   bash scenarios/12-intermittent-5xx/validate-live.sh            # full round-trip
 #   PROBE_COUNT=60 bash .../validate-live.sh                       # more HTTP samples
 #   SKIP_CLEANUP=1 bash .../validate-live.sh                       # leave fault in place
-#   FRONTEND_SVC=otel-demo-frontend PRODUCTS_PATH=/api/products bash .../validate-live.sh
+#   FRONTEND_SVC=astroshop-lite-frontend PRODUCTS_PATH=/api/products bash .../validate-live.sh
 #
 # EXIT CODES (match the ISI-6846 §2 contract run.sh grades against):
 #   0 all live assertions passed · 2 precondition failure · 3 a live assertion failed
@@ -39,7 +35,7 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${HOOK_DIR}/../lib/common.sh"
 
-DEMO_NS="otel-demo"
+DEMO_NS="astroshop-lite"
 FAULT_NAME="product-catalog-degraded"
 RUN_SH="${SCENARIOS_DIR}/run.sh"
 
@@ -74,7 +70,7 @@ print(n)'
 log "STEP 0 — preconditions"
 require_cluster || exit 2
 kubectl get ns "${DEMO_NS}" >/dev/null 2>&1 \
-  || { err "namespace ${DEMO_NS} absent — deploy the demo first: helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait"; exit 2; }
+  || { err "namespace ${DEMO_NS} absent — deploy the demo first: deployOtelDemoLight"; exit 2; }
 
 SVC_NAME="$(kubectl -n "${DEMO_NS}" get svc -o name 2>/dev/null | sed 's#^service/##' | grep -E 'product-catalog$' | head -1 || true)"
 [ -n "${SVC_NAME}" ] || { err "no product-catalog Service in ${DEMO_NS} — is the demo deployed?"; exit 2; }
@@ -201,7 +197,7 @@ else
   cat <<'EON'
   1. Dynatrace UI → Problems: find the OPEN problem on the frontend → product path.
   2. Open it → confirm the Davis ROOT-CAUSE entity is the 'product-catalog' service
-     (OTEL_SERVICE_NAME=product-catalog; the k8s Service is 'otel-demo-product-catalog'
+     (OTEL_SERVICE_NAME=product-catalog; the k8s Service is 'astroshop-lite-product-catalog'
      but the DT service entity is 'product-catalog'). Capture the problem title + id.
   3. Confirm the failure rate is a FRACTION (intermittent), not 100%.
   4. DQL (Problems/Davis): fetch dt.davis.problems | filter matchesValue(affected_entity_ids, "*product-catalog*")

@@ -14,24 +14,21 @@ to *do* it — and links to the full module when you want the depth behind it.
 
 !!! note "Prerequisites"
     The cluster is up and the platform is installed — that's
-    **[00 — Setup](00-setup.md)** and **[01 — Platform install](01-platform-install.md)**.
+    **[2 — Setup](2-setup.md)** and **[3 — Platform install](3-platform-install.md)**.
     After those, the OpenTelemetry Operator, a gateway collector, kagent (clean
     base, no agents yet), Tetragon, and Phoenix are all running. This walkthrough
     starts from there.
 
 !!! tip "Two surfaces to keep open"
-    Forward the two UIs once, in a spare terminal, and leave them up for the whole run:
-    ```bash
-    kubectl -n kagent  port-forward svc/kagent-ui 8080:8080 &   # kagent UI  → http://localhost:8080
-    kubectl -n phoenix port-forward svc/phoenix   6006:6006 &   # Phoenix    → http://localhost:6006
-    ```
-    Dynatrace is your tenant's `…apps.dynatrace.com` URL (from module 02).
+    `listApps` prints the URLs of the **kagent** UI and **Phoenix** — both are
+    published through the framework ingress, no port-forward needed. Dynatrace
+    is your tenant.
 
 ---
 
 ## Step 1 — Configure kagent to create an agent
 
-**What & why.** kagent shipped as a clean runtime in module 01. Here you turn on
+**What & why.** kagent shipped as a clean runtime in module 3. Here you turn on
 its built-in Kubernetes tooling, point it at a model, wire the **pre-deployed MCP
 servers**, and deploy the **SRE agent** — one idempotent script does all of it.
 
@@ -42,7 +39,7 @@ export GH_PAT='github_pat_...'                              # fine-grained, one 
 export DT_PLATFORM_TOKEN='dt0s16....'                       # Dynatrace platform token
 export DT_ENVIRONMENT='https://<env>.apps.dynatrace.com'    # platform apps URL
 
-bash agents/install-agents.sh
+installAgents
 ```
 
 The script applies, in order: the MCP layer (the shared **`workshop-llm`**
@@ -59,7 +56,7 @@ kubectl -n kagent get remotemcpserver kagent-tool-server -o jsonpath='{.status.d
 kubectl -n kagent get agents          # sre-agent + six bmad-* should be Accepted
 ```
 
-**Go deeper.** [02 — Agents & MCP wiring](02-agents-mcp.md).
+**Go deeper.** [4 — Agents & MCP wiring](4-agents-mcp.md).
 
 ---
 
@@ -69,7 +66,7 @@ kubectl -n kagent get agents          # sre-agent + six bmad-* should be Accepte
 harmless read-only prompt. This is the "list the pods" baseline — no fault yet.
 
 **Do it.** Paste the prompt into the **sre-agent** in the kagent UI
-(`http://localhost:8080`), or send it over A2A:
+(the **kagent** app — `listApps`), or send it over A2A:
 
 ```bash
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
@@ -82,7 +79,7 @@ kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent
 called `k8s_get_resources`, it did not guess. Keep this first run; you'll compare
 its trace against the re-run in Step 4.
 
-**Go deeper.** [02 — Agents & MCP wiring](02-agents-mcp.md#5-send-a-sample-prompt).
+**Go deeper.** [4 — Agents & MCP wiring](4-agents-mcp.md#5-send-a-sample-prompt).
 
 ---
 
@@ -100,7 +97,7 @@ pipeline.
 kubectl get otelcol -n opentelemetry-operator-system          # the gateway collector
 ```
 
-Open [`cluster/otel/collector-gateway.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/otel/collector-gateway.yaml)
+Open [`cluster/otel/collector-gateway.yaml`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/cluster/otel/collector-gateway.yaml)
 and point at the two things that matter:
 
 ```yaml
@@ -148,7 +145,7 @@ model, token, and latency fields. The `traces` pipeline exports to Dynatrace
 > `opentelemetry-collector-contrib` image (or a custom OCB build with just this
 > processor) rather than the k8s distro.
 
-**Go deeper.** [04 — Observe with Dynatrace](04-observe.md#how-agent-telemetry-reaches-dynatrace).
+**Go deeper.** [6 — Observe with Dynatrace](6-observe.md#how-agent-telemetry-reaches-dynatrace).
 
 ---
 
@@ -171,7 +168,7 @@ kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent
 `agent.run` span wrapping `gen_ai` LLM calls and `k8s` tool calls, each carrying
 input/output token counts and latency. That trace is what Steps 5 and 6 inspect.
 
-**Go deeper.** [04 — Observe with Dynatrace](04-observe.md#1-generate-some-traffic).
+**Go deeper.** [6 — Observe with Dynatrace](6-observe.md#1-generate-some-traffic).
 
 ---
 
@@ -183,7 +180,7 @@ and run one LLM-as-a-judge evaluation over the traces you just made.
 
 **Do it.** Phoenix is already forwarded on port **6006** — so **open it first**:
 
-1. Open the Phoenix UI → **[http://localhost:6006](http://localhost:6006)**. Each
+1. Open the **phoenix** app (`listApps`). Each
    agent run from Step 4 is an LLM trace: prompt, response, tool spans, token
    counts. Click one to see its `gen_ai.*` attributes. This is the surface you'll
    configure the evaluation against and read the scores back from.
@@ -204,7 +201,7 @@ spans, so **refresh the Phoenix UI** and the labels now appear on the traces you
 opened in step 1. It also drops a CSV at
 `evals/phoenix/out/phoenix_eval_results.csv`.
 
-**Go deeper.** [06 — Evaluate · Part A (Phoenix)](06-evaluate.md#part-a-phoenix-explore-and-judge-live-traces).
+**Go deeper.** [8 — Evaluate · Part A (Phoenix)](8-evaluate.md#part-a-phoenix-explore-and-judge-live-traces).
 
 ---
 
@@ -231,7 +228,7 @@ one DeepSeek endpoint with call volume, tokens, latency, error rate, and cost.
 Click into a request to see `gen_ai` LLM spans and `k8s` tool spans nested under
 `agent.run`.
 
-**Go deeper.** [04 — Observe with Dynatrace](04-observe.md#2-open-ai-observability-in-dynatrace).
+**Go deeper.** [6 — Observe with Dynatrace](6-observe.md#2-open-ai-observability-in-dynatrace).
 
 ---
 
@@ -265,7 +262,7 @@ fetch spans, from: now() - 2h
 coherence, toxicity, and prompt-injection metrics, and sets thresholds that make
 the run **exit non-zero on a breach** — a ready-made CI gate.
 
-**Go deeper.** [06 — Evaluate · Part B (dt-evals)](06-evaluate.md#part-b-dt-evals-trace-sourced-evals-in-dynatrace).
+**Go deeper.** [8 — Evaluate · Part B (dt-evals)](8-evaluate.md#part-b-dt-evals-trace-sourced-evals-in-dynatrace).
 
 ---
 
@@ -290,7 +287,7 @@ crew member as nested spans, and the developer agent using the **GitHub MCP** to
 to open issues, push a branch, and raise a PR. This is the multi-agent run whose
 hop-count and token spend you'll scrutinise in Step 12.
 
-**Go deeper.** [02 — Agents & MCP wiring](02-agents-mcp.md#5-send-a-sample-prompt).
+**Go deeper.** [4 — Agents & MCP wiring](4-agents-mcp.md#5-send-a-sample-prompt).
 
 ---
 
@@ -299,7 +296,7 @@ hop-count and token spend you'll scrutinise in Step 12.
 **What & why.** Close the loop you opened in Step 5: read the scores. Phoenix is
 where you *discover failure modes* interactively.
 
-**Do it.** In the Phoenix UI (`http://localhost:6006`), open the traces you graded.
+**Do it.** In the **phoenix** app (`listApps`), open the traces you graded.
 Each now carries **hallucination** and **relevance** labels (from the
 `--from-phoenix` run). Sort by score to surface the weakest answers, and open one to
 read the prompt, response, tool spans, and token counts behind the label.
@@ -310,7 +307,7 @@ right pod, call the right tool (not guess), and stay grounded in real tool outpu
 `evals/phoenix/out/phoenix_eval_results.csv` give you the same numbers outside the
 UI.
 
-**Go deeper.** [06 — Evaluate · Part A (Phoenix)](06-evaluate.md#run-an-evaluation-llm-as-a-judge).
+**Go deeper.** [8 — Evaluate · Part A (Phoenix)](8-evaluate.md#run-an-evaluation-llm-as-a-judge).
 
 ---
 
@@ -333,7 +330,7 @@ hallucination, …). Because the scores live next to the spans, any low score is
 click from the trace, prompt, and tool calls that produced it — and the run already
 **exited non-zero** if a threshold was breached, which is your CI gate.
 
-**Go deeper.** [06 — Evaluate · Part B · Read the scores](06-evaluate.md#3-read-the-scores).
+**Go deeper.** [8 — Evaluate · Part B · Read the scores](8-evaluate.md#3-read-the-scores).
 
 ---
 
@@ -358,7 +355,7 @@ cell per step. Its §5 cell measures the single number optimization moves: avera
 input tokens per `call_llm`. (The companion **dashboard**,
 `ai-agent-optimization.dashboard.yaml`, deploys the same way with `dtctl apply -f`.)
 
-**Go deeper.** [07 — Optimize · deploy the surfaces](07-optimize.md#the-optimization-loop).
+**Go deeper.** [9 — Optimize · deploy the surfaces](9-optimize.md#the-optimization-loop).
 
 ---
 
@@ -398,9 +395,9 @@ fetch spans
 it was *granted* — every unused tool is a JSON schema injected into **every** prompt
 (~165 input tokens per tool, on every call). A high **input:output ratio** (e.g.
 38:1) means the model re-reads a large context each call — that, not the raw total,
-is where to cut. This ranking is the raw material for the cuts in module 07.
+is where to cut. This ranking is the raw material for the cuts in module 9.
 
-**Go deeper.** [07 — Optimize · the four cuts](07-optimize.md#2-the-four-highest-leverage-cuts).
+**Go deeper.** [9 — Optimize · the four cuts](9-optimize.md#2-the-four-highest-leverage-cuts).
 
 ---
 
@@ -427,7 +424,7 @@ that got "cheaper" by truncating answers trips the gate. The workflow ships with
 schedule **disabled**; flip `trigger.schedule.isActive: true` to run it over the last
 24h every day.
 
-**Go deeper.** [07 — Optimize · make it continuous](07-optimize.md#4-make-it-continuous-the-guardian-workflow).
+**Go deeper.** [9 — Optimize · make it continuous](9-optimize.md#4-make-it-continuous-the-guardian-workflow).
 
 ---
 
@@ -439,3 +436,5 @@ telemetry pipeline, evaluated the results two ways, and closed the
 crew cost-efficient. For the depth behind any step, follow its **Go deeper** link —
 and when something misbehaves, the [Troubleshooting](troubleshooting.md) page
 collects the common fixes per module.
+
+<!-- LAB_NO_SOLUTION: reference page — the module pages hold the checks and solutions -->

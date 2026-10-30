@@ -1,6 +1,6 @@
 # Intermittent 5xx on the astronomy-shop product path
 
-The `opentelemetry-demo-light` astronomy shop (namespace `otel-demo`) is throwing
+The AstroShop Lite astronomy shop (`opentelemetry-demo-light`) (namespace `astroshop-lite`) is throwing
 **intermittent** errors on the product/browse path. Ask the SRE agent to
 investigate — **do not tell it the root cause**. This is the correlation scenario:
 the agent must lean on **Dynatrace** (open problems, Davis root cause, the affected
@@ -10,7 +10,7 @@ entity) and correlate it with cluster state, not guess from `kubectl` alone.
 
 Open the kagent UI (`http://localhost:8080`), pick **sre-agent**, and paste:
 
-> Users of the astronomy shop (namespace `otel-demo`) are seeing intermittent
+> Users of the astronomy shop (namespace `astroshop-lite`) are seeing intermittent
 > errors when they browse products — some requests work, some fail. Use Dynatrace
 > to find the open problem and its Davis root cause, correlate it with the cluster
 > state, and tell me which service is actually at fault and why.
@@ -20,7 +20,7 @@ Open the kagent UI (`http://localhost:8080`), pick **sre-agent**, and paste:
 ```bash
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
-  --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"The astronomy shop in the otel-demo namespace is returning intermittent errors on the product browse path. Use Dynatrace to find the open problem and its Davis root cause, correlate it with the cluster state, and tell me which service is at fault and why. Cite the Dynatrace problem/entity you relied on."}]}}}' \
+  --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"The astronomy shop in the astroshop-lite namespace is returning intermittent errors on the product browse path. Use Dynatrace to find the open problem and its Davis root cause, correlate it with the cluster state, and tell me which service is at fault and why. Cite the Dynatrace problem/entity you relied on."}]}}}' \
   http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
 ```
 
@@ -35,15 +35,11 @@ Service has an **extra, unhealthy backend** in rotation. Grade against
 
 ## Prerequisite — the app must be deployed
 
-This scenario needs the opt-in demo app and Dynatrace. If `otel-demo` is not
+This scenario needs the opt-in demo app and Dynatrace. If `astroshop-lite` is not
 present, `inject` fails fast with the enable command:
 
 ```bash
-helm upgrade --install otel-demo \
-  oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
-  -n otel-demo --create-namespace \
-  -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
-#   (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
+deployOtelDemoLight   # framework app astroshop-lite, telemetry to the workshop gateway
 ```
 
 ## Inject / clean up

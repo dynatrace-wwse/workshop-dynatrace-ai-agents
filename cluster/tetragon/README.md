@@ -9,9 +9,9 @@ module 5 of the workshop learning arc (securing agents).
 | `values.yaml` | Helm values for `cilium/tetragon` (DaemonSet + operator, trimmed). |
 | `sensitive-file-access.yaml` | `TracingPolicyNamespaced` (observe-only) that posts an event when any process in `agent-sandbox` reads a credential path (service-account token, secrets, `/etc/shadow`, SSH keys, kubeconfig). Applied by hand in module 03. |
 
-## eBPF on kind (important)
+## eBPF on k3d (important)
 
-kind nodes are containers sharing the **Codespace host kernel**. Tetragon
+k3d nodes are containers sharing the **Codespace host kernel**. Tetragon
 loads its BPF programs into that kernel, which needs BTF (`/sys/kernel/btf/vmlinux`)
 and permission to attach probes. On most GitHub Codespaces hosts this works.
 

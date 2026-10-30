@@ -1,11 +1,24 @@
+---
+description: Build, secure, observe, evaluate and cost-optimize AI agents on Kubernetes with kagent, BMAD and Dynatrace AI Observability.
+tags: [ai, agents, kagent, mcp, opentelemetry, llm-observability, kubernetes]
+difficulty: advanced
+duration: 240
+---
+
 # Dynatrace AI Agent Workshop
+
+!!! info "Credits"
+    This workshop was created by **Henrik Rexed** (Dynatrace, [Is It Observable](https://isitobservable.io))
+    — originally [`henrikrexed/dynatrace-AI-Agent-Workshop`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop) —
+    and migrated to the Dynatrace enablement framework so it runs in the
+    Enablement App with quizzes, checks and self-solving steps.
 
 AI agents are evolving fast, but many organizations still struggle with rising
 costs, limited visibility, and unreliable performance in production.
 
 In this hands-on workshop you'll design, deploy, and optimize **cost-efficient AI
 agent workflows** using **BMAD, kagent, Kubernetes, and Dynatrace AI
-Observability** — all from a single GitHub Codespace.
+Observability** — all inside one environment with a local Kubernetes cluster.
 
 ## What you'll learn
 
@@ -32,7 +45,7 @@ flowchart LR
 
 1. **Why** — cost, visibility, reliability of AI agents in production.
 2. **kagent intro** — the agentic runtime on Kubernetes.
-3. **Build the cluster** (Codespace).
+3. **Meet the platform** — operators, kagent, Phoenix, the LLM backend.
 4. **Deploy two agent sets** — an SRE agent + the BMAD software-building crew.
 5. **Secure agents** — Tetragon runtime security + Agent Sandbox.
 6. **Observe** — Dynatrace AI Observability.
@@ -42,27 +55,39 @@ flowchart LR
 
 ## Start here
 
-New to kagent? Read **[kagent in 5 minutes](kagent-explainer.md)** for the mental
-model, then head to **[00 — Setup (Codespace)](00-setup.md)** to boot your
-environment. The modules run in order:
+New to kagent? Read **[1. kagent in 5 minutes](1-kagent-in-5-minutes.md)** for
+the mental model, then continue in order. Every hands-on step has a check, and
+every step can solve itself (trainers: *Run solution*).
 
-1. [kagent in 5 minutes](kagent-explainer.md) — the runtime, in one page.
-2. [00 — Setup (Codespace)](00-setup.md) — boot the cluster.
-3. [01 — Platform install](01-platform-install.md) — operators, kagent, Tetragon, Phoenix.
-4. [02 — Agents & MCP wiring](02-agents-mcp.md) — deploy the SRE agent + BMAD crew.
-5. [03 — Secure agents](03-secure.md) — Tetragon + Agent Sandbox.
-6. [04 — Observe with Dynatrace](04-observe.md) — cost, tokens, latency.
-7. [05 — Diagnose a broken cluster](05-diagnose.md) — inject a fault, let the agent find the root cause.
-8. [06 — Evaluate (Phoenix + dt-evals)](06-evaluate.md) — score quality + cost.
-9. [07 — Optimize](07-optimize.md) — cut the waste, keep the quality.
+| Module | Time | You need |
+|---|---|---|
+| 1. kagent in 5 minutes | 5 min | — |
+| 2. Setup | 5 min | — |
+| 3. Platform install | 10 min | — |
+| 4. Agents & MCP | 20 min | — |
+| 5. Secure | 20 min | — (Tetragon needs a Codespace kernel) |
+| 6. Observe | 25 min | Dynatrace tenant (injected in the Enablement App) |
+| 7. Diagnose | 40 min | — |
+| 8. Evaluate | 30 min | Part C: nothing · Parts A/B: an LLM judge key |
+| 9. Optimize | 30 min | Dynatrace tenant |
 
-Running the live demo? The **[Run of show (guided demo)](run-of-show.md)** stitches
-these modules into one top-to-bottom 13-step script — configure an agent, investigate
-the cluster, turn on observability, evaluate, and optimize — with a link back to each
-module for the depth behind every step.
+Running it live? The **[Run of show](run-of-show.md)** stitches the modules into
+one 13-step script. Stuck? See **[Troubleshooting](troubleshooting.md)**.
 
-Stuck anywhere? The [Troubleshooting](troubleshooting.md) page collects the
-common fixes per module.
+<!-- LAB_QUESTION
+type: multiple-choice
+question: "What is the biggest driver of AI agent cost that this workshop teaches you to cut?"
+options:
+  - "Kubernetes node hours"
+  - "The number of agents deployed"
+  - "Tokens — especially input tokens re-sent on every call"
+  - "OpenTelemetry ingest volume"
+correct: 2
+explanation: "Tokens drive the bill, and most of them are input: tool schemas, system prompts and growing context re-sent on every call."
+-->
 
-> This site is built with MkDocs Material and served from the Codespace on
-> forwarded port **8000** (`mkdocs serve -a 0.0.0.0:8000`).
+<!-- LAB_NO_SOLUTION: introduction — nothing in the environment changes -->
+
+<div class="grid cards" markdown>
+- [1. kagent in 5 minutes :octicons-arrow-right-24:](1-kagent-in-5-minutes.md)
+</div>

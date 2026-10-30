@@ -1,24 +1,28 @@
 # Dynatrace AI Agent Workshop
 
-[![Publish docs](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/actions/workflows/gh-pages.yml)
+[![Integration tests](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/actions/workflows/integration-tests.yaml/badge.svg)](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/actions/workflows/integration-tests.yaml)
 
-A hands-on, self-paced workshop for building, securing, observing, evaluating,
-and **cost-optimizing AI agent workflows** with **BMAD, kagent, Kubernetes, and
-Dynatrace AI Observability**. The entire lab runs inside a single **GitHub
-Codespace** — no local install — so you can go from an empty environment to a
-fully observed, cost-optimized agent platform in one sitting.
+A hands-on workshop on building, securing, observing, evaluating and
+**cost-optimizing AI agent workflows** with **BMAD, kagent, Kubernetes and
+Dynatrace AI Observability**.
 
-## 📖 Read the workshop online
+> **Author: [Henrik Rexed](https://github.com/henrikrexed)** (Dynatrace, *Is It
+> Observable*). This repository is the Dynatrace enablement-framework edition of
+> his [`dynatrace-AI-Agent-Workshop`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop),
+> imported with its full history. The content, agents, scenarios and evals are
+> Henrik's; the migration added the framework environment (k3d, app registry,
+> per-learner tokens), quizzes, checks and self-solving steps so it runs in the
+> Dynatrace Enablement App.
 
-**👉 [henrikrexed.github.io/dynatrace-AI-Agent-Workshop](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/)**
+## How to take it
 
-The full, rendered workshop — every module, the guided demo, and the
-troubleshooting reference — is published as a MkDocs Material site. Start with
-the **[Start the benchmark](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/start-benchmark/)**
-page, then follow the modules in order.
+| Where | How |
+|---|---|
+| **Dynatrace Enablement App** | Pick *AI Agent Workshop* in the training catalog. Tokens, tenant and cluster are provisioned for you. |
+| **GitHub Codespace** | *Code → Codespaces → Create* (4-core / 16 GB). Secrets: [`.devcontainer/SECRETS.md`](.devcontainer/SECRETS.md). |
+| **Locally** | `cd .devcontainer && make start` |
 
-> You can also read it offline inside your Codespace: `mkdocs serve -a 0.0.0.0:8000`
-> and open the forwarded port **8000**.
+Read online: **[dynatrace-wwse.github.io/workshop-dynatrace-ai-agents](https://dynatrace-wwse.github.io/workshop-dynatrace-ai-agents/)**.
 
 ## What is this?
 
@@ -43,25 +47,6 @@ them.
 - **Evaluate** agents with Phoenix (Arize) + dt-evals.
 - **Optimize** — find unused tools/skills and cut token spend without losing quality.
 
-## How to start
-
-1. **Fork this repository** to your own GitHub account (top-right **Fork**).
-   Forking also publishes your own copy of this site via GitHub Pages (see below).
-2. In your fork: **Code → Codespaces → Create codespace on `main`**, choosing a
-   **4-core / 16 GB** (or larger) machine type.
-3. Set the required Codespace secrets — your Dynatrace tokens, `GH_PAT`,
-   `GH_DEMO_REPO`, and `LLM_API_KEY`. The full list and how to generate each is
-   in [`.devcontainer/SECRETS.md`](.devcontainer/SECRETS.md).
-4. Wait for `postCreate` to finish. You'll have a running local Kubernetes
-   cluster and the full toolchain.
-5. Sanity-check with `kubectl get nodes`, then open the workshop:
-   `mkdocs serve -a 0.0.0.0:8000`.
-
-Everything is idempotent — re-run `bash .devcontainer/postCreate.sh` any time.
-
-The on-site **[Start the benchmark](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/start-benchmark/)**
-page walks through these steps in full, including how to generate each token.
-
 ## Workshop modules
 
 The workshop follows a single learning arc: **why → runtime → build → deploy →
@@ -69,52 +54,49 @@ secure → observe → diagnose → evaluate → optimize.**
 
 | Module | What you do |
 |--------|-------------|
-| [kagent in 5 minutes](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/kagent-explainer/) | The agentic runtime on Kubernetes, in one page. |
-| [00 — Setup (Codespace)](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/00-setup/) | Boot the cluster and toolchain. |
-| [01 — Platform install](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/01-platform-install/) | Operators, kagent, Tetragon, Agent Sandbox, Phoenix. |
-| [02 — Agents & MCP wiring](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/02-agents-mcp/) | Deploy the SRE agent + BMAD crew. |
-| [03 — Secure agents](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/03-secure/) | Tetragon + Agent Sandbox. |
-| [04 — Observe with Dynatrace](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/04-observe/) | Cost, tokens, latency, quality. |
-| [05 — Diagnose a broken cluster](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/05-diagnose/) | Inject a fault; let the agent find the root cause. |
-| [06 — Evaluate (Phoenix + dt-evals)](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/06-evaluate/) | Score quality + cost. |
-| [07 — Optimize](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/07-optimize/) | Cut the waste, keep the quality. |
+| 1. kagent in 5 minutes | The agentic runtime on Kubernetes, in one page. |
+| 2. Setup | Your k3d cluster, the apps, the LLM backend. |
+| 3. Platform install | Operators, OTel gateway, kagent, Phoenix. |
+| 4. Agents & MCP | Deploy the SRE agent + BMAD crew, ask over A2A. |
+| 5. Secure | Tetragon + Agent Sandbox. |
+| 6. Observe | Cost, tokens, latency in Phoenix and Dynatrace. |
+| 7. Diagnose | Inject a fault; let the agent find the root cause; grade it. |
+| 8. Evaluate | Phoenix + dt-evals + the deterministic diagnosis grader. |
+| 9. Optimize | Cut the waste, keep the quality. |
+
+Every hands-on step has a check, every section a quiz, and every step a
+*Run solution* (functions in [`.devcontainer/util/my_functions.sh`](.devcontainer/util/my_functions.sh)).
 
 Running the workshop live? The
-**[Run of show (guided demo)](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/run-of-show/)**
+**[Run of show (guided demo)](https://dynatrace-wwse.github.io/workshop-dynatrace-ai-agents/run-of-show/)**
 stitches the modules into one top-to-bottom 13-step script, with a link back to
 each module for the depth behind every step. Stuck? The
-**[Troubleshooting](https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/troubleshooting/)**
+**[Troubleshooting](https://dynatrace-wwse.github.io/workshop-dynatrace-ai-agents/troubleshooting/)**
 page collects the common fixes per module.
 
 ## Repository layout
 
 ```
-.devcontainer/   # devcontainer.json, Dockerfile, bootstrap scripts, SECRETS/DECISIONS docs
-cluster/         # cluster engine configs (module 01) + per-component helm/manifests
+.devcontainer/   # devcontainer.json (framework image), post-create, util/my_functions.sh,
+                 # yaml/dt-tokens.yaml (tokens Orbital mints), test/integration.sh
+cluster/         # versions.env + per-component helm values / manifests
   dynatrace/ otel/ kagent/ tetragon/ agent-sandbox/ phoenix/
 agents/
-  sre/           # SRE agent manifest
+  mcp/           # ModelConfigs (DeepSeek / Ollama), GitHub + Dynatrace MCP servers
+  sre/           # SRE agent (+ sre-agent-lean.yaml, module 9)
   bmad-crew/     # BMAD crew, adapted from isItObservable/Kagent
-evals/           # Phoenix + dt-evals configs & sample runs
-scenarios/       # diagnose module fault-injection assets (module 05)
-docs/            # mkdocs content (the published site source)
-mkdocs.yml
-.github/workflows/gh-pages.yml   # builds & publishes the site to GitHub Pages
+evals/           # Phoenix + dt-evals + ground-truth diagnosis grader
+scenarios/       # module 7 fault injection
+docs/            # mkdocs content (mkdocs.yaml inherits the framework base)
 ```
 
-## About the published site (GitHub Pages)
+## Published site
 
-The `.github/workflows/gh-pages.yml` workflow builds the MkDocs Material site
-(`mkdocs build --strict`) on every push to `main` and publishes it to the
-`gh-pages` branch — no secrets required. Because the workflow runs on **your
-fork**, forking this repo also publishes **your own** copy of the site at
-`https://<your-username>.github.io/dynatrace-AI-Agent-Workshop/` once GitHub
-Pages is enabled on the fork (**Settings → Pages → Source: Deploy from a branch →
-`gh-pages` / `/ (root)`**).
+`.github/workflows/deploy-ghpages.yaml` (framework template) builds the MkDocs
+site from `mkdocs.yaml` and publishes it to `gh-pages`.
 
 ## Key docs
 
-- [Codespace secrets contract](.devcontainer/SECRETS.md)
-- [Architecture notes (kind, machine type)](.devcontainer/DECISIONS.md)
-</content>
-</invoke>
+- [Secrets contract](.devcontainer/SECRETS.md)
+- [Environment decisions (k3d, sizing, LLM backend)](.devcontainer/DECISIONS.md)
+- [Open questions for the author](TODO-HENRIK.md)

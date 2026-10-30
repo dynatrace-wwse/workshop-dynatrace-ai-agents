@@ -38,7 +38,7 @@ It has **no `k8s_delete_resource`**; nothing here grants new destructive power.
 | `01-crashloopbackoff` | start command exits non-zero on launch | **pod logs** + exit code | — |
 | `02-imagepullbackoff` | non-existent image tag | **pod events** (`Failed to pull image`) | — |
 | `03-oomkilled` | memory limit far below demand | **`lastState.terminated.reason: OOMKilled`** | — |
-| `12-intermittent-5xx` | a faulty `product-catalog` backend joins the Service | **Dynatrace problem + Davis root cause** | `otel-demo` |
+| `12-intermittent-5xx` | a faulty `product-catalog` backend joins the Service | **Dynatrace problem + Davis root cause** | `astroshop-lite` |
 
 The three infra scenarios sit on **distinct evidence channels** on purpose — a
 cross-channel claim (e.g. "it's OOM" for the crash-loop) is an unambiguous fail, so
@@ -61,7 +61,7 @@ Exit codes (downstream grades against these — ISI-6846 §2):
 |------|---------|
 | 0 | success |
 | 1 | usage error (bad subcommand, unknown/ambiguous/missing id) |
-| 2 | precondition failure (cluster unreachable, namespace-guard violation, missing otel-demo prereq) |
+| 2 | precondition failure (cluster unreachable, namespace-guard violation, missing astroshop-lite prereq) |
 | 3 | runtime failure (kubectl apply/delete or a hook returned non-zero) |
 
 ## Safety & isolation (hard rules — ISI-6846 §5)
@@ -70,14 +70,14 @@ Exit codes (downstream grades against these — ISI-6846 §2):
    in an infra `manifests.yaml` pins `namespace: workshop-faults`. `run.sh` creates
    it on inject.
 2. **Fail-closed allowlist.** `run.sh` and the optional hooks may touch **only**
-   `{workshop-faults, otel-demo}`. Any manifest or hook referencing `kagent`,
+   `{workshop-faults, astroshop-lite}`. Any manifest or hook referencing `kagent`,
    `dynatrace`, the module-03 `agent-sandbox`, `kube-system`, `tetragon`,
    `opentelemetry-operator-system`, or `phoenix` is rejected **before anything is
    applied** (exit 2). This protects the module-03 isolation boundary and the
    platform.
 3. **Cleanup is one command, no residue.** Infra: `kubectl delete ns
    workshop-faults`. Scenario 12: remove only the injected faulty backend — the
-   `otel-demo` namespace and the healthy demo are never touched (Platform owns them).
+   `astroshop-lite` namespace and the healthy demo are never touched (Platform owns them).
 4. **No new destructive capability.** Remediation (an optional module step) uses only
    the agent's existing non-destructive operate set (apply/patch/scale/rollout).
 
@@ -104,14 +104,10 @@ The platform stack is already installed (module 01), so this is a **single Helm
 install** of just the demo app:
 
 ```bash
-helm upgrade --install otel-demo \
-  oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
-  -n otel-demo --create-namespace \
-  -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
-#   (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
+deployOtelDemoLight   # framework app astroshop-lite, telemetry to the workshop gateway
 ```
 
-If `otel-demo` is not deployed, `run.sh inject 12` fails fast (exit 2) with this
+If `astroshop-lite` is not deployed, `run.sh inject 12` fails fast (exit 2) with this
 exact command — so a minimum-tier attendee runs 01–03 and is told cleanly why 12 is
 unavailable.
 

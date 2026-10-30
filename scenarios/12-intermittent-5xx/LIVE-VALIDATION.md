@@ -12,7 +12,7 @@
 > Use this runbook to capture/paste evidence by hand, or the script for a one-shot run.
 
 **What this proves (ISI-6858 steps 1–4):** that `scenarios/run.sh inject 12` adds a
-faulty `product-catalog` backend to the real `otel-demo-product-catalog` Service,
+faulty `product-catalog` backend to the real `astroshop-lite-product-catalog` Service,
 that a **fraction** (not all) of frontend product requests 5xx, that **Dynatrace
 raises a problem with Davis root cause = `product-catalog`**, and that
 `cleanup 12` leaves the healthy demo intact.
@@ -35,30 +35,26 @@ raises a problem with Davis root cause = `product-catalog`**, and that
 
 ```bash
 # deploy just the demo app (the platform stack is already installed by module 01):
-helm upgrade --install otel-demo \
-  oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
-  -n otel-demo --create-namespace \
-  -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
-#   (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
-kubectl -n otel-demo rollout status deploy --timeout=180s   # let the demo settle
+deployOtelDemoLight   # framework app astroshop-lite, telemetry to the workshop gateway
+kubectl -n astroshop-lite rollout status deploy --timeout=180s   # let the demo settle
 bash scenarios/run.sh inject 12                         # add the faulty backend
 ```
 
 📋 **Capture:** the tail of `inject.sh` output — it should log
 `faulty backend will carry the …product-catalog selector, listening on 3550`
-and `faulty product-catalog backend injected into otel-demo (intermittent 5xx active)`.
+and `faulty product-catalog backend injected into astroshop-lite (intermittent 5xx active)`.
 
 ## Step 2 — confirm two endpoints + a *fractional* 5xx rate
 
 ```bash
 # (a) the faulty pod joined the Service — expect TWO addresses:
-kubectl -n otel-demo get endpoints otel-demo-product-catalog -o wide
-kubectl -n otel-demo get pods -l workshop.scenario=12-intermittent-5xx -o wide
+kubectl -n astroshop-lite get endpoints astroshop-lite-product-catalog -o wide
+kubectl -n astroshop-lite get pods -l workshop.scenario=12-intermittent-5xx -o wide
 
 # (b) drive product traffic from inside the frontend and tally status codes.
 #     Loadgen (5 VUs) already exercises the product path; this adds a direct probe.
-FE=$(kubectl -n otel-demo get pod -l app.kubernetes.io/component=frontend -o name | head -1)
-kubectl -n otel-demo exec "$FE" -- sh -c '
+FE=$(kubectl -n astroshop-lite get pod -l app.kubernetes.io/component=frontend -o name | head -1)
+kubectl -n astroshop-lite exec "$FE" -- sh -c '
   ok=0; err=0;
   for i in $(seq 1 60); do
     code=$(wget -q -O /dev/null -S "http://localhost:8080/api/products" 2>&1 | awk "/HTTP\//{c=\$2} END{print c}");
@@ -91,7 +87,7 @@ Give Davis a few minutes after step 1, then in the DT tenant (Problems):
 
 - Confirm an **open problem** on the frontend / product path.
 - Confirm **Davis root cause = `product-catalog`** service entity.
-  ⚠️ The k8s Service is `otel-demo-product-catalog` but the **DT service entity is
+  ⚠️ The k8s Service is `astroshop-lite-product-catalog` but the **DT service entity is
   `product-catalog`** (from `OTEL_SERVICE_NAME=product-catalog`). Do not expect the
   k8s Service name in the DT problem.
 
@@ -105,13 +101,13 @@ with the observed title) and commit on a follow-up branch.
 
 ```bash
 bash scenarios/run.sh cleanup 12
-kubectl -n otel-demo get deploy,pods -l workshop.scenario=12-intermittent-5xx   # expect: no resources
-kubectl -n otel-demo get endpoints otel-demo-product-catalog -o wide            # expect: back to 1 address
-kubectl -n otel-demo get deploy | grep -v degraded                              # healthy demo untouched
+kubectl -n astroshop-lite get deploy,pods -l workshop.scenario=12-intermittent-5xx   # expect: no resources
+kubectl -n astroshop-lite get endpoints astroshop-lite-product-catalog -o wide            # expect: back to 1 address
+kubectl -n astroshop-lite get deploy | grep -v degraded                              # healthy demo untouched
 ```
 
 📋 **Capture:** the post-cleanup endpoints line (back to **1 address**) and that only
-the `workshop.scenario=12-intermittent-5xx` Deployment was removed — the `otel-demo`
+the `workshop.scenario=12-intermittent-5xx` Deployment was removed — the `astroshop-lite`
 namespace and all healthy workloads remain.
 
 ---
@@ -119,7 +115,7 @@ namespace and all healthy workloads remain.
 ## Pass/fail summary (paste into ISI-6859 when complete)
 
 - [ ] Step 1 — demo deployed + fault injected (no `repo dynatrace not found`)
-- [ ] Step 2a — `otel-demo-product-catalog` endpoints show **2 addresses**
+- [ ] Step 2a — `astroshop-lite-product-catalog` endpoints show **2 addresses**
 - [ ] Step 2b — **fractional** 5xx (intermittent), gRPC-stickiness verdict = ✅ / ❌
 - [ ] Step 3 — DT problem open, Davis root cause = `product-catalog`; title/id captured
 - [ ] Step 4 — cleanup restores 1 endpoint; healthy demo intact
