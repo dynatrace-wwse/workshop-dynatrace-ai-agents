@@ -795,8 +795,8 @@ OpenAI-compatible, so kagent's OpenAI provider is pointed at
 <code>https://api.deepseek.com/v1</code> and reads the key from <code>secret/kagent-deepseek</code>.
 Swap to OpenAI or Anthropic in <code>agents/mcp/00-modelconfig.yaml</code> (one-line change).</p>
 <h2 id="1-enable-the-default-kubernetes-tooling">1. Enable the default Kubernetes tooling<a class="headerlink" href="#1-enable-the-default-kubernetes-tooling" title="Permanent link">&para;</a></h2>
-<p>Phase 2 shipped kagent as a clean base with the built-in tools <strong>off</strong>. Phase 3
-turns them on (already set in
+<p>Module 01 shipped kagent as a clean base with the built-in tools <strong>off</strong>. This
+module turns them on (already set in
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/kagent/values.yaml"><code>cluster/kagent/values.yaml</code></a>):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">kagent-tools</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> enabled</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w">   </span><span class="c1"># built-in kagent-tool-server (k8s + networking)</span>
 </code></pre></div>
@@ -824,7 +824,7 @@ for the exact permissions and where each is generated:</p>
 <tr>
 <td><code>DT_PLATFORM_TOKEN</code></td>
 <td>Dynatrace MCP</td>
-<td>Dynatrace <strong>platform</strong> token (<code>dt0s16.*</code>) — distinct from the Phase-2 OTLP <code>DT_API_TOKEN</code>. (<a href="../start-benchmark/#b-dynatrace-platform-token-dt_platform_token">token B</a>)</td>
+<td>Dynatrace <strong>platform</strong> token (<code>dt0s16.*</code>) — distinct from the module 01 OTLP <code>DT_API_TOKEN</code>. (<a href="../start-benchmark/#b-dynatrace-platform-token-dt_platform_token">token B</a>)</td>
 </tr>
 <tr>
 <td><code>DT_ENVIRONMENT</code></td>
@@ -879,7 +879,7 @@ list, and all seven agents (<code>sre-agent</code> + six <code>bmad-*</code>) sh
 <p>Or use the kagent UI: <code>kubectl -n kagent port-forward svc/kagent-ui 8080:8080</code>.</p>
 <h2 id="6-see-the-traces">6. See the traces<a class="headerlink" href="#6-see-the-traces" title="Permanent link">&para;</a></h2>
 <p>Agent LLM and tool-call spans flow automatically (kagent <code>otel.tracing</code>, wired in
-Phase 2) through the OTel gateway to <strong>both</strong> backends:</p>
+module 01) through the OTel gateway to <strong>both</strong> backends:</p>
 <ul>
 <li><strong>Phoenix</strong> — <code>http://localhost:6006</code> (forwarded Codespace port) for LLM
   eval/trace inspection.</li>

@@ -865,7 +865,7 @@ server couldn't start or authenticate. Check the token and the server pod:</p>
 <li><code>GH_PAT</code> must be a fine-grained PAT scoped to the demo repo (Contents /
   Issues / Pull requests RW).</li>
 <li>Dynatrace MCP needs the <strong>platform</strong> token (<code>dt0s16.*</code>) and <code>DT_ENVIRONMENT</code>
-  (the <code>.apps.dynatrace.com</code> URL) — <strong>distinct</strong> from the Phase-2 OTLP
+  (the <code>.apps.dynatrace.com</code> URL) — <strong>distinct</strong> from the module 01 OTLP
   <code>DT_API_TOKEN</code>.</li>
 </ul>
 <p><strong>An <code>Agent</code> isn't <code>Accepted</code>.</strong> Usually a bad <code>ModelConfig</code> or missing model
@@ -929,8 +929,8 @@ pipeline, then re-send prompts. Confirm the forward:</p>
 <p><strong>dt-evals can't resolve dependencies.</strong> Run inside <code>evals/</code> with <code>uv</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
 </code></pre></div>
-<p>The concrete suite is delivered by Phase 4 — if the config isn't there yet, that
-step is expected to be pending.</p>
+<p>The concrete suite ships in module 06 — <code>evals/dt-evals/workshop-agents.dt-eval.yaml</code>
+plus the Phoenix scripts are on <code>main</code>.</p>
 <hr />
 <h2 id="still-stuck">Still stuck?<a class="headerlink" href="#still-stuck" title="Permanent link">&para;</a></h2>
 <ul>

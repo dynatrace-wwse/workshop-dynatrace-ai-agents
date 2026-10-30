@@ -803,7 +803,7 @@
 <h1 id="07-optimize">07 — Optimize<a class="headerlink" href="#07-optimize" title="Permanent link">&para;</a></h1>
 <p>This is where the whole workshop pays off. You can now <strong>run</strong> agents (02),
 <strong>secure</strong> them (03), <strong>observe</strong> their cost (04), and <strong>evaluate</strong> their quality
-(05). Optimization is the loop that uses that evidence to make agents <strong>cheaper
+(06). Optimization is the loop that uses that evidence to make agents <strong>cheaper
 without making them worse</strong>.</p>
 <div class="admonition quote">
 <p class="admonition-title">The core idea</p>
@@ -1063,7 +1063,7 @@ DQL objectives over the crew's <code>call_llm</code> spans, so a regression fail
 </code></pre></div>
 <p>The quality proxy backstops the cost cuts — an agent that got "cheaper" by
 emitting truncated answers trips it. For the full <strong>LLM-judge</strong> quality gate,
-pair the guardian with the Phase-4 dt-evals suite (module 06).</p>
+pair the guardian with the dt-evals suite (module 06).</p>
 <p><strong>A scheduled Workflow</strong> (<code>ai-agent-optimization.workflow.yaml</code>) runs that
 guardian daily over the last 24h (schedule ships disabled — flip
 <code>trigger.schedule.isActive: true</code> to go continuous):</p>
@@ -1087,7 +1087,7 @@ guardian daily over the last 24h (schedule ships disabled — flip
   agents cost-efficient in production.</li>
 </ul>
 <h2 id="youve-completed-the-arc">You've completed the arc<a class="headerlink" href="#youve-completed-the-arc" title="Permanent link">&para;</a></h2>
-<p><strong>Why → kagent → cluster → agents → secure → observe → evaluate → optimize.</strong>
+<p><strong>Why → kagent → cluster → agents → secure → observe → diagnose → evaluate → optimize.</strong>
 You built a full, cost-efficient AI-agent platform on Kubernetes and have the
 telemetry and evals to keep it that way.</p>
 <p>Stuck on anything? See <strong><a href="../troubleshooting/">Troubleshooting</a></strong>.</p>

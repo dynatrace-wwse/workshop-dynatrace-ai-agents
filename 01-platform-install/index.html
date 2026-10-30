@@ -760,7 +760,7 @@ Set these as <strong>Codespace secrets</strong> and rebuild/restart:</p>
 </tr>
 <tr>
 <td><code>LLM_API_KEY</code> <em>(or <code>OPENAI_API_KEY</code>)</em></td>
-<td>kagent model provider (needed in Phase 3)</td>
+<td>kagent model provider (needed in module 02)</td>
 </tr>
 </tbody>
 </table>
@@ -789,7 +789,7 @@ component with, e.g., <code>INSTALL_DYNATRACE=false bash cluster/install.sh</cod
     gw --&gt;|eval / trace UI| phx["Phoenix :4317"]</code></pre>
 <p>The gateway normalises OpenInference/Traceloop LLM attributes to OpenTelemetry
 <code>gen_ai.*</code> semconv so Dynatrace and Phoenix agree on names. There are <strong>no agents
-yet</strong> — kagent is a clean base; module 02 (Phase 3) deploys the SRE agent and the
+yet</strong> — kagent is a clean base; module 02 deploys the SRE agent and the
 BMAD crew, at which point spans start landing in both backends.</p>
 <div class="admonition note">
 <p class="admonition-title">BindPlane</p>

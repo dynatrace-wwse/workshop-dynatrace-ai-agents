@@ -726,7 +726,8 @@ Observability</strong> — all from a single GitHub Codespace.</p>
     Cluster --&gt; Deploy[Deploy agents]
     Deploy --&gt; Secure[Secure]
     Secure --&gt; Observe[Observe]
-    Observe --&gt; Evaluate[Evaluate]
+    Observe --&gt; Diagnose[Diagnose]
+    Diagnose --&gt; Evaluate[Evaluate]
     Evaluate --&gt; Optimize[Optimize]</code></pre>
 <ol>
 <li><strong>Why</strong> — cost, visibility, reliability of AI agents in production.</li>
@@ -735,6 +736,7 @@ Observability</strong> — all from a single GitHub Codespace.</p>
 <li><strong>Deploy two agent sets</strong> — an SRE agent + the BMAD software-building crew.</li>
 <li><strong>Secure agents</strong> — Tetragon runtime security + Agent Sandbox.</li>
 <li><strong>Observe</strong> — Dynatrace AI Observability.</li>
+<li><strong>Diagnose</strong> — inject a fault, let the agent find the root cause.</li>
 <li><strong>Evaluate</strong> — Phoenix (Arize) + dt-evals.</li>
 <li><strong>Optimize</strong> — find unused tools/skills and cut token spend.</li>
 </ol>
