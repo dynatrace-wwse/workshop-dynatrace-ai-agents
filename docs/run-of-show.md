@@ -126,6 +126,28 @@ OpenTelemetry **`gen_ai.*`** convention — so Dynatrace and Phoenix see the sam
 model, token, and latency fields. The `traces` pipeline exports to Dynatrace
 **and** Phoenix from one place.
 
+> **Take this home — don't hand-roll OTTL for GenAI.** We use a few `transform`
+> `set()` statements here because the workshop runs the lighter
+> `opentelemetry-collector-k8s` image. In your own stack, prefer the purpose-built
+> [`genainormalizer` processor](https://explorer.opentelemetry.io/collector/components/contrib/genainormalizerprocessor?type=processor&version=0.155.0):
+> it ships maintained mappings for OpenInference and OpenLLMetry/Traceloop (token
+> counts, model names, request params, finish reasons) against GenAI semconv
+> v1.40.0 — so you declare *sources*, not a mapping table you keep in sync.
+>
+> ```yaml
+> processors:
+>   genainormalizer:
+>     sources:
+>       - name: openinference
+>       - name: openllmetry      # Traceloop
+>         remove_originals: true
+> # ...then list `genainormalizer` in the traces pipeline instead of transform/genai-normalize
+> ```
+>
+> It is a **contrib** component (Alpha for traces), so using it means running the
+> `opentelemetry-collector-contrib` image (or a custom OCB build with just this
+> processor) rather than the k8s distro.
+
 **Go deeper.** [04 — Observe with Dynatrace](04-observe.md#how-agent-telemetry-reaches-dynatrace).
 
 ---

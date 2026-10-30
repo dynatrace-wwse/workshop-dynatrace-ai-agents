@@ -80,6 +80,24 @@ spec:
             action: upsert
       # Normalise OpenInference / Traceloop LLM span attributes to OpenTelemetry
       # gen_ai.* semconv so Dynatrace AI Observability and Phoenix agree on names.
+      #
+      # RECOMMENDED for production: use the purpose-built `genainormalizer`
+      # processor instead of hand-rolled OTTL. It ships richer, maintained
+      # mappings for OpenInference and OpenLLMetry/Traceloop (token counts, model
+      # names, request params, finish reasons) targeting GenAI semconv v1.40.0:
+      #
+      #   genainormalizer:
+      #     sources:
+      #       - name: openinference
+      #       - name: openllmetry      # Traceloop
+      #
+      # explorer.opentelemetry.io/collector/components/contrib/genainormalizerprocessor
+      # Caveat: it is a CONTRIB component (Alpha, traces) and is NOT in the
+      # `opentelemetry-collector-k8s` distro this workshop runs (see
+      # operator-values.yaml). Adopting it means switching `collectorImage` to the
+      # heavier `opentelemetry-collector-contrib` image (or a custom OCB build).
+      # We keep the OTTL transform below so the default k8s image works with no
+      # extra image weight; swap to `genainormalizer` when you move to contrib.
       transform/genai-normalize:
         error_mode: ignore
         trace_statements:
