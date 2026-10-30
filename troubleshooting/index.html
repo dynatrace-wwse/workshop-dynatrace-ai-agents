@@ -899,9 +899,11 @@ tenant/token scopes include <code>openTelemetryTrace.ingest</code>.</p>
 <hr />
 <h2 id="module-05-diagnose">Module 05 — Diagnose<a class="headerlink" href="#module-05-diagnose" title="Permanent link">&para;</a></h2>
 <p><strong><code>run.sh inject 12</code> exits 2 with "requires the otel-demo app".</strong> Scenario 12 is
-the opt-in app scenario. Either skip it (run 01–03) or deploy the demo once:
-<code>INSTALL_OTEL_DEMO=true bash cluster/install.sh</code>. Scenarios 01–03 have no such
-dependency.</p>
+the opt-in app scenario. Either skip it (run 01–03) or deploy the demo once with a
+single Helm install (the platform stack is already up):
+<code>helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait</code>
+(or the all-in-one <code>INSTALL_OTEL_DEMO=true bash cluster/install.sh</code>). Scenarios
+01–03 have no such dependency.</p>
 <p><strong><code>unknown/ambiguous scenario id</code>.</strong> Pass a numeric prefix (<code>01</code>, <code>12</code>) or the
 full dir name (<code>01-crashloopbackoff</code>); run <code>bash scenarios/run.sh list</code> to see
 valid ids.</p>

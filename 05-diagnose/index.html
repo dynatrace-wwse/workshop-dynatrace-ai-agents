@@ -850,12 +850,17 @@ one throwaway Deployment. <strong>Scenario 12 additionally needs the opt-in
 <code>opentelemetry-demo-light</code> astronomy-shop app deployed</strong> (and Dynatrace, to
 show the correlation). On a <strong>minimum 4-core / 16 GB Codespace, skip 12</strong> and
 run 01–03 — you still get the full infra-diagnosis payoff. Only enable 12 if
-you have headroom:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">INSTALL_OTEL_DEMO</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>bash<span class="w"> </span>cluster/install.sh<span class="w">   </span><span class="c1"># one-time, opt-in (see module 01)</span>
+you have headroom. The platform stack is already installed (module 01), so
+this is a <strong>single Helm install</strong> of just the demo app:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>--install<span class="w"> </span>otel-demo<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light<span class="w"> </span>--version<span class="w"> </span><span class="m">0</span>.2.8<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>-n<span class="w"> </span>otel-demo<span class="w"> </span>--create-namespace<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>-f<span class="w"> </span>cluster/otel-demo/values-light.yaml<span class="w"> </span>--wait<span class="w"> </span>--timeout<span class="w"> </span>8m
 </code></pre></div>
-If <code>otel-demo</code> is not deployed, <code>run.sh inject 12</code> fails fast and prints this
-exact command — nothing breaks, you're just told cleanly why 12 is
-unavailable.</p>
+(The all-in-one <code>INSTALL_OTEL_DEMO=true bash cluster/install.sh</code> also works — it
+re-runs the full platform install and then the same Helm step.) If <code>otel-demo</code>
+is not deployed, <code>run.sh inject 12</code> fails fast and prints this exact Helm
+command — nothing breaks, you're just told cleanly why 12 is unavailable.</p>
 </div>
 <p>List what's available any time:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>list<span class="w">     </span><span class="c1"># id, title, and an [app-dep: otel-demo] tag on #12</span>
