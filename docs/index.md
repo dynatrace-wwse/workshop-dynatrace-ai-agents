@@ -54,6 +54,11 @@ environment. The modules run in order:
 8. [06 — Evaluate (Phoenix + dt-evals)](06-evaluate.md) — score quality + cost.
 9. [07 — Optimize](07-optimize.md) — cut the waste, keep the quality.
 
+Running the live demo? The **[Run of show (guided demo)](run-of-show.md)** stitches
+these modules into one top-to-bottom 13-step script — configure an agent, investigate
+the cluster, turn on observability, evaluate, and optimize — with a link back to each
+module for the depth behind every step.
+
 Stuck anywhere? The [Troubleshooting](troubleshooting.md) page collects the
 common fixes per module.
 

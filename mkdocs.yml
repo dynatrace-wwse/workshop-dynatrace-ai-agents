@@ -51,9 +51,13 @@ markdown_extensions:
 # secure → observe → diagnose → evaluate → optimize, plus a consolidated
 # troubleshooting ref. (05-diagnose sits between Observe and Evaluate: Dynatrace
 # correlation is already live there, and its runs feed 06 evals + 07 cost data.)
+# "Run of show" is a cross-cutting guided demo that stitches the modules into one
+# top-to-bottom 13-step script; it links back to each module for depth.
 nav:
   - Home: index.md
+  - "Start the benchmark": start-benchmark.md
   - "kagent in 5 minutes": kagent-explainer.md
+  - "Run of show (guided demo)": run-of-show.md
   - "00 — Setup (Codespace)": 00-setup.md
   - "01 — Platform install": 01-platform-install.md
   - "02 — Agents & MCP wiring": 02-agents-mcp.md
