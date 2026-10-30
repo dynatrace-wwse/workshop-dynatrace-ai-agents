@@ -40,6 +40,11 @@ for i in $(seq 1 24); do kubectl get ns workshop-faults >/dev/null 2>&1 || break
 _run checkScenarioClean
 
 if [ "$_fail" -ne 0 ]; then
+  printError "Integration test FAILED — cluster state follows"
+  df -h / /var/lib/docker 2>/dev/null
+  kubectl describe node | grep -A8 -E '^Conditions|^Allocated'
+  kubectl get pods -A -o wide | grep -vE 'Running|Completed'
+  kubectl get events -A --sort-by=.lastTimestamp | grep -vi normal | tail -40
   printError "Integration test FAILED"; exit 1
 fi
 printInfoSection "Integration test passed"

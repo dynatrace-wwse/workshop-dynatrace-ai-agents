@@ -520,7 +520,10 @@ checkDiagnosisEval(){
 gradeLiveDiagnosis(){
   local id="${1:-01}" f="/tmp/aiw-last-sre-agent.json"
   [ -s "$f" ] || { printError "No SRE-agent answer recorded — run: diagnoseScenario 01"; return 1; }
-  ( cd "${REPO_PATH}/evals" && python3 - "$id" "$f" <<'PY'
+  # No pipe into tee: PIPESTATUS does not exist in zsh (the learner's shell and
+  # CI's), so the grade's exit code is kept explicitly.
+  local out rc
+  out="$(cd "${REPO_PATH}/evals" && python3 - "$id" "$f" 2>&1 <<'PY'
 import json, sys
 import ground_truth as gt
 sid, path = sys.argv[1], sys.argv[2]
@@ -541,8 +544,9 @@ print(f"{fixture.scenario}: signals {len(r.signals_cited)}/{fixture.pass_thresho
       f"root_cause={'yes' if r.root_cause_cited else 'NO'} -> {'PASS' if r.passed else 'FAIL'}")
 sys.exit(0 if r.passed else 1)
 PY
-  ) | tee "/tmp/aiw-grade-${id}.txt"
-  return "${PIPESTATUS[0]}"
+)"; rc=$?
+  printf '%s\n' "$out" | tee "/tmp/aiw-grade-${id}.txt"
+  return $rc
 }
 
 checkDiagnosisGraded(){
