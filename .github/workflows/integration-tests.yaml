@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 30
     env:
       # GitHub runners for private repos have 2 vCPU: CI skips Tetragon and the
-      # in-cluster LLM (see aiwCiLite in my_functions.sh).
+      # in-cluster LLM and Dynatrace (see aiwCiLite in my_functions.sh).
       AIW_CI_LITE: "true"
       DT_ENVIRONMENT: ${{ secrets.DT_ENVIRONMENT }}
       DT_OPERATOR_TOKEN: ${{ secrets.DT_OPERATOR_TOKEN }}
