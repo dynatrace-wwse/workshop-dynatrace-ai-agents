@@ -813,13 +813,12 @@ multi-hop workflows, and retries. You can't cut what you can't see, which is
 why observation and evaluation came first.</p>
 </div>
 <h2 id="the-optimization-loop">The optimization loop<a class="headerlink" href="#the-optimization-loop" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   observe (04)        evaluate (05)
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>       │                    │
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>       ▼                    ▼
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   find the waste  ──▶  make one change  ──▶  re-measure cost + quality
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>       ▲                                            │
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>       └────────────── keep only if quality holds ──┘
-</code></pre></div>
+<pre class="mermaid"><code>flowchart TD
+    observe["observe (04)"] --&gt; waste["find the waste"]
+    evaluate["evaluate (06)"] --&gt; change["make one change"]
+    waste --&gt; change
+    change --&gt; remeasure["re-measure cost + quality"]
+    remeasure --&gt;|keep only if quality holds| waste</code></pre>
 <p>Change one thing, re-run the eval suite, and keep the change <strong>only if quality
 holds and cost dropped</strong>. Never optimize on cost alone — that's how you ship a
 cheap agent that gives wrong answers.</p>
@@ -828,10 +827,10 @@ cheap agent that gives wrong answers.</p>
 <p>This module ships a Dynatrace <strong>dashboard</strong> and <strong>notebook</strong> that compute every
 signal below from your crew's <code>gen_ai.*</code> spans. Deploy them, then read the rest
 of this page with your own data on screen:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>dtctl<span class="w"> </span>config<span class="w"> </span>use-context<span class="w"> </span>&lt;your-tenant&gt;
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>dtctl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.dashboard.yaml
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization-before-after.notebook.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>dtctl<span class="w"> </span>config<span class="w"> </span>use-context<span class="w"> </span>&lt;your-tenant&gt;
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>dtctl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.dashboard.yaml
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization-before-after.notebook.yaml
 </code></pre></div>
 <ul>
 <li><strong>Dashboard</strong> — <em>AI Agent Optimization</em>: spend ranking, input:output ratio,
@@ -846,16 +845,16 @@ dtctl-ready YAML in <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-W
 <p>From Dynatrace AI Observability (module 04), find your most expensive agents —
 total tokens and estimated cost per run. Start at the top of that list; a 20%
 cut on your priciest agent beats a 50% cut on a rarely-used one.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>fetch spans
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>| summarize llmCalls = count(),
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    inputTokens  = sum(gen_ai.usage.input_tokens),
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    outputTokens = sum(gen_ai.usage.output_tokens),
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    by:{agent = service.name}
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>| fieldsAdd totalTokens = inputTokens + outputTokens,
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    inOutRatio      = round(toDouble(inputTokens) / outputTokens, decimals: 1),
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    avgInputPerCall = round(toDouble(inputTokens) / llmCalls)
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>| sort totalTokens desc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>fetch spans
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>| summarize llmCalls = count(),
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    inputTokens  = sum(gen_ai.usage.input_tokens),
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    outputTokens = sum(gen_ai.usage.output_tokens),
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    by:{agent = service.name}
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>| fieldsAdd totalTokens = inputTokens + outputTokens,
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    inOutRatio      = round(toDouble(inputTokens) / outputTokens, decimals: 1),
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    avgInputPerCall = round(toDouble(inputTokens) / llmCalls)
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>| sort totalTokens desc
 </code></pre></div>
 <div class="admonition example">
 <p class="admonition-title">What this looked like on the reference tenant (7-day window)</p>
@@ -901,24 +900,24 @@ model — that's input tokens on every single call, whether the tool is used or
 not. In the traces, look at which tools an agent <em>actually</em> calls over many runs;
 anything never called is pure overhead.</p>
 <p>Trim the agent's <code>toolNames</code> to only what it uses:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># agents/sre/sre-agent.yaml (illustrative)</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">tools</span><span class="p">:</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">McpServer</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">mcpServer</span><span class="p">:</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="nt">toolNames</span><span class="p">:</span><span class="w">        </span><span class="c1"># ← keep only the tools this agent actually calls</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">list_pods</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get_logs</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dql_query</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">          </span><span class="c1"># dropped: a dozen k8s tools the SRE agent never invoked</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># agents/sre/sre-agent.yaml (illustrative)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">tools</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">McpServer</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">      </span><span class="nt">mcpServer</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="nt">toolNames</span><span class="p">:</span><span class="w">        </span><span class="c1"># ← keep only the tools this agent actually calls</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">list_pods</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get_logs</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dql_query</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">          </span><span class="c1"># dropped: a dozen k8s tools the SRE agent never invoked</span>
 </code></pre></div>
 <p>List the tools the agent <em>actually</em> calls straight from the traces, then diff
 against its granted set:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>fetch spans
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>| filter service.namespace == "kagent" and service.name == "seta_sre_investigator"
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>| summarize calls = count(), by:{tool = gen_ai.tool.name}
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>| sort calls desc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>fetch spans
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| filter service.namespace == "kagent" and service.name == "seta_sre_investigator"
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>| summarize calls = count(), by:{tool = gen_ai.tool.name}
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>| sort calls desc
 </code></pre></div>
 <div class="admonition example">
 <p class="admonition-title">Measure the schema tax directly</p>
@@ -941,12 +940,12 @@ essentials; move examples out unless they measurably improve the eval score.</p>
 calls a task took. Redundant hand-offs, an agent that re-reads context it already
 has, or a loop that retries silently all show up as extra <code>gen_ai</code> spans. Collapse
 the hops that don't earn their tokens.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fetch spans
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm"
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>| summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens),
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    by:{agent = service.name, task = gen_ai.task.id}
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>| filter llmCalls &gt;= 5
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>| sort inputTokens desc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>fetch spans
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm"
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>| summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens),
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    by:{agent = service.name, task = gen_ai.task.id}
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>| filter llmCalls &gt;= 5
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>| sort inputTokens desc
 </code></pre></div>
 <div class="admonition example">
 <p class="admonition-title">Loops are where big agents actually bleed</p>
@@ -962,21 +961,21 @@ one-line <code>ModelConfig</code> reference, so you can point a cheap, mechanica
 (e.g. a formatter) at a smaller/cheaper model while the reasoning-heavy
 orchestrator keeps the stronger one. This workshop already defaults the whole
 crew to <strong>DeepSeek</strong> for cost; per-agent tuning goes further.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># agents/mcp/00-modelconfig.yaml — the shared workshop-llm (DeepSeek, cost-first)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Create a second, cheaper ModelConfig and reference it from the agents that</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># don't need the strong model. One field per agent: spec.modelConfig.</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># agents/mcp/00-modelconfig.yaml — the shared workshop-llm (DeepSeek, cost-first)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># Create a second, cheaper ModelConfig and reference it from the agents that</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># don't need the strong model. One field per agent: spec.modelConfig.</span>
 </code></pre></div>
 <h2 id="3-prove-the-win">3. Prove the win<a class="headerlink" href="#3-prove-the-win" title="Permanent link">&para;</a></h2>
 <p>Open the <strong>before/after notebook</strong> (deployed above). Its §5 cell measures the one
 number that moves — average input tokens per <code>call_llm</code> — and the section
 time-picker is how you switch the <em>before</em> and <em>after</em> windows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>fetch spans
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>| filter service.namespace == "kagent" and service.name == "seta_sre_investigator"
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>| summarize llmCalls = count(),
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    avgInputPerCall    = round(avg(gen_ai.usage.input_tokens)),
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    medianInputPerCall = round(median(gen_ai.usage.input_tokens)),
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    totalInputTokens   = sum(gen_ai.usage.input_tokens)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>fetch spans
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>| filter service.namespace == "kagent" and service.name == "seta_sre_investigator"
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>| summarize llmCalls = count(),
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    avgInputPerCall    = round(avg(gen_ai.usage.input_tokens)),
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    medianInputPerCall = round(median(gen_ai.usage.input_tokens)),
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    totalInputTokens   = sum(gen_ai.usage.input_tokens)
 </code></pre></div>
 <p>The procedure, in order:</p>
 <ol>
@@ -1059,8 +1058,8 @@ DQL objectives over the crew's <code>call_llm</code> spans, so a regression fail
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>settings<span class="w"> </span>-f<span class="w"> </span>ai-agent-quality-cost.guardian.yaml<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--schema<span class="w"> </span>app:dynatrace.site.reliability.guardian:guardians<span class="w"> </span>--scope<span class="w"> </span>environment
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>settings<span class="w"> </span>-f<span class="w"> </span>ai-agent-quality-cost.guardian.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--schema<span class="w"> </span>app:dynatrace.site.reliability.guardian:guardians<span class="w"> </span>--scope<span class="w"> </span>environment
 </code></pre></div>
 <p>The quality proxy backstops the cost cuts — an agent that got "cheaper" by
 emitting truncated answers trips it. For the full <strong>LLM-judge</strong> quality gate,
@@ -1068,7 +1067,7 @@ pair the guardian with the Phase-4 dt-evals suite (module 06).</p>
 <p><strong>A scheduled Workflow</strong> (<code>ai-agent-optimization.workflow.yaml</code>) runs that
 guardian daily over the last 24h (schedule ships disabled — flip
 <code>trigger.schedule.isActive: true</code> to go continuous):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
 </code></pre></div>
 <p>Beyond the guardian:</p>
 <ul>

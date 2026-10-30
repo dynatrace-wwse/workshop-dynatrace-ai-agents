@@ -868,8 +868,10 @@ path</strong>. It samples <code>gen_ai.*</code> spans from your Dynatrace enviro
 scores each with an LLM judge, and writes <code>gen_ai.evaluation.result</code> <strong>bizevents</strong>
 back — so a low score is one click from the trace, prompt, and tool calls that
 caused it.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Dynatrace gen_ai.* spans ─► dt-evals (sample → mask → judge) ─► bizevents ─► DQL / dashboard / alert
-</code></pre></div>
+<pre class="mermaid"><code>flowchart LR
+    spans["Dynatrace gen_ai.* spans"] --&gt; evals["dt-evals (sample → mask → judge)"]
+    evals --&gt; biz["bizevents"]
+    biz --&gt; out["DQL / dashboard / alert"]</code></pre>
 <h3 id="1-credentials">1. Credentials<a class="headerlink" href="#1-credentials" title="Permanent link">&para;</a></h3>
 <p>dt-evals needs (put these in <code>evals/.env</code>). You created these during onboarding —
 see
@@ -902,25 +904,25 @@ for exact scopes and where each is generated:</p>
 </tbody>
 </table>
 <p>Discover the service with DQL (Dynatrace Notebook):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>fetch spans, from: now() - 2h
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>| summarize span_count = count(), by: { service.name }
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>| sort span_count desc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>fetch spans, from: now() - 2h
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>| summarize span_count = count(), by: { service.name }
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>| sort span_count desc
 </code></pre></div>
 <h3 id="2-run-it">2. Run it<a class="headerlink" href="#2-run-it" title="Permanent link">&para;</a></h3>
 <p>The CLI runs via <code>npx</code> (Node ≥ 22); the wrapper renders the config
 (<a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/workshop-agents.dt-eval.yaml"><code>evals/dt-evals/workshop-agents.dt-eval.yaml</code></a>)
 with your env values and runs <code>validate</code> + <code>run</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>./run-dt-eval.sh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>./run-dt-eval.sh
 </code></pre></div>
 <p>The config enables agent-relevant metrics (relevance, faithfulness,
 hallucination, coherence, toxicity, prompt-injection) and sets alert thresholds
 that make the run <strong>exit non-zero</strong> on a breach — a ready-made CI gate.</p>
 <h3 id="3-read-the-scores">3. Read the scores<a class="headerlink" href="#3-read-the-scores" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fetch bizevents
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>| filter event.type == "gen_ai.evaluation.result"
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>fetch bizevents
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>| filter event.type == "gen_ai.evaluation.result"
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 </code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Shared vs per-attendee tenant</p>
@@ -949,8 +951,8 @@ forbidden cross-channel claims?</p>
 <code>OOMKilled</code> status), a cross-channel claim is an unambiguous fail — so this grades
 objectively, even with no judge model.</p>
 <h3 id="deterministic-grade-offline-no-key">Deterministic grade (offline, no key)<a class="headerlink" href="#deterministic-grade-offline-no-key" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>evals
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>evals
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
 </code></pre></div>
 <p>It prints a PASS/FAIL per diagnosis and writes
 <code>phoenix/out/diagnosis_eval_results.csv</code>. Add <code>--llm-judge</code> (needs a judge key) to
@@ -959,9 +961,9 @@ diagnosis spans and annotate them back onto the traces.</p>
 <h3 id="in-dynatrace-dt-evals">In Dynatrace (dt-evals)<a class="headerlink" href="#in-dynatrace-dt-evals" title="Permanent link">&para;</a></h3>
 <p>Each answer key is also rendered into a dt-evals custom evaluator. Register the
 one for the scenario you ran, then grade its spans:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>npx<span class="w"> </span>-y<span class="w"> </span><span class="s2">"</span><span class="nv">$DT_EVALS_PKG</span><span class="s2">"</span><span class="w"> </span>evaluators<span class="w"> </span>add<span class="w">            </span><span class="c1"># paste evaluators/diagnosis-&lt;id&gt;.md</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-&lt;id&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>npx<span class="w"> </span>-y<span class="w"> </span><span class="s2">"</span><span class="nv">$DT_EVALS_PKG</span><span class="s2">"</span><span class="w"> </span>evaluators<span class="w"> </span>add<span class="w">            </span><span class="c1"># paste evaluators/diagnosis-&lt;id&gt;.md</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-&lt;id&gt;
 </code></pre></div>
 <p>Correct diagnoses score 1, misses score 0 — a per-scenario pass/fail bizevent next
 to the trace. Details:

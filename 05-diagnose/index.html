@@ -824,20 +824,11 @@ something you understand, ask the agent, and check its answer against what you
 <em>know</em> is wrong. That is the diagnosis loop the
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/scenarios"><code>scenarios/</code></a>
 directory encodes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a> run.sh inject &lt;id&gt;   ──▶   a real, isolated fault lands in workshop-faults
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>          │
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>          ▼
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a> paste &lt;id&gt;/prompt.md into the sre-agent (kagent UI or A2A curl)
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>          │
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>          ▼
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a> agent gathers evidence  →  Findings → Root cause → Action → Verify
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>          │
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>          ▼
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a> grade the answer against &lt;id&gt;/expected-diagnosis.md  (objective key)
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>          │
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>          ▼
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a> run.sh cleanup &lt;id&gt;  ──▶   fault removed, zero residue
-</code></pre></div>
+<pre class="mermaid"><code>flowchart TD
+    inject["run.sh inject &amp;lt;id&amp;gt; — a real, isolated fault lands in workshop-faults"] --&gt; paste["paste &amp;lt;id&amp;gt;/prompt.md into the sre-agent (kagent UI or A2A curl)"]
+    paste --&gt; gather["agent gathers evidence → Findings → Root cause → Action → Verify"]
+    gather --&gt; grade["grade the answer against &amp;lt;id&amp;gt;/expected-diagnosis.md (objective key)"]
+    grade --&gt; cleanup["run.sh cleanup &amp;lt;id&amp;gt; — fault removed, zero residue"]</code></pre>
 <p>Each scenario ships three files: <code>manifests.yaml</code> (the breakage), <code>prompt.md</code>
 (the exact prompt to paste — it never names the root cause), and
 <code>expected-diagnosis.md</code> (the objective answer key). The infra scenarios sit on
@@ -860,31 +851,31 @@ one throwaway Deployment. <strong>Scenario 12 additionally needs the opt-in
 show the correlation). On a <strong>minimum 4-core / 16 GB Codespace, skip 12</strong> and
 run 01–03 — you still get the full infra-diagnosis payoff. Only enable 12 if
 you have headroom:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">INSTALL_OTEL_DEMO</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>bash<span class="w"> </span>cluster/install.sh<span class="w">   </span><span class="c1"># one-time, opt-in (module 01 / ISI-6847)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">INSTALL_OTEL_DEMO</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>bash<span class="w"> </span>cluster/install.sh<span class="w">   </span><span class="c1"># one-time, opt-in (see module 01)</span>
 </code></pre></div>
 If <code>otel-demo</code> is not deployed, <code>run.sh inject 12</code> fails fast and prints this
 exact command — nothing breaks, you're just told cleanly why 12 is
 unavailable.</p>
 </div>
 <p>List what's available any time:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>list<span class="w">     </span><span class="c1"># id, title, and an [app-dep: otel-demo] tag on #12</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>list<span class="w">     </span><span class="c1"># id, title, and an [app-dep: otel-demo] tag on #12</span>
 </code></pre></div>
 <h2 id="walkthrough-scenario-01-crashloopbackoff">Walkthrough — scenario 01, CrashLoopBackOff<a class="headerlink" href="#walkthrough-scenario-01-crashloopbackoff" title="Permanent link">&para;</a></h2>
 <p>The rest of this page walks the canonical "hello world" of k8s diagnosis end to
 end. Scenarios 02 (ImagePullBackOff) and 03 (OOMKilled) follow the <strong>exact same
 four steps</strong> — just swap the id and paste that scenario's <code>prompt.md</code>.</p>
 <h3 id="1-inject-the-fault">1. Inject the fault<a class="headerlink" href="#1-inject-the-fault" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>inject<span class="w"> </span><span class="m">01</span>-crashloopbackoff<span class="w">   </span><span class="c1"># id can be '01' or the full name</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>inject<span class="w"> </span><span class="m">01</span>-crashloopbackoff<span class="w">   </span><span class="c1"># id can be '01' or the full name</span>
 </code></pre></div>
 <p><code>run.sh</code> creates the dedicated <code>workshop-faults</code> namespace and applies the
 fault's <code>manifests.yaml</code>. A fail-closed allowlist rejects any manifest that
 references <code>kagent</code>, <code>dynatrace</code>, the module-03 <code>agent-sandbox</code>, or any platform
 namespace <strong>before anything is applied</strong> — the blast radius is one throwaway
 namespace. Watch it break:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-n<span class="w"> </span>workshop-faults
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-n<span class="w"> </span>workshop-faults
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>NAME                              READY   STATUS             RESTARTS   AGE
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>billing-worker-5c9f8d7b6c-ab12x   0/1     CrashLoopBackOff   4          90s
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>NAME                              READY   STATUS             RESTARTS   AGE
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>billing-worker-5c9f8d7b6c-ab12x   0/1     CrashLoopBackOff   4          90s
 </code></pre></div>
 <h3 id="2-ask-the-agent">2. Ask the agent<a class="headerlink" href="#2-ask-the-agent" title="Permanent link">&para;</a></h3>
 <p>Open each scenario's <code>prompt.md</code> and paste the prompt <strong>exactly</strong> — it describes
@@ -901,10 +892,10 @@ evidence (status, events, and logs) that supports it.</p>
 </blockquote>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"A pod in the workshop-faults namespace keeps restarting. Investigate the workload there, find the root cause, and cite the exact status, events, and log lines that support it."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"A pod in the workshop-faults namespace keeps restarting. Investigate the workload there, find the root cause, and cite the exact status, events, and log lines that support it."}]}}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
 </code></pre></div>
 </div>
 </div>
@@ -948,7 +939,7 @@ start command) and rolling out the Deployment — <code>k8s_patch_resource</code
 confirm the pod goes <code>Running</code>. The agent can only patch/apply/scale/rollout, so
 this stays safe by construction.</p>
 <h3 id="5-cleanup">5. Cleanup<a class="headerlink" href="#5-cleanup" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>cleanup<span class="w"> </span><span class="m">01</span>-crashloopbackoff<span class="w">   </span><span class="c1"># deletes the workshop-faults ns — zero residue</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>cleanup<span class="w"> </span><span class="m">01</span>-crashloopbackoff<span class="w">   </span><span class="c1"># deletes the workshop-faults ns — zero residue</span>
 </code></pre></div>
 <p>Cleanup is one command and idempotent. For infra scenarios it deletes exactly the
 <code>workshop-faults</code> namespace; it never touches <code>kagent</code>, <code>dynatrace</code>, the demo
@@ -960,7 +951,7 @@ Kubernetes with Dynatrace</strong>. A faulty <code>product-catalog</code> backen
 <code>product-catalog</code> Service's endpoints, so a <em>fraction</em> of the astronomy shop's
 product requests are load-balanced to it and fail — <strong>intermittent 5xx</strong>, not a
 clean outage.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>inject<span class="w"> </span><span class="m">12</span><span class="w">      </span><span class="c1"># adds a faulty product-catalog backend (via inject.sh)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>inject<span class="w"> </span><span class="m">12</span><span class="w">      </span><span class="c1"># adds a faulty product-catalog backend (via inject.sh)</span>
 </code></pre></div>
 <p>Paste <code>scenarios/12-intermittent-5xx/prompt.md</code> and point the agent at
 <strong>Dynatrace</strong>:</p>
@@ -976,7 +967,7 @@ merely surfaces it), notes the failures are <strong>intermittent</strong> (a par
 rate), and corroborates with k8s that the <code>product-catalog</code> Service has an
 <strong>extra, unhealthy backend</strong> in rotation. Grade against its
 <code>expected-diagnosis.md</code> (<code>pass_threshold: 4</code>). Clean up with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>cleanup<span class="w"> </span><span class="m">12</span><span class="w">     </span><span class="c1"># removes only the faulty backend — never the healthy demo</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>cleanup<span class="w"> </span><span class="m">12</span><span class="w">     </span><span class="c1"># removes only the faulty backend — never the healthy demo</span>
 </code></pre></div>
 <h2 id="so-what-these-runs-feed-the-rest-of-the-workshop">So what — these runs feed the rest of the workshop<a class="headerlink" href="#so-what-these-runs-feed-the-rest-of-the-workshop" title="Permanent link">&para;</a></h2>
 <p>This module isn't a detour; it's the fuel for everything after it.</p>

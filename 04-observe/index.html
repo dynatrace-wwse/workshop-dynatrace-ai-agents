@@ -763,12 +763,10 @@ which forwards to <strong>both</strong> Dynatrace and Phoenix. This module is ab
 <em>reading</em> that data in Dynatrace.</p>
 </div>
 <h2 id="how-agent-telemetry-reaches-dynatrace">How agent telemetry reaches Dynatrace<a class="headerlink" href="#how-agent-telemetry-reaches-dynatrace" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a> kagent Agent (LLM + tool spans, gen_ai.* semconv)
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>        │ OTLP 4317
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        ▼
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a> otel-gateway-collector ──▶ Dynatrace tenant (OTLP ingest)   ← you are here
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   (normalises OpenInference/Traceloop → gen_ai.*)  └▶ Phoenix (module 06)
-</code></pre></div>
+<pre class="mermaid"><code>flowchart TD
+    agent["kagent Agent&lt;br/&gt;(LLM + tool spans, gen_ai.* semconv)"] --&gt;|OTLP 4317| gw["otel-gateway-collector&lt;br/&gt;(normalises OpenInference/Traceloop → gen_ai.*)"]
+    gw --&gt;|you are here| dt["Dynatrace tenant (OTLP ingest)"]
+    gw --&gt; phx["Phoenix (module 06)"]</code></pre>
 <p>The gateway normalises OpenInference/Traceloop LLM attributes onto the
 OpenTelemetry <code>gen_ai.*</code> semantic conventions, so Dynatrace sees consistent
 <code>gen_ai.request.model</code>, <code>gen_ai.usage.input_tokens</code>,
@@ -777,11 +775,11 @@ instrumentation a tool used.</p>
 <h2 id="1-generate-some-traffic">1. Generate some traffic<a class="headerlink" href="#1-generate-some-traffic" title="Permanent link">&para;</a></h2>
 <p>Observability needs something to observe. Send a few prompts so there are runs to
 inspect (from module 02):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># SRE agent — a couple of diagnostic prompts</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List pods in all namespaces and summarise anything not Running."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># SRE agent — a couple of diagnostic prompts</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List pods in all namespaces and summarise anything not Running."}]}}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
 </code></pre></div>
 <p>Run a BMAD workflow too if you want a longer, multi-hop trace to look at.</p>
 <h2 id="2-open-ai-observability-in-dynatrace">2. Open AI Observability in Dynatrace<a class="headerlink" href="#2-open-ai-observability-in-dynatrace" title="Permanent link">&para;</a></h2>
@@ -831,13 +829,12 @@ workshop's cost-efficiency theme. For each agent, look at:</p>
 </table>
 <h2 id="4-follow-a-single-trace-end-to-end">4. Follow a single trace end to end<a class="headerlink" href="#4-follow-a-single-trace-end-to-end" title="Permanent link">&para;</a></h2>
 <p>Click into one agent request. The distributed trace shows the full loop:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a> message/send (A2A)
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a> └─ agent.run                         (the whole loop)
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    ├─ gen_ai LLM call  model=deepseek-chat  in=1.2k out=340 tokens  420ms
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    ├─ tool: k8s.list_pods            180ms
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    ├─ gen_ai LLM call  in=1.9k out=120 tokens  380ms
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    └─ final answer
-</code></pre></div>
+<pre class="mermaid"><code>flowchart TD
+    send["message/send (A2A)"] --&gt; run["agent.run — the whole loop"]
+    run --&gt; llm1["gen_ai LLM call · model=deepseek-chat · in=1.2k out=340 tokens · 420ms"]
+    run --&gt; tool["tool: k8s.list_pods · 180ms"]
+    run --&gt; llm2["gen_ai LLM call · in=1.9k out=120 tokens · 380ms"]
+    run --&gt; final["final answer"]</code></pre>
 <p>Each <code>gen_ai</code> span carries the model, the input/output token counts, and the
 latency — so you can see <strong>exactly which step</strong> spent the tokens. For a BMAD run,
 you additionally see the orchestrator's A2A hops to the analyst → PM → architect
