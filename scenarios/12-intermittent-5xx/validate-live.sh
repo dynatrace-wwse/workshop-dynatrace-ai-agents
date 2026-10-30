@@ -15,9 +15,13 @@
 #   copy-paste instead of a hand-run checklist.
 #
 # PREREQUISITES (the harness checks these and fails fast — exit 2 — if missing):
-#   - a running cluster with the platform stack installed (needs ISI-6860 merged so
-#     `cluster/install.sh` actually deploys the stack) AND the opt-in demo:
-#         INSTALL_OTEL_DEMO=true bash cluster/install.sh
+#   - a running cluster with the platform stack installed (module 01) AND the opt-in
+#     demo. The platform stack is already up, so the demo is a single Helm install:
+#         helm upgrade --install otel-demo \
+#           oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
+#           -n otel-demo --create-namespace \
+#           -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
+#       (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
 #   - for the Dynatrace assertion (step 3): export DT_TENANT_URL and DT_API_TOKEN
 #     (token needs problems.read). Without them the harness still runs steps 1,2,4
 #     and prints the manual DT capture steps instead of failing.
@@ -70,7 +74,7 @@ print(n)'
 log "STEP 0 — preconditions"
 require_cluster || exit 2
 kubectl get ns "${DEMO_NS}" >/dev/null 2>&1 \
-  || { err "namespace ${DEMO_NS} absent — run: INSTALL_OTEL_DEMO=true bash cluster/install.sh"; exit 2; }
+  || { err "namespace ${DEMO_NS} absent — deploy the demo first: helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait"; exit 2; }
 
 SVC_NAME="$(kubectl -n "${DEMO_NS}" get svc -o name 2>/dev/null | sed 's#^service/##' | grep -E 'product-catalog$' | head -1 || true)"
 [ -n "${SVC_NAME}" ] || { err "no product-catalog Service in ${DEMO_NS} — is the demo deployed?"; exit 2; }
