@@ -584,6 +584,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#detect-an-agent-reading-sensitive-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detect an agent reading sensitive files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#optional-enforce-dont-just-observe" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -879,31 +890,81 @@ is your ground-truth audit log: <em>what did the agent's container actually exec
 Pipe to <code>grep</code> for a specific binary (e.g. <code>grep curl</code>) to catch an agent
 reaching for the network.</p>
 </div>
+<h3 id="detect-an-agent-reading-sensitive-files">Detect an agent reading sensitive files<a class="headerlink" href="#detect-an-agent-reading-sensitive-files" title="Permanent link">&para;</a></h3>
+<p>The raw <code>getevents</code> stream shows <em>everything</em>. A real audit policy says what you
+actually care about. For an AI agent the highest-signal thing to watch for is a
+process reaching for <strong>credentials</strong> — the service-account token, mounted
+secrets, <code>/etc/shadow</code>, SSH keys. That is the exact move a prompt-injected agent
+makes when it tries to escalate. A <code>TracingPolicy</code> turns "that happened
+somewhere in the firehose" into a single, named event the moment the file is
+touched.</p>
+<p>Apply the ready-made detection policy
+(<a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/tetragon/sensitive-file-access.yaml"><code>cluster/tetragon/sensitive-file-access.yaml</code></a>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>cluster/tetragon/sensitive-file-access.yaml
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>agent-sandbox<span class="w"> </span>get<span class="w"> </span>tracingpolicynamespaced<span class="w">   </span><span class="c1"># detect-sensitive-file-access</span>
+</code></pre></div>
+<p>It hooks the kernel's <code>security_file_permission</code> LSM check and <code>Post</code>s an event
+whenever <strong>any process in the <code>agent-sandbox</code> namespace</strong> reads a path under the
+service-account token, <code>/var/run/secrets</code>, <code>/etc/shadow</code>, <code>/etc/passwd</code>, the
+kubeconfig, SSH keys, or <code>/home</code>. It is scoped to the sandbox namespace so you
+only see <em>agent</em> activity — not every system process on the node reading
+<code>/etc/passwd</code>.</p>
+<div class="admonition info">
+<p class="admonition-title">Why detect, not kill?</p>
+<p>This policy uses the <strong><code>Post</code></strong> action (generate an event), not <code>Sigkill</code>.
+Detection attaches on essentially any kernel; enforcement is
+kernel-dependent and may be unavailable on a restricted Codespace host. You
+still get the full security value — you <em>see</em> the access the instant it
+happens — and the step works reliably for everyone. Flip the <code>matchActions</code>
+to <code>Sigkill</code> once you have confirmed your host supports it (next section).</p>
+</div>
+<p>Now <strong>trigger it</strong>. Watch the filtered stream in one terminal:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>ds/tetragon<span class="w"> </span>-c<span class="w"> </span>tetragon<span class="w"> </span>--<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>tetra<span class="w"> </span>getevents<span class="w"> </span>-o<span class="w"> </span>compact<span class="w"> </span>--namespace<span class="w"> </span>agent-sandbox
+</code></pre></div>
+<p>…and in a second terminal, schedule a compliant pod into the sandbox and have it
+read its own service-account token (exactly what a credential-stealing agent
+would do):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>agent-sandbox<span class="w"> </span>run<span class="w"> </span>snoop<span class="w"> </span>--image<span class="o">=</span>busybox:1.36<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--overrides<span class="o">=</span><span class="s1">'{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="s2">"cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"</span>
+</code></pre></div>
+<div class="admonition success">
+<p class="admonition-title">Expected</p>
+<p>The first terminal prints a <code>process_kprobe</code> line for <code>security_file_permission</code>
+on the <code>snoop</code> pod, naming the binary (<code>cat</code>) and the sensitive path. That is
+your detection firing — the pod ran clean under Pod Security <em>and</em> was caught
+reading a credential, because runtime detection sees what admission cannot.</p>
+</div>
+<p>Clean up:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>agent-sandbox<span class="w"> </span>delete<span class="w"> </span>pod<span class="w"> </span>snoop<span class="w"> </span>--ignore-not-found
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="c1"># leave the policy in place — it is cheap and keeps watching</span>
+</code></pre></div>
 <h3 id="optional-enforce-dont-just-observe">Optional: enforce, don't just observe<a class="headerlink" href="#optional-enforce-dont-just-observe" title="Permanent link">&para;</a></h3>
 <p>Tetragon can turn an observation into a kill. A <code>TracingPolicy</code> can, for example,
 <code>Sigkill</code> any process in the sandbox that tries to execute an unexpected binary.
 This is powerful but <strong>kernel-dependent</strong> on a shared Codespace host — see the
 troubleshooting note below before relying on enforcement.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Illustrative — a policy that kills shells spawned inside the sandbox namespace.</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cilium.io/v1alpha1</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TracingPolicyNamespaced</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">no-shell-in-sandbox</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent-sandbox</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="nt">kprobes</span><span class="p">:</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">call</span><span class="p">:</span><span class="w"> </span><span class="s">"sys_execve"</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">      </span><span class="nt">syscall</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">      </span><span class="nt">args</span><span class="p">:</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">index</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">          </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">"string"</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">      </span><span class="nt">selectors</span><span class="p">:</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">matchArgs</span><span class="p">:</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">index</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">              </span><span class="nt">operator</span><span class="p">:</span><span class="w"> </span><span class="s">"Postfix"</span>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">              </span><span class="nt">values</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"/bin/sh"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"/bin/bash"</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">          </span><span class="nt">matchActions</span><span class="p">:</span>
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Sigkill</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Illustrative — a policy that kills shells spawned inside the sandbox namespace.</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cilium.io/v1alpha1</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TracingPolicyNamespaced</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="nt">metadata</span><span class="p">:</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">no-shell-in-sandbox</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent-sandbox</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="nt">spec</span><span class="p">:</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">  </span><span class="nt">kprobes</span><span class="p">:</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">call</span><span class="p">:</span><span class="w"> </span><span class="s">"sys_execve"</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">      </span><span class="nt">syscall</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">      </span><span class="nt">args</span><span class="p">:</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">index</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">          </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">"string"</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="nt">selectors</span><span class="p">:</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">matchArgs</span><span class="p">:</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">index</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">              </span><span class="nt">operator</span><span class="p">:</span><span class="w"> </span><span class="s">"Postfix"</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">              </span><span class="nt">values</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"/bin/sh"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"/bin/bash"</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">          </span><span class="nt">matchActions</span><span class="p">:</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Sigkill</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">eBPF on a Codespace kernel</p>
@@ -919,6 +980,10 @@ unavailable on a restricted host kernel. If Tetragon pods CrashLoop, see
   egress except DNS + telemetry.</li>
 <li>Tetragon streams <strong>real exec/network events</strong> from your running agents, giving
   you a runtime audit trail (and an optional enforcement hook).</li>
+<li>A <strong><code>detect-sensitive-file-access</code> TracingPolicy</strong> fires a named event the
+  instant a sandboxed agent reads a credential (service-account token, secrets,
+  <code>/etc/shadow</code>, SSH keys) — catching credential theft that admission control
+  cannot see.</li>
 </ul>
 <p>Your agents can now act — but only inside a box you drew, under a sensor that
 watches. Next: <strong><a href="../04-observe/">04 — Observe with Dynatrace</a></strong> to see cost and

@@ -772,9 +772,20 @@ OpenTelemetry <code>gen_ai.*</code> semantic conventions, so Dynatrace sees cons
 <code>gen_ai.request.model</code>, <code>gen_ai.usage.input_tokens</code>,
 <code>gen_ai.usage.output_tokens</code>, and token/latency fields regardless of which
 instrumentation a tool used.</p>
+<div class="admonition tip">
+<p class="admonition-title">Production tip — use the <code>genainormalizer</code> processor</p>
+<p>The workshop does this with a few OTTL <code>set()</code> statements because it runs the
+lighter <code>opentelemetry-collector-k8s</code> image. Outside the workshop, prefer the
+purpose-built
+<a href="https://explorer.opentelemetry.io/collector/components/contrib/genainormalizerprocessor?type=processor&amp;version=0.155.0"><code>genainormalizer</code> processor</a>:
+it ships maintained OpenInference/OpenLLMetry (Traceloop) mappings against
+GenAI semconv v1.40.0. It is a <strong>contrib</strong> component (Alpha for traces), so it
+requires the <code>opentelemetry-collector-contrib</code> image or a custom OCB build.</p>
+</div>
 <h2 id="1-generate-some-traffic">1. Generate some traffic<a class="headerlink" href="#1-generate-some-traffic" title="Permanent link">&para;</a></h2>
 <p>Observability needs something to observe. Send a few prompts so there are runs to
-inspect (from module 02):</p>
+inspect — either way from module 02 works (kagent UI → <strong>sre-agent</strong>, or the A2A
+curl below):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># SRE agent — a couple of diagnostic prompts</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>

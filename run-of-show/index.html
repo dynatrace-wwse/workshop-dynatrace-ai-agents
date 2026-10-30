@@ -926,6 +926,26 @@ and point at the two things that matter:</p>
 OpenTelemetry <strong><code>gen_ai.*</code></strong> convention — so Dynatrace and Phoenix see the same
 model, token, and latency fields. The <code>traces</code> pipeline exports to Dynatrace
 <strong>and</strong> Phoenix from one place.</p>
+<blockquote>
+<p><strong>Take this home — don't hand-roll OTTL for GenAI.</strong> We use a few <code>transform</code>
+<code>set()</code> statements here because the workshop runs the lighter
+<code>opentelemetry-collector-k8s</code> image. In your own stack, prefer the purpose-built
+<a href="https://explorer.opentelemetry.io/collector/components/contrib/genainormalizerprocessor?type=processor&amp;version=0.155.0"><code>genainormalizer</code> processor</a>:
+it ships maintained mappings for OpenInference and OpenLLMetry/Traceloop (token
+counts, model names, request params, finish reasons) against GenAI semconv
+v1.40.0 — so you declare <em>sources</em>, not a mapping table you keep in sync.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">processors</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">genainormalizer</span><span class="p">:</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">sources</span><span class="p">:</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openinference</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">openllmetry</span><span class="w">      </span><span class="c1"># Traceloop</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="nt">remove_originals</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># ...then list `genainormalizer` in the traces pipeline instead of transform/genai-normalize</span>
+</code></pre></div>
+<p>It is a <strong>contrib</strong> component (Alpha for traces), so using it means running the
+<code>opentelemetry-collector-contrib</code> image (or a custom OCB build with just this
+processor) rather than the k8s distro.</p>
+</blockquote>
 <p><strong>Go deeper.</strong> <a href="../04-observe/#how-agent-telemetry-reaches-dynatrace">04 — Observe with Dynatrace</a>.</p>
 <hr />
 <h2 id="step-4-re-run-the-sre-investigation">Step 4 — Re-run the SRE investigation<a class="headerlink" href="#step-4-re-run-the-sre-investigation" title="Permanent link">&para;</a></h2>
@@ -933,10 +953,10 @@ model, token, and latency fields. The <code>traces</code> pipeline exports to Dy
 time to <em>generate traces on purpose</em>. Same agent, slightly broader prompt, so there
 are fresh runs to open in Phoenix and Dynatrace in the next steps.</p>
 <p><strong>Do it.</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List pods in all namespaces and summarise anything not Running."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List pods in all namespaces and summarise anything not Running."}]}}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
 </code></pre></div>
 <p><strong>Apply this.</strong> Within a few seconds this run is a trace in both backends: an
 <code>agent.run</code> span wrapping <code>gen_ai</code> LLM calls and <code>k8s</code> tool calls, each carrying
@@ -947,15 +967,25 @@ input/output token counts and latency. That trace is what Steps 5 and 6 inspect.
 <p><strong>What &amp; why.</strong> Observability shows <em>what</em> the agent did; evaluation scores
 <em>whether it was any good</em>. Phoenix is the fast, visual, exploratory judge — open it
 and run one LLM-as-a-judge evaluation over the traces you just made.</p>
-<p><strong>Do it.</strong> Phoenix is already forwarded on port <strong>6006</strong>. Run the bundled eval:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w">                </span><span class="c1"># bundled sample dataset — just needs a judge key</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w"> </span>--from-phoenix<span class="w"> </span><span class="c1"># grade the LIVE spans and annotate them in the UI</span>
+<p><strong>Do it.</strong> Phoenix is already forwarded on port <strong>6006</strong> — so <strong>open it first</strong>:</p>
+<ol>
+<li>Open the Phoenix UI → <strong><a href="http://localhost:6006">http://localhost:6006</a></strong>. Each
+   agent run from Step 4 is an LLM trace: prompt, response, tool spans, token
+   counts. Click one to see its <code>gen_ai.*</code> attributes. This is the surface you'll
+   configure the evaluation against and read the scores back from.</li>
+<li>From the <code>evals/</code> project, run the LLM-as-a-judge eval. The bundled dataset
+   works offline; <code>--from-phoenix</code> grades the <strong>live</strong> spans you just opened and
+   writes the labels back onto them:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w">                </span><span class="c1"># bundled sample dataset — just needs a judge key</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w"> </span>--from-phoenix<span class="w"> </span><span class="c1"># grade the LIVE spans and annotate them in the UI</span>
 </code></pre></div>
 <p><strong>Apply this.</strong> The script builds two judge classifiers — <strong>hallucination</strong> (is
 the answer grounded in its context?) and <strong>relevance</strong> (does it answer the
 question?). With <code>--from-phoenix</code> it writes the scores back onto the originating
-spans, so the labels appear on the traces in the Phoenix UI. It also drops a CSV at
+spans, so <strong>refresh the Phoenix UI</strong> and the labels now appear on the traces you
+opened in step 1. It also drops a CSV at
 <code>evals/phoenix/out/phoenix_eval_results.csv</code>.</p>
 <p><strong>Go deeper.</strong> <a href="../06-evaluate/#part-a-phoenix-explore-and-judge-live-traces">06 — Evaluate · Part A (Phoenix)</a>.</p>
 <hr />
@@ -1004,17 +1034,17 @@ samples <code>gen_ai.*</code> spans straight from Dynatrace, masks PII, scores e
 judge, and writes the results back as <strong>bizevents</strong> next to the rest of your
 telemetry — so a low score is one click from the trace that caused it.</p>
 <p><strong>Do it.</strong> Put the credentials in <code>evals/.env</code>, then run the wrapper:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>./run-dt-eval.sh<span class="w">          </span><span class="c1"># renders the config with your env, then runs validate + run</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>./run-dt-eval.sh<span class="w">          </span><span class="c1"># renders the config with your env, then runs validate + run</span>
 </code></pre></div>
 <p>The <code>.env</code> needs a dedicated <code>DYNATRACE_API_TOKEN</code> (<code>dt0c01</code> with
 <code>storage:spans:read</code> + <code>storage:events:write</code>), <code>DT_ENVIRONMENT_URL</code>, a judge
 <code>OPENAI_API_KEY</code> (a DeepSeek key works), and <code>DT_EVAL_SERVICE</code> — <strong>discover</strong> that
 service name with DQL, don't guess it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>fetch spans, from: now() - 2h
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>| summarize span_count = count(), by: { service.name }
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>| sort span_count desc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>fetch spans, from: now() - 2h
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>| summarize span_count = count(), by: { service.name }
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>| sort span_count desc
 </code></pre></div>
 <p><strong>Apply this.</strong> The shipped config enables relevance, faithfulness, hallucination,
 coherence, toxicity, and prompt-injection metrics, and sets thresholds that make
@@ -1027,10 +1057,10 @@ the platform: the <strong>BMAD crew</strong> — a six-member orchestrated workf
 → architect → developer → QA, driven by the orchestrator). A BMAD run is a long,
 multi-hop trace — exactly the kind of workload the optimize steps later target.</p>
 <p><strong>Do it.</strong> Send the orchestrator a task (kagent UI → <strong>bmad-orchestrator</strong>, or A2A):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"Build a simple Todo app in &lt;owner&gt;/&lt;repo&gt;. Run the full BMAD workflow and open a PR."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/bmad-orchestrator
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"Build a simple Todo app in &lt;owner&gt;/&lt;repo&gt;. Run the full BMAD workflow and open a PR."}]}}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/bmad-orchestrator
 </code></pre></div>
 <p><strong>Apply this.</strong> In the trace you'll see the orchestrator's <strong>A2A hops</strong> to each
 crew member as nested spans, and the developer agent using the <strong>GitHub MCP</strong> tools
@@ -1057,9 +1087,9 @@ UI.</p>
 bizevents. Read them with DQL — this is the queryable, alertable, CI-gated view of
 quality.</p>
 <p><strong>Do it.</strong> In a Dynatrace Notebook:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>fetch bizevents
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>| filter event.type == "gen_ai.evaluation.result"
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>fetch bizevents
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>| filter event.type == "gen_ai.evaluation.result"
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 </code></pre></div>
 <p><strong>Apply this.</strong> You get an average score per evaluator (relevance, faithfulness,
 hallucination, …). Because the scores live next to the spans, any low score is one
@@ -1073,9 +1103,9 @@ optimize module ships a ready-made Dynatrace <strong>notebook</strong> that comp
 optimization signal from your crew's <code>gen_ai.*</code> spans — deploy it so the next DQL
 steps run against a real surface, not a blank page.</p>
 <p><strong>Do it.</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>dtctl<span class="w"> </span>config<span class="w"> </span>use-context<span class="w"> </span>&lt;your-tenant&gt;
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization-before-after.notebook.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>dtctl<span class="w"> </span>config<span class="w"> </span>use-context<span class="w"> </span>&lt;your-tenant&gt;
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization-before-after.notebook.yaml
 </code></pre></div>
 <p><strong>Apply this.</strong> The notebook — <em>AI Agent Optimization — before/after</em> — is the
 observe → find → change → re-measure → keep/revert walkthrough, one runnable DQL
@@ -1090,23 +1120,23 @@ the waste?": <strong>which tools does an agent actually call</strong> (anything 
 called is pure prompt overhead), and <strong>how many tokens is each agent burning</strong>
 (especially the input:output ratio, your waste compass).</p>
 <p><strong>Do it — token utilization (rank agents by spend):</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>fetch spans
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>| summarize llmCalls = count(),
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    inputTokens  = sum(gen_ai.usage.input_tokens),
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    outputTokens = sum(gen_ai.usage.output_tokens),
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    by:{agent = service.name}
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>| fieldsAdd totalTokens = inputTokens + outputTokens,
-<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    inOutRatio      = round(toDouble(inputTokens) / outputTokens, decimals: 1),
-<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    avgInputPerCall = round(toDouble(inputTokens) / llmCalls)
-<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>| sort totalTokens desc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>fetch spans
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>| summarize llmCalls = count(),
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    inputTokens  = sum(gen_ai.usage.input_tokens),
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    outputTokens = sum(gen_ai.usage.output_tokens),
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    by:{agent = service.name}
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>| fieldsAdd totalTokens = inputTokens + outputTokens,
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    inOutRatio      = round(toDouble(inputTokens) / outputTokens, decimals: 1),
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>    avgInputPerCall = round(toDouble(inputTokens) / llmCalls)
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>| sort totalTokens desc
 </code></pre></div>
 <p><strong>Do it — tool usage (what an agent really calls):</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>fetch spans
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>| filter service.namespace == "kagent" and service.name == "&lt;agent-service-name&gt;"
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>| summarize calls = count(), by:{tool = gen_ai.tool.name}
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>| sort calls desc
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>fetch spans
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>| filter service.namespace == "kagent" and service.name == "&lt;agent-service-name&gt;"
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>| summarize calls = count(), by:{tool = gen_ai.tool.name}
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>| sort calls desc
 </code></pre></div>
 <p><strong>Apply this.</strong> Diff the tools the traces prove an agent uses against the tool set
 it was <em>granted</em> — every unused tool is a JSON schema injected into <strong>every</strong> prompt
@@ -1121,10 +1151,10 @@ both telemetry, the last artifact makes the loop <strong>continuous</strong>: a 
 Dynatrace workflow runs a Site Reliability Guardian daily, so a cost or quality
 regression fails loudly on its own.</p>
 <p><strong>Do it.</strong> Deploy the guardian, then the workflow that runs it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>dtctl<span class="w"> </span>create<span class="w"> </span>settings<span class="w"> </span>-f<span class="w"> </span>ai-agent-quality-cost.guardian.yaml<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span>--schema<span class="w"> </span>app:dynatrace.site.reliability.guardian:guardians<span class="w"> </span>--scope<span class="w"> </span>environment
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>dtctl<span class="w"> </span>create<span class="w"> </span>settings<span class="w"> </span>-f<span class="w"> </span>ai-agent-quality-cost.guardian.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span>--schema<span class="w"> </span>app:dynatrace.site.reliability.guardian:guardians<span class="w"> </span>--scope<span class="w"> </span>environment
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
 </code></pre></div>
 <p><strong>Apply this.</strong> The guardian holds three DQL objectives over the crew's <code>call_llm</code>
 spans — <strong>cost per call</strong> (avg input tokens ≤ 20k), <strong>loop efficiency</strong> (avg hops ≤

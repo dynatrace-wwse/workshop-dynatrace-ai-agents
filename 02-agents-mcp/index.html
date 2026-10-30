@@ -858,25 +858,54 @@ the SRE agent, then the BMAD crew.</p>
 <p>Each <code>RemoteMCPServer</code> should be Accepted with a non-empty <code>discoveredTools</code>
 list, and all seven agents (<code>sre-agent</code> + six <code>bmad-*</code>) should be Accepted.</p>
 <h2 id="5-send-a-sample-prompt">5. Send a sample prompt<a class="headerlink" href="#5-send-a-sample-prompt" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SRE agent</label><label for="__tabbed_1_2">BMAD orchestrator</label></div>
+<p>There are two ways to talk to any agent, and they are interchangeable — both land
+on the same A2A endpoint and produce the same traces. Use whichever you prefer:</p>
+<ul>
+<li><strong>kagent UI</strong> — click the agent, drop a prompt in the chat. Best for exploring
+  interactively and watching the agent's loop unfold turn by turn.</li>
+<li><strong>A2A (curl)</strong> — one <code>kubectl run</code> that POSTs a <code>message/send</code> request to the
+  controller. Best for scripting, CI, or pasting a prompt verbatim.</li>
+</ul>
+<p>To use the UI, port-forward it first (leave this running in its own terminal):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>port-forward<span class="w"> </span>svc/kagent-ui<span class="w"> </span><span class="m">8080</span>:8080<span class="w">   </span><span class="c1"># → http://localhost:8080</span>
+</code></pre></div>
+<p>Now send the SRE agent a prompt either way:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">kagent UI</label><label for="__tabbed_1_2">A2A (curl)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace and tell me if any are unhealthy."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
-</code></pre></div>
+<p>Open <a href="http://localhost:8080">http://localhost:8080</a>, pick <strong>sre-agent</strong>, and paste:</p>
+<blockquote>
+<p>List the pods in the <code>kagent</code> namespace and tell me if any are unhealthy.</p>
+</blockquote>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"Build a simple Todo app in &lt;owner&gt;/&lt;repo&gt;. Run the full BMAD workflow and open a PR."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/bmad-orchestrator
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace and tell me if any are unhealthy."}]}}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
 </code></pre></div>
 </div>
 </div>
 </div>
-<p>Or use the kagent UI: <code>kubectl -n kagent port-forward svc/kagent-ui 8080:8080</code>.</p>
+<p>For a longer, multi-hop trace, send the BMAD orchestrator a build task instead:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">kagent UI</label><label for="__tabbed_2_2">A2A (curl)</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Open <a href="http://localhost:8080">http://localhost:8080</a>, pick <strong>bmad-orchestrator</strong>, and paste:</p>
+<blockquote>
+<p>Build a simple Todo app in <code>&lt;owner&gt;/&lt;repo&gt;</code>. Run the full BMAD workflow and
+open a PR.</p>
+</blockquote>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"Build a simple Todo app in &lt;owner&gt;/&lt;repo&gt;. Run the full BMAD workflow and open a PR."}]}}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/bmad-orchestrator
+</code></pre></div>
+</div>
+</div>
+</div>
 <h2 id="6-see-the-traces">6. See the traces<a class="headerlink" href="#6-see-the-traces" title="Permanent link">&para;</a></h2>
 <p>Agent LLM and tool-call spans flow automatically (kagent <code>otel.tracing</code>, wired in
 module 01) through the OTel gateway to <strong>both</strong> backends:</p>
