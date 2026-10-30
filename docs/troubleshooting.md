@@ -156,10 +156,10 @@ tenant/token scopes include `openTelemetryTrace.ingest`.
 
 ## Module 7 — Diagnose
 
-**`run.sh inject 12` exits 2 with "requires the otel-demo app".** Scenario 12 is
+**`run.sh inject 12` exits 2 with "requires the astroshop-lite app".** Scenario 12 is
 the opt-in app scenario. Either skip it (run 01–03) or deploy the demo once with a
 single Helm install (the platform stack is already up):
-`helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait`
+`deployOtelDemoLight`
 (`deployOtelDemoLight`). Scenarios
 01–03 have no such dependency.
 

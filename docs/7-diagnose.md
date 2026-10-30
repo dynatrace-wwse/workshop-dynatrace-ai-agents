@@ -59,14 +59,14 @@ ambiguity.
     ```bash
     deployOtelDemoLight
     ```
-    If `otel-demo`
+    If `astroshop-lite`
     is not deployed, `run.sh inject 12` fails fast and prints this exact Helm
     command — nothing breaks, you're just told cleanly why 12 is unavailable.
 
 List what's available any time:
 
 ```bash
-bash scenarios/run.sh list     # id, title, and an [app-dep: otel-demo] tag on #12
+bash scenarios/run.sh list     # id, title, and an [app-dep: astroshop-lite] tag on #12
 ```
 
 ## Walkthrough — scenario 01, CrashLoopBackOff
@@ -281,7 +281,7 @@ bash scenarios/run.sh inject 12      # adds a faulty product-catalog backend (vi
 Paste `scenarios/12-intermittent-5xx/prompt.md` and point the agent at
 **Dynatrace**:
 
-> Users of the astronomy shop (namespace `otel-demo`) are seeing intermittent
+> Users of the astronomy shop (namespace `astroshop-lite`) are seeing intermittent
 > errors when they browse products — some requests work, some fail. Use
 > Dynatrace to find the open problem and its Davis root cause, correlate it with
 > the cluster state, and tell me which service is actually at fault and why.

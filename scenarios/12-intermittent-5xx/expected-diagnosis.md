@@ -1,17 +1,17 @@
 ---
 scenario: 12-intermittent-5xx
 fault_family: app
-namespace: otel-demo
-requires: [cluster-state, dynatrace, otel-demo]
+namespace: astroshop-lite
+requires: [cluster-state, dynatrace, astroshop-lite]
 pass_threshold: 4
 ---
 
 # Expected Diagnosis — Intermittent 5xx on the product path (Dynatrace correlation)
 
 > **App scenario — needs the opt-in `opentelemetry-demo-light` app (ISI-6847) and
-> Dynatrace.** Unlike 01–03 this fault lives in the `otel-demo` namespace and is
+> Dynatrace.** Unlike 01–03 this fault lives in the `astroshop-lite` namespace and is
 > graded partly on a **Dynatrace problem / Davis root cause** citation, not on
-> cluster state alone. If `otel-demo` is not deployed, `run.sh inject 12` fails
+> cluster state alone. If `astroshop-lite` is not deployed, `run.sh inject 12` fails
 > fast — this scenario is skippable on the minimum tier.
 
 ## Root cause (one sentence)

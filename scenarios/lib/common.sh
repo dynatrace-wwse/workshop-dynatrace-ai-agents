@@ -26,9 +26,9 @@ SCENARIOS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FAULT_NS="workshop-faults"
 
 # Fail-closed allowlist (ISI-6846 §2 / §5). A manifest or hook may reference ONLY
-# these namespaces. otel-demo is owned by the Platform install (ISI-6847); scenario
+# these namespaces. astroshop-lite is owned by the Platform install (ISI-6847); scenario
 # #12 flips a fault inside it but must never delete it.
-NS_ALLOWLIST=("workshop-faults" "otel-demo")
+NS_ALLOWLIST=("workshop-faults" "astroshop-lite")
 
 # resolve_id <id> -> echoes the canonical scenario directory name, or returns 1.
 # Accepts a numeric prefix ("01", "12") or the full dir name ("01-crashloopbackoff").

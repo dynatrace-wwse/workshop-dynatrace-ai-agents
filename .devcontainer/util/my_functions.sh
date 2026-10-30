@@ -473,14 +473,16 @@ checkScenarioClean(){
     || { printInfo "✅ No residue — workshop-faults removed"; return 0; }
 }
 
-# Scenario 12's app. Henrik's opentelemetry-demo-light chart, deployed into
-# `otel-demo` where scenarios/12-*/inject.sh expects it.
-# TODO(astroshop-lite): switch to `deployApp astroshop-lite` once framework
-# 1.20.0 ships it (worker 212), and point inject.sh at its namespace.
+# Scenario 12's app, in namespace `astroshop-lite` (scenarios/lib/common.sh
+# allowlist; inject.sh discovers its product-catalog Service there).
 deployOtelDemoLight(){
-  printInfoSection "opentelemetry-demo-light (scenario 12 app)"
-  helm upgrade --install otel-demo "${OTEL_DEMO_OCI_REPO}" --version "${OTEL_DEMO_CHART_VERSION}" \
-    -n otel-demo --create-namespace -f "${REPO_PATH}/cluster/otel-demo/values-light.yaml" --wait --timeout 8m
+  # AstroShop Lite: the framework packaging (>= 1.20.0) of Henrik's
+  # opentelemetry-demo-light. Its services export straight to the workshop's
+  # OTel gateway, so their spans reach Phoenix and Dynatrace through the same
+  # pipeline as the agents' — and no second collector is deployed.
+  ASTROSHOP_LITE_OTLP_ENDPOINT="http://otel-gateway-collector.opentelemetry-operator-system.svc.cluster.local:4317" \
+    deployApp astroshop-lite
+  kubectl -n astroshop-lite rollout status deploy --timeout=480s
 }
 
 # ======================================================================

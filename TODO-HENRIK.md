@@ -88,14 +88,23 @@ the App does not provide one, so learners there run the crew read-only.
 **Suggested.** A template repo the learner forks, with the PAT as an optional
 step — or keep the write demo instructor-only.
 
-## 10. Scenario 12 uses opentelemetry-demo-light
+## 10. Scenario 12 now runs on AstroShop Lite — but is not intermittent
 
-**Context.** The enablement framework is adding **AstroShop Lite** (built from
-your `opentelemetry-demo-light` images) as a framework app (`deployApp
-astroshop-lite`, framework 1.20.0). Scenario 12 still installs your chart
-directly (`deployOtelDemoLight`).
-**Suggested.** Switch scenario 12 to the framework app once 1.20.0 is released,
-so one copy of the demo is maintained.
+**Context.** Scenario 12 now deploys **AstroShop Lite** (`deployApp
+astroshop-lite`, codespaces-framework 1.20.0, your `opentelemetry-demo-light`
+images 0.0.16 pinned by digest) in namespace `astroshop-lite`. The services export
+to the workshop's OTel gateway. Inject and cleanup work: the faulty backend joins
+the Service (2 endpoints) and leaves cleanly.
+**Missing.** `validate-live.sh` measured **0/38 failed** frontend requests: the
+frontend's gRPC (HTTP/2) channel stays pinned to the healthy product-catalog pod,
+which is the stickiness case your validator already flags as "ESCALATE". A
+restarted frontend would pin to one pod at random, giving 0% or 100% errors,
+never a fraction. Also, in 0.0.16 the payment spans are orphan roots (no W3C
+extraction); astroshop-lite PR #2 fixes it but is not in a published image yet.
+**Suggested.** Inject the fault *inside* the one product-catalog pod (an env
+flag or feature flag that fails N% of calls) instead of adding a second
+endpoint. It is intermittent whatever the connection pinning. Until then,
+scenario 12 stays optional and ungraded.
 
 ## 11. Upstream keeps moving
 
