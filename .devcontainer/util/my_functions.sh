@@ -341,8 +341,13 @@ checkAgents(){
 }
 
 checkToolsDiscovered(){
-  local tools
-  tools="$(kubectl -n kagent get remotemcpserver kagent-tool-server -o jsonpath='{.status.discoveredTools[*].name}' 2>/dev/null)"
+  local tools i
+  # Discovery runs once the tool server answers; give a fresh cluster a minute.
+  for i in $(seq 1 12); do
+    tools="$(kubectl -n kagent get remotemcpserver kagent-tool-server -o jsonpath='{.status.discoveredTools[*].name}' 2>/dev/null)"
+    echo "$tools" | grep -q k8s_get_resources && break
+    sleep 5
+  done
   echo "$tools" | grep -q k8s_get_resources \
     && { printInfo "✅ kagent-tool-server exposes $(echo "$tools" | wc -w) tools"; return 0; } \
     || { printError "kagent-tool-server has not discovered its tools yet"; return 1; }
@@ -611,11 +616,18 @@ runGroundTruthTests(){
 # ======================================================================
 # Re-apply the SRE agent with its Dynatrace tools pinned to the handful the
 # traces show it actually calls — the "remove unused tools" cut.
+aiwDynatraceMcpAccepted(){
+  kubectl -n kagent get remotemcpserver dynatrace-mcp-remote \
+    -o jsonpath='{.status.conditions[?(@.type=="Accepted")].status}' 2>/dev/null | grep -q True
+}
+
 applyLeanSreAgent(){
-  if aiwHasDynatraceMcp; then
+  # Re-attaching an MCP server that is not Accepted breaks EVERY call of the
+  # agent, so only trim when the Dynatrace tools actually work.
+  if aiwHasDynatraceMcp && aiwDynatraceMcpAccepted; then
     kubectl apply -f "${REPO_PATH}/agents/sre/sre-agent-lean.yaml"
   else
-    printWarn "No Dynatrace MCP in this session — nothing to trim; the agent keeps only its Kubernetes tools"
+    printWarn "Dynatrace MCP not available in this session — nothing to trim; the agent keeps only its Kubernetes tools"
   fi
 }
 
@@ -626,8 +638,8 @@ import json,sys
 d=json.load(sys.stdin)
 tools=d["spec"]["declarative"]["tools"]
 print(sum(len(t.get("mcpServer",{}).get("toolNames") or []) for t in tools if t.get("mcpServer",{}).get("name")=="dynatrace-mcp-remote"))' 2>/dev/null)"
-  if ! aiwHasDynatraceMcp; then
-    printInfo "No Dynatrace MCP in this session — step not applicable"; return 0
+  if ! aiwHasDynatraceMcp || ! aiwDynatraceMcpAccepted; then
+    printInfo "Dynatrace MCP not available in this session — step not applicable"; return 0
   fi
   [ "${n:-0}" -gt 0 ] \
     && { printInfo "✅ sre-agent pins ${n} Dynatrace tool(s) instead of all of them"; return 0; } \

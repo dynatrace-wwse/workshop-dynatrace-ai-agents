@@ -97,16 +97,16 @@ step — or keep the write demo instructor-only.
 ## 10. Scenario 12 now runs on AstroShop Lite — but is not intermittent
 
 **Context.** Scenario 12 now deploys **AstroShop Lite** (`deployApp
-astroshop-lite`, codespaces-framework 1.20.0, your `opentelemetry-demo-light`
-images 0.0.16 pinned by digest) in namespace `astroshop-lite`. The services export
+astroshop-lite`, codespaces-framework 1.20.1, built from your `opentelemetry-demo-light`
+and published as `ghcr.io/dynatrace-wwse/astroshop-lite/*:0.2.0`, pinned by digest; payment
+spans now join the checkout trace) in namespace `astroshop-lite`. The services export
 to the workshop's OTel gateway. Inject and cleanup work: the faulty backend joins
 the Service (2 endpoints) and leaves cleanly.
 **Missing.** `validate-live.sh` measured **0/38 failed** frontend requests: the
 frontend's gRPC (HTTP/2) channel stays pinned to the healthy product-catalog pod,
 which is the stickiness case your validator already flags as "ESCALATE". A
 restarted frontend would pin to one pod at random, giving 0% or 100% errors,
-never a fraction. Also, in 0.0.16 the payment spans are orphan roots (no W3C
-extraction); astroshop-lite PR #2 fixes it but is not in a published image yet.
+never a fraction.
 **Suggested.** Inject the fault *inside* the one product-catalog pod (an env
 flag or feature flag that fails N% of calls) instead of adding a second
 endpoint. It is intermittent whatever the connection pinning. Until then,
