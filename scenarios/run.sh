@@ -65,7 +65,9 @@ cmd_inject() {
       *otel-demo*)
         if ! kubectl get ns otel-demo >/dev/null 2>&1; then
           err "scenario '${name}' requires the otel-demo app, which is not deployed."
-          err "Enable it, then retry:  INSTALL_OTEL_DEMO=true bash cluster/install.sh"
+          err "Deploy just the demo (platform stack already installed), then retry:"
+          err "  helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait"
+          err "  (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)"
           exit 2
         fi
         ;;

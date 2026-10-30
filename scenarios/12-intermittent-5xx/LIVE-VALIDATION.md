@@ -34,7 +34,12 @@ raises a problem with Davis root cause = `product-catalog`**, and that
 ## Step 1 — deploy demo + inject the fault
 
 ```bash
-INSTALL_OTEL_DEMO=true bash cluster/install.sh          # deploys otel-demo-light + loadgen
+# deploy just the demo app (the platform stack is already installed by module 01):
+helm upgrade --install otel-demo \
+  oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
+  -n otel-demo --create-namespace \
+  -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
+#   (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
 kubectl -n otel-demo rollout status deploy --timeout=180s   # let the demo settle
 bash scenarios/run.sh inject 12                         # add the faulty backend
 ```

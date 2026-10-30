@@ -39,7 +39,11 @@ This scenario needs the opt-in demo app and Dynatrace. If `otel-demo` is not
 present, `inject` fails fast with the enable command:
 
 ```bash
-INSTALL_OTEL_DEMO=true bash cluster/install.sh     # one-time: deploy the demo (ISI-6847)
+helm upgrade --install otel-demo \
+  oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
+  -n otel-demo --create-namespace \
+  -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
+#   (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
 ```
 
 ## Inject / clean up

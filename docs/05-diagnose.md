@@ -54,13 +54,18 @@ ambiguity.
     `opentelemetry-demo-light` astronomy-shop app deployed** (and Dynatrace, to
     show the correlation). On a **minimum 4-core / 16 GB Codespace, skip 12** and
     run 01–03 — you still get the full infra-diagnosis payoff. Only enable 12 if
-    you have headroom:
+    you have headroom. The platform stack is already installed (module 01), so
+    this is a **single Helm install** of just the demo app:
     ```bash
-    INSTALL_OTEL_DEMO=true bash cluster/install.sh   # one-time, opt-in (see module 01)
+    helm upgrade --install otel-demo \
+      oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
+      -n otel-demo --create-namespace \
+      -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
     ```
-    If `otel-demo` is not deployed, `run.sh inject 12` fails fast and prints this
-    exact command — nothing breaks, you're just told cleanly why 12 is
-    unavailable.
+    (The all-in-one `INSTALL_OTEL_DEMO=true bash cluster/install.sh` also works — it
+    re-runs the full platform install and then the same Helm step.) If `otel-demo`
+    is not deployed, `run.sh inject 12` fails fast and prints this exact Helm
+    command — nothing breaks, you're just told cleanly why 12 is unavailable.
 
 List what's available any time:
 

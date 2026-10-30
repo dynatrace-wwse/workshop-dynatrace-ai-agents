@@ -100,8 +100,15 @@ Scenario 12 drives the lighter OTel Demo fork `opentelemetry-demo-light` and nee
 Dynatrace to show the correlation. It is **opt-in** so the base workshop and
 scenarios 01–03 fit the 4-core/16 GB Codespace floor:
 
+The platform stack is already installed (module 01), so this is a **single Helm
+install** of just the demo app:
+
 ```bash
-INSTALL_OTEL_DEMO=true bash cluster/install.sh     # one-time: deploy the demo app (ISI-6847)
+helm upgrade --install otel-demo \
+  oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 \
+  -n otel-demo --create-namespace \
+  -f cluster/otel-demo/values-light.yaml --wait --timeout 8m
+#   (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)
 ```
 
 If `otel-demo` is not deployed, `run.sh inject 12` fails fast (exit 2) with this

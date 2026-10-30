@@ -38,7 +38,7 @@ case " ${NS_ALLOWLIST[*]} " in *" ${DEMO_NS} "*) : ;; *) err "hook target ${DEMO
 
 # 1. Find the product-catalog Service (release-name agnostic: match by name suffix).
 SVC="$(kubectl -n "${DEMO_NS}" get svc -o name 2>/dev/null | grep -E 'product-catalog$' | head -1 || true)"
-[ -n "${SVC}" ] || { err "no product-catalog Service found in ${DEMO_NS} — is the demo deployed? (INSTALL_OTEL_DEMO=true bash cluster/install.sh)"; exit 2; }
+[ -n "${SVC}" ] || { err "no product-catalog Service found in ${DEMO_NS} — is the demo deployed? (helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait)"; exit 2; }
 log "found ${SVC}"
 
 # 2. Read the Service's selector labels + target port — the faulty backend must
