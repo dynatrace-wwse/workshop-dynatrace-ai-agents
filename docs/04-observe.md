@@ -13,12 +13,11 @@ your agents already emit into cost, token, latency, and quality signals.
 
 ## How agent telemetry reaches Dynatrace
 
-```
- kagent Agent (LLM + tool spans, gen_ai.* semconv)
-        │ OTLP 4317
-        ▼
- otel-gateway-collector ──▶ Dynatrace tenant (OTLP ingest)   ← you are here
-   (normalises OpenInference/Traceloop → gen_ai.*)  └▶ Phoenix (module 06)
+```mermaid
+flowchart TD
+    agent["kagent Agent<br/>(LLM + tool spans, gen_ai.* semconv)"] -->|OTLP 4317| gw["otel-gateway-collector<br/>(normalises OpenInference/Traceloop → gen_ai.*)"]
+    gw -->|you are here| dt["Dynatrace tenant (OTLP ingest)"]
+    gw --> phx["Phoenix (module 06)"]
 ```
 
 The gateway normalises OpenInference/Traceloop LLM attributes onto the
@@ -70,13 +69,13 @@ workshop's cost-efficiency theme. For each agent, look at:
 
 Click into one agent request. The distributed trace shows the full loop:
 
-```
- message/send (A2A)
- └─ agent.run                         (the whole loop)
-    ├─ gen_ai LLM call  model=deepseek-chat  in=1.2k out=340 tokens  420ms
-    ├─ tool: k8s.list_pods            180ms
-    ├─ gen_ai LLM call  in=1.9k out=120 tokens  380ms
-    └─ final answer
+```mermaid
+flowchart TD
+    send["message/send (A2A)"] --> run["agent.run — the whole loop"]
+    run --> llm1["gen_ai LLM call · model=deepseek-chat · in=1.2k out=340 tokens · 420ms"]
+    run --> tool["tool: k8s.list_pods · 180ms"]
+    run --> llm2["gen_ai LLM call · in=1.9k out=120 tokens · 380ms"]
+    run --> final["final answer"]
 ```
 
 Each `gen_ai` span carries the model, the input/output token counts, and the

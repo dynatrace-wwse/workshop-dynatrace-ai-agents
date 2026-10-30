@@ -13,13 +13,13 @@ without making them worse**.
 
 ## The optimization loop
 
-```
-   observe (04)        evaluate (05)
-       │                    │
-       ▼                    ▼
-   find the waste  ──▶  make one change  ──▶  re-measure cost + quality
-       ▲                                            │
-       └────────────── keep only if quality holds ──┘
+```mermaid
+flowchart TD
+    observe["observe (04)"] --> waste["find the waste"]
+    evaluate["evaluate (06)"] --> change["make one change"]
+    waste --> change
+    change --> remeasure["re-measure cost + quality"]
+    remeasure -->|keep only if quality holds| waste
 ```
 
 Change one thing, re-run the eval suite, and keep the change **only if quality

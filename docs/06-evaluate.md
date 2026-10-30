@@ -71,8 +71,11 @@ scores each with an LLM judge, and writes `gen_ai.evaluation.result` **bizevents
 back — so a low score is one click from the trace, prompt, and tool calls that
 caused it.
 
-```
-Dynatrace gen_ai.* spans ─► dt-evals (sample → mask → judge) ─► bizevents ─► DQL / dashboard / alert
+```mermaid
+flowchart LR
+    spans["Dynatrace gen_ai.* spans"] --> evals["dt-evals (sample → mask → judge)"]
+    evals --> biz["bizevents"]
+    biz --> out["DQL / dashboard / alert"]
 ```
 
 ### 1. Credentials
