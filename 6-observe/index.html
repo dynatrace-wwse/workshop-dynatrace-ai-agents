@@ -1,0 +1,1006 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+        <meta name="author" content="Henrik Rexed">
+      
+      
+      
+        <link rel="prev" href="../5-secure/">
+      
+      
+        <link rel="next" href="../7-diagnose/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.42">
+    
+    
+      
+        <title>6. Observe - Dynatrace Enablement Lab: AI Agent Workshop</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+  
+      
+    
+  
+  <script type="text/javascript"
+    src="https://js-cdn.dynatrace.com/jstag/1612cf70810/bf81393wlb/7c50bce5c0cc890f_complete.js"
+    crossorigin="anonymous"></script>
+  
+
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#6-observe-with-dynatrace-ai-observability" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Dynatrace Enablement Lab: AI Agent Workshop" class="md-header__button md-logo" aria-label="Dynatrace Enablement Lab: AI Agent Workshop" data-md-component="logo">
+      
+  <img src="https://cdn.bfldr.com/B686QPH3/at/w5hnjzb32k5wcrcxnwcx4ckg/Dynatrace_signet_RGB_HTML.svg?auto=webp&format=pngg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Dynatrace Enablement Lab: AI Agent Workshop
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              6. Observe
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    View Code on GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Dynatrace Enablement Lab: AI Agent Workshop" class="md-nav__button md-logo" aria-label="Dynatrace Enablement Lab: AI Agent Workshop" data-md-component="logo">
+      
+  <img src="https://cdn.bfldr.com/B686QPH3/at/w5hnjzb32k5wcrcxnwcx4ckg/Dynatrace_signet_RGB_HTML.svg?auto=webp&format=pngg" alt="logo">
+
+    </a>
+    Dynatrace Enablement Lab: AI Agent Workshop
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    View Code on GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1-kagent-in-5-minutes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    1. kagent in 5 minutes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    2. Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../3-platform-install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    3. Platform install
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../4-agents-mcp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    4. Agents & MCP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../5-secure/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    5. Secure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    6. Observe
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    6. Observe
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-agent-telemetry-reaches-dynatrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      How agent telemetry reaches Dynatrace
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-generate-some-traffic" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Generate some traffic
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-open-ai-observability-in-dynatrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Open AI Observability in Dynatrace
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-four-questions-to-ask-every-agent-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. The four questions to ask every agent run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-follow-a-single-trace-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Follow a single trace end to end
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-correlate-with-the-rest-of-the-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Correlate with the rest of the cluster
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-achieved-acceptance" class="md-nav__link">
+    <span class="md-ellipsis">
+      What you achieved (acceptance)
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../7-diagnose/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    7. Diagnose
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../8-evaluate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    8. Evaluate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../9-optimize/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    9. Optimize
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run-of-show/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Run of show
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-agent-telemetry-reaches-dynatrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      How agent telemetry reaches Dynatrace
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-generate-some-traffic" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Generate some traffic
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-open-ai-observability-in-dynatrace" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Open AI Observability in Dynatrace
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-four-questions-to-ask-every-agent-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. The four questions to ask every agent run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-follow-a-single-trace-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Follow a single trace end to end
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-correlate-with-the-rest-of-the-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Correlate with the rest of the cluster
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-achieved-acceptance" class="md-nav__link">
+    <span class="md-ellipsis">
+      What you achieved (acceptance)
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="6-observe-with-dynatrace-ai-observability">6. Observe with Dynatrace AI Observability<a class="headerlink" href="#6-observe-with-dynatrace-ai-observability" title="Permanent link">#</a></h1>
+<p>You now have agents running (module 4) inside a secured sandbox (module 5).
+But are they fast? Reliable? <strong>How much are they costing you per run?</strong> This
+module uses <strong>Dynatrace AI Observability</strong> to answer that — turning the spans
+your agents already emit into cost, token, latency, and quality signals.</p>
+<div class="admonition info">
+<p class="admonition-title">Nothing to install here</p>
+<p>The pipeline was wired in module 3: kagent's <code>otel.tracing</code> sends every LLM
+call, tool call, and agent hop as an OTLP span to the gateway collector,
+which forwards to <strong>both</strong> Dynatrace and Phoenix. This module is about
+<em>reading</em> that data in Dynatrace.</p>
+</div>
+<h2 id="how-agent-telemetry-reaches-dynatrace">How agent telemetry reaches Dynatrace<a class="headerlink" href="#how-agent-telemetry-reaches-dynatrace" title="Permanent link">#</a></h2>
+<pre class="mermaid"><code>flowchart TD
+    agent["kagent Agent&lt;br/&gt;(LLM + tool spans, gen_ai.* semconv)"] --&gt;|OTLP 4317| gw["otel-gateway-collector&lt;br/&gt;(normalises OpenInference/Traceloop → gen_ai.*)"]
+    gw --&gt;|you are here| dt["Dynatrace tenant (OTLP ingest)"]
+    gw --&gt; phx["Phoenix (module 8)"]</code></pre>
+<p>The gateway normalises OpenInference/Traceloop LLM attributes onto the
+OpenTelemetry <code>gen_ai.*</code> semantic conventions, so Dynatrace sees consistent
+<code>gen_ai.request.model</code>, <code>gen_ai.usage.input_tokens</code>,
+<code>gen_ai.usage.output_tokens</code>, and token/latency fields regardless of which
+instrumentation a tool used.</p>
+<div class="admonition tip">
+<p class="admonition-title">Production tip — use the <code>genainormalizer</code> processor</p>
+<p>The workshop does this with a few OTTL <code>set()</code> statements because it runs the
+lighter <code>opentelemetry-collector-k8s</code> image. Outside the workshop, prefer the
+purpose-built
+<a href="https://explorer.opentelemetry.io/collector/components/contrib/genainormalizerprocessor?type=processor&amp;version=0.155.0"><code>genainormalizer</code> processor</a>:
+it ships maintained OpenInference/OpenLLMetry (Traceloop) mappings against
+GenAI semconv v1.40.0. It is a <strong>contrib</strong> component (Alpha for traces), so it
+requires the <code>opentelemetry-collector-contrib</code> image or a custom OCB build.</p>
+</div>
+<h2 id="1-generate-some-traffic">1. Generate some traffic<a class="headerlink" href="#1-generate-some-traffic" title="Permanent link">#</a></h2>
+<p>Observability needs something to observe. Send a few prompts so there are runs to
+inspect — either way from module 4 works (kagent UI → <strong>sre-agent</strong>, or <code>askSreAgent</code>
+below):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>generateAgentTraffic<span class="w">      </span><span class="c1"># two diagnostic prompts to the SRE agent</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>askSreAgent<span class="w"> </span><span class="s2">"List pods in all namespaces and summarise anything not Running."</span>
+</span></code></pre></div>
+<p>Run a BMAD workflow too if you have a <code>GH_PAT</code> and want a longer, multi-hop
+trace to look at.</p>
+<p>Every one of those runs is already in <strong>Phoenix</strong> — the same gateway feeds both
+backends, so this check needs no tenant:</p>
+<!-- LAB_QUESTION
+type: shell-verification
+question: "Verify your agent runs reached Phoenix"
+buttonText: "Check Phoenix"
+command: "source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkPhoenixHasTraces"
+expect:
+  operator: exit-zero
+hint: "Run `generateAgentTraffic` first; the gateway batches spans for ~5 s and Phoenix indexes them shortly after."
+explanation: "Phoenix holds your agents' traces — the gateway is exporting OTLP."
+-->
+
+<!-- LAB_SOLUTION
+commands:
+  - generateAgentTraffic
+  - sleep 30
+verify:
+  - source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkPhoenixHasTraces
+reveal: |
+  `generateAgentTraffic` sends two prompts to the SRE agent over A2A. kagent's
+  `otel.tracing` exports every LLM call, tool call and agent hop to the gateway,
+  which forwards them to Dynatrace and Phoenix.
+-->
+
+<p>Now the same spans in <strong>your</strong> tenant. The gateway stamps every span with your
+cluster's name, which ends with your session id — so this counts only yours:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>fetch spans, from:now()-2h
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>| filter endsWith(k8s.cluster.name, "{{DT_SESSION_ID}}")
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>| filter isNotNull(gen_ai.request.model) or isNotNull(gen_ai.operation.name)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>| summarize spans = count(), inputTokens = sum(gen_ai.usage.input_tokens), outputTokens = sum(gen_ai.usage.output_tokens), by:{ gen_ai.request.model }
+</span></code></pre></div>
+<!-- LAB_QUESTION
+type: dql-verification
+question: "Verify your agents' gen_ai spans are in Dynatrace"
+buttonText: "Run DQL"
+dql: "fetch spans, from:now()-2h | filter endsWith(k8s.cluster.name, \"{{DT_SESSION_ID}}\") | filter isNotNull(gen_ai.request.model) or isNotNull(gen_ai.operation.name) | summarize spans = count()"
+expect:
+  operator: gt
+  field: spans
+  value: 0
+hint: "Spans take 1–2 minutes to arrive. Send a prompt with `askSreAgent`, wait, and run the check again."
+explanation: "Your agents' LLM and tool spans are in Grail, scoped to your cluster — the raw material of AI Observability."
+-->
+
+<h2 id="2-open-ai-observability-in-dynatrace">2. Open AI Observability in Dynatrace<a class="headerlink" href="#2-open-ai-observability-in-dynatrace" title="Permanent link">#</a></h2>
+<p>In your Dynatrace tenant, open
+<strong>AI Observability</strong> (apps menu → <em>Observe &amp; Explore</em> → <strong>AI &amp; LLM
+Observability</strong>, or search the app launcher for "AI Observability").</p>
+<div class="admonition note">
+<p class="admonition-title">What you should see</p>
+<p>A list of AI/LLM <strong>services</strong> and <strong>model endpoints</strong>. Because every agent
+shares the <code>workshop-llm</code> ModelConfig (DeepSeek), you'll see the DeepSeek
+endpoint with call volume, token usage, latency distribution, error rate, and
+an <strong>estimated cost</strong> per call and in aggregate.</p>
+</div>
+<h2 id="3-the-four-questions-to-ask-every-agent-run">3. The four questions to ask every agent run<a class="headerlink" href="#3-the-four-questions-to-ask-every-agent-run" title="Permanent link">#</a></h2>
+<p>Dynatrace AI Observability is organised around the metrics that drive the
+workshop's cost-efficiency theme. For each agent, look at:</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Where to look</th>
+<th>What "good" looks like</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>How much does a run cost?</strong></td>
+<td>Token usage × model price → estimated cost per request / per service.</td>
+<td>Stable, proportional to task size — no silent blow-ups.</td>
+</tr>
+<tr>
+<td><strong>Where does the latency go?</strong></td>
+<td>Span waterfall: model time vs tool time vs agent-to-agent hops.</td>
+<td>Model/tool time dominates; little idle gap.</td>
+</tr>
+<tr>
+<td><strong>Is it reliable?</strong></td>
+<td>Error rate + failure spans (tool errors, model timeouts, A2A failures).</td>
+<td>Low, with clear error messages when it does fail.</td>
+</tr>
+<tr>
+<td><strong>Is it efficient?</strong></td>
+<td>Tokens per task, number of tool calls per task, retries.</td>
+<td>No redundant tool calls, no runaway token growth.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-follow-a-single-trace-end-to-end">4. Follow a single trace end to end<a class="headerlink" href="#4-follow-a-single-trace-end-to-end" title="Permanent link">#</a></h2>
+<p>Click into one agent request. The distributed trace shows the full loop:</p>
+<pre class="mermaid"><code>flowchart TD
+    send["message/send (A2A)"] --&gt; run["agent.run — the whole loop"]
+    run --&gt; llm1["gen_ai LLM call · model=deepseek-chat · in=1.2k out=340 tokens · 420ms"]
+    run --&gt; tool["tool: k8s.list_pods · 180ms"]
+    run --&gt; llm2["gen_ai LLM call · in=1.9k out=120 tokens · 380ms"]
+    run --&gt; final["final answer"]</code></pre>
+<p>Each <code>gen_ai</code> span carries the model, the input/output token counts, and the
+latency — so you can see <strong>exactly which step</strong> spent the tokens. For a BMAD run,
+you additionally see the orchestrator's A2A hops to the analyst → PM → architect
+→ developer → QA agents as nested spans.</p>
+<div class="admonition tip">
+<p class="admonition-title">Build a cost view with DQL</p>
+<p>The Dynatrace MCP server (module 4) lets the SRE agent query this itself,
+but you can also open <strong>Notebooks</strong> and run DQL against the spans, e.g. sum
+<code>gen_ai.usage.output_tokens</code> grouped by agent to rank your most expensive
+agents. That ranking is the raw material for module 9 (Optimize).</p>
+</div>
+<h2 id="5-correlate-with-the-rest-of-the-cluster">5. Correlate with the rest of the cluster<a class="headerlink" href="#5-correlate-with-the-rest-of-the-cluster" title="Permanent link">#</a></h2>
+<p>Because module 3 also installed the Dynatrace Operator in Kubernetes-monitoring
+mode, the agent traces sit <strong>next to</strong> your cluster topology. Under <strong>Kubernetes</strong>
+you can line up an expensive agent run against pod CPU/memory, restarts, and
+node pressure — so "slow agent" vs "starved pod" is one click apart.</p>
+<h2 id="what-you-achieved-acceptance">What you achieved (acceptance)<a class="headerlink" href="#what-you-achieved-acceptance" title="Permanent link">#</a></h2>
+<ul>
+<li>Every agent run appears in Dynatrace AI Observability with <strong>cost, tokens,
+  latency, and error</strong> signals.</li>
+<li>You can open a single trace and attribute spend to a specific model or tool
+  call, and correlate it with Kubernetes health.</li>
+</ul>
+<!-- LAB_QUESTION
+type: multiple-choice
+question: "An agent shows a 38 : 1 input-to-output token ratio. What does that tell you first?"
+options:
+  - "The model is too small and should be replaced"
+  - "The answers are too long"
+  - "Nothing — ratios above 10 : 1 are normal and free"
+  - "The agent re-sends a large context (prompt, tool schemas, history) on every call"
+correct: 3
+explanation: "Input dominates: every call re-reads a big context. That points at tool schemas, the system prompt and multi-hop loops — the cuts in module 9."
+-->
+
+<div class="grid cards">
+<ul>
+<li><a href="../7-diagnose/">7. Diagnose a broken cluster <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span></a></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../5-secure/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 5. Secure">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                5. Secure
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../7-diagnose/" class="md-footer__link md-footer__link--next" aria-label="Next: 7. Diagnose">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                7. Diagnose
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "content.code.annotate", "content.tabs.link", "navigation.instant", "navigation.tracking", "navigation.top", "navigation.sections", "navigation.footer", "toc.follow", "search.highlight", "search.suggest", "search.share"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+  
+      <script src="../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+        <script src="../javascripts/mermaid.min.js"></script>
+      
+    
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof dynatrace !== 'undefined') {
+        dynatrace.sendBizEvent('page_load', {'page': "6. Observe"});
+      }
+    });
+  </script>
+  
+
+  </body>
+</html>
