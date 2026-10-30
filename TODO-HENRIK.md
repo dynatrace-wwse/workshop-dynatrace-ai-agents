@@ -1,5 +1,11 @@
 # Open questions for Henrik
 
+> **How we work together (owner decision, 2026-10-30):** this repository is the
+> source of truth for the enablement edition. Henrik works from a **fork** and
+> sends pull requests; changes we need land here directly, and Henrik pulls them
+> into his fork. This file is the list of open questions — there are no separate
+> GitHub issues.
+
 Raised while migrating the workshop to the Dynatrace enablement framework
 (2026-10-30). Each item: context → what is missing → a suggested answer. Nothing
 here blocks the migration; each one is a decision that belongs to the author.
@@ -108,8 +114,8 @@ scenario 12 stays optional and ungraded.
 
 ## 11. Upstream keeps moving
 
-**Context.** You merged PRs #30–#33 on the day of the import. The migration
-branch was merged with your `main` at the time it was opened, but the docs were
-restructured (renamed `NN-*.md`, front matter, checks).
-**Suggested.** Agree where content changes land from now on — here (then the
-original can point to it) or upstream with a periodic sync.
+**Context.** Henrik merged PRs #30–#33 upstream on the day of the import; they were
+merged into the migration before it landed. The docs here are restructured
+(numbered pages, checks, solutions), so upstream content no longer applies as-is.
+**Decided.** New content lands here via PRs from Henrik's fork (see the note at
+the top). **Open for Henrik:** whether the original repository should point here.
