@@ -2,7 +2,7 @@
 
 This is where the whole workshop pays off. You can now **run** agents (02),
 **secure** them (03), **observe** their cost (04), and **evaluate** their quality
-(05). Optimization is the loop that uses that evidence to make agents **cheaper
+(06). Optimization is the loop that uses that evidence to make agents **cheaper
 without making them worse**.
 
 !!! quote "The core idea"
@@ -226,7 +226,7 @@ dtctl create settings -f ai-agent-quality-cost.guardian.yaml \
 
 The quality proxy backstops the cost cuts — an agent that got "cheaper" by
 emitting truncated answers trips it. For the full **LLM-judge** quality gate,
-pair the guardian with the Phase-4 dt-evals suite (module 06).
+pair the guardian with the dt-evals suite (module 06).
 
 **A scheduled Workflow** (`ai-agent-optimization.workflow.yaml`) runs that
 guardian daily over the last 24h (schedule ships disabled — flip
@@ -255,7 +255,7 @@ Beyond the guardian:
 
 ## You've completed the arc
 
-**Why → kagent → cluster → agents → secure → observe → evaluate → optimize.**
+**Why → kagent → cluster → agents → secure → observe → diagnose → evaluate → optimize.**
 You built a full, cost-efficient AI-agent platform on Kubernetes and have the
 telemetry and evals to keep it that way.
 

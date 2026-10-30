@@ -27,8 +27,8 @@ Swap to OpenAI or Anthropic in `agents/mcp/00-modelconfig.yaml` (one-line change
 
 ## 1. Enable the default Kubernetes tooling
 
-Phase 2 shipped kagent as a clean base with the built-in tools **off**. Phase 3
-turns them on (already set in
+Module 01 shipped kagent as a clean base with the built-in tools **off**. This
+module turns them on (already set in
 [`cluster/kagent/values.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/kagent/values.yaml)):
 
 ```yaml
@@ -48,7 +48,7 @@ for the exact permissions and where each is generated:
 | Variable | Used by | Notes |
 |----------|---------|-------|
 | `GH_PAT` | GitHub MCP | Fine-grained PAT scoped to the **one** demo repo: Contents RW · Issues RW · Pull requests RW. No org/admin. ([token E](start-benchmark.md#e-github-fine-grained-pat-gh_pat)) |
-| `DT_PLATFORM_TOKEN` | Dynatrace MCP | Dynatrace **platform** token (`dt0s16.*`) — distinct from the Phase-2 OTLP `DT_API_TOKEN`. ([token B](start-benchmark.md#b-dynatrace-platform-token-dt_platform_token)) |
+| `DT_PLATFORM_TOKEN` | Dynatrace MCP | Dynatrace **platform** token (`dt0s16.*`) — distinct from the module 01 OTLP `DT_API_TOKEN`. ([token B](start-benchmark.md#b-dynatrace-platform-token-dt_platform_token)) |
 | `DT_ENVIRONMENT` | Dynatrace MCP | Platform **apps** URL, e.g. `https://abc12345.apps.dynatrace.com`. Derived from `DT_TENANT_URL` (`.live.`→`.apps.`) if unset. |
 
 ```bash
@@ -109,7 +109,7 @@ Or use the kagent UI: `kubectl -n kagent port-forward svc/kagent-ui 8080:8080`.
 ## 6. See the traces
 
 Agent LLM and tool-call spans flow automatically (kagent `otel.tracing`, wired in
-Phase 2) through the OTel gateway to **both** backends:
+module 01) through the OTel gateway to **both** backends:
 
 - **Phoenix** — `http://localhost:6006` (forwarded Codespace port) for LLM
   eval/trace inspection.

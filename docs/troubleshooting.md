@@ -107,7 +107,7 @@ kubectl -n kagent logs deploy/kagent-controller
 - `GH_PAT` must be a fine-grained PAT scoped to the demo repo (Contents /
   Issues / Pull requests RW).
 - Dynatrace MCP needs the **platform** token (`dt0s16.*`) and `DT_ENVIRONMENT`
-  (the `.apps.dynatrace.com` URL) — **distinct** from the Phase-2 OTLP
+  (the `.apps.dynatrace.com` URL) — **distinct** from the module 01 OTLP
   `DT_API_TOKEN`.
 
 **An `Agent` isn't `Accepted`.** Usually a bad `ModelConfig` or missing model
@@ -200,8 +200,8 @@ kubectl -n phoenix port-forward svc/phoenix 6006:6006   # then http://localhost:
 cd evals && uv sync
 ```
 
-The concrete suite is delivered by Phase 4 — if the config isn't there yet, that
-step is expected to be pending.
+The concrete suite ships in module 06 — `evals/dt-evals/workshop-agents.dt-eval.yaml`
+plus the Phoenix scripts are on `main`.
 
 ---
 

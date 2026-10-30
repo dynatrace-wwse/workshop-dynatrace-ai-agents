@@ -19,7 +19,7 @@ Set these as **Codespace secrets** and rebuild/restart:
 |--------|---------|
 | `DT_TENANT_URL` | Dynatrace Operator + OTLP export |
 | `DT_API_TOKEN` | Dynatrace Operator + OTLP export |
-| `LLM_API_KEY` *(or `OPENAI_API_KEY`)* | kagent model provider (needed in Phase 3) |
+| `LLM_API_KEY` *(or `OPENAI_API_KEY`)* | kagent model provider (needed in module 02) |
 
 Missing secrets degrade gracefully — a component is skipped or warns, the install
 never crashes.
@@ -61,7 +61,7 @@ flowchart TD
 
 The gateway normalises OpenInference/Traceloop LLM attributes to OpenTelemetry
 `gen_ai.*` semconv so Dynatrace and Phoenix agree on names. There are **no agents
-yet** — kagent is a clean base; module 02 (Phase 3) deploys the SRE agent and the
+yet** — kagent is a clean base; module 02 deploys the SRE agent and the
 BMAD crew, at which point spans start landing in both backends.
 
 !!! note "BindPlane"
