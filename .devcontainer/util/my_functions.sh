@@ -163,14 +163,25 @@ installAgentSandbox(){
 
 # The whole of section 2 in one call — what the LAB_SOLUTION runs, and
 # what post-create runs when AIW_PREINSTALL is on (the default).
+# AIW_CI_LITE=true: CI only. GitHub's private-repo runner has 2 vCPU, and the
+# full stack REQUESTS more than that (DynaKube + ActiveGate, kagent, Ollama,
+# Tetragon) — pods stay Pending on "Insufficient cpu". CI never asks the model
+# anything (the grader runs on fixtures) and Tetragon cannot run in Orbital's
+# runtime anyway, so both are skipped there. Learners always get the full stack.
+aiwCiLite(){ [ "${AIW_CI_LITE:-false}" = "true" ]; }
+
 installPlatform(){
   installDynatrace
   installOtelGateway
   installPhoenix
   installKagent
-  installTetragon
+  if aiwCiLite; then
+    printWarn "AIW_CI_LITE — skipping Tetragon and the in-cluster LLM"
+  else
+    installTetragon
+  fi
   installAgentSandbox
-  aiwLlmBackend
+  aiwCiLite || aiwLlmBackend
 }
 
 checkPlatform(){
@@ -392,6 +403,7 @@ tetragonBlockedByRuntime(){
 }
 
 checkTetragon(){
+  if aiwCiLite; then printWarn "AIW_CI_LITE — Tetragon not installed"; return 0; fi
   if kubectl -n tetragon get ds tetragon -o jsonpath='{.status.numberReady}' 2>/dev/null | grep -qE '^[1-9]'; then
     printInfo "✅ Tetragon DaemonSet ready"; return 0
   fi
