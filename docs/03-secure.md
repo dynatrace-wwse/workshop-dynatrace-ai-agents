@@ -114,6 +114,69 @@ is your ground-truth audit log: *what did the agent's container actually execute
     Pipe to `grep` for a specific binary (e.g. `grep curl`) to catch an agent
     reaching for the network.
 
+### Detect an agent reading sensitive files
+
+The raw `getevents` stream shows *everything*. A real audit policy says what you
+actually care about. For an AI agent the highest-signal thing to watch for is a
+process reaching for **credentials** — the service-account token, mounted
+secrets, `/etc/shadow`, SSH keys. That is the exact move a prompt-injected agent
+makes when it tries to escalate. A `TracingPolicy` turns "that happened
+somewhere in the firehose" into a single, named event the moment the file is
+touched.
+
+Apply the ready-made detection policy
+([`cluster/tetragon/sensitive-file-access.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/tetragon/sensitive-file-access.yaml)):
+
+```bash
+kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
+kubectl -n agent-sandbox get tracingpolicynamespaced   # detect-sensitive-file-access
+```
+
+It hooks the kernel's `security_file_permission` LSM check and `Post`s an event
+whenever **any process in the `agent-sandbox` namespace** reads a path under the
+service-account token, `/var/run/secrets`, `/etc/shadow`, `/etc/passwd`, the
+kubeconfig, SSH keys, or `/home`. It is scoped to the sandbox namespace so you
+only see *agent* activity — not every system process on the node reading
+`/etc/passwd`.
+
+!!! info "Why detect, not kill?"
+    This policy uses the **`Post`** action (generate an event), not `Sigkill`.
+    Detection attaches on essentially any kernel; enforcement is
+    kernel-dependent and may be unavailable on a restricted Codespace host. You
+    still get the full security value — you *see* the access the instant it
+    happens — and the step works reliably for everyone. Flip the `matchActions`
+    to `Sigkill` once you have confirmed your host supports it (next section).
+
+Now **trigger it**. Watch the filtered stream in one terminal:
+
+```bash
+kubectl -n tetragon exec ds/tetragon -c tetragon -- \
+  tetra getevents -o compact --namespace agent-sandbox
+```
+
+…and in a second terminal, schedule a compliant pod into the sandbox and have it
+read its own service-account token (exactly what a credential-stealing agent
+would do):
+
+```bash
+kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}' \
+  --command -- sh -c "cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"
+```
+
+!!! success "Expected"
+    The first terminal prints a `process_kprobe` line for `security_file_permission`
+    on the `snoop` pod, naming the binary (`cat`) and the sensitive path. That is
+    your detection firing — the pod ran clean under Pod Security *and* was caught
+    reading a credential, because runtime detection sees what admission cannot.
+
+Clean up:
+
+```bash
+kubectl -n agent-sandbox delete pod snoop --ignore-not-found
+# leave the policy in place — it is cheap and keeps watching
+```
+
 ### Optional: enforce, don't just observe
 
 Tetragon can turn an observation into a kill. A `TracingPolicy` can, for example,
@@ -158,6 +221,10 @@ spec:
   egress except DNS + telemetry.
 - Tetragon streams **real exec/network events** from your running agents, giving
   you a runtime audit trail (and an optional enforcement hook).
+- A **`detect-sensitive-file-access` TracingPolicy** fires a named event the
+  instant a sandboxed agent reads a credential (service-account token, secrets,
+  `/etc/shadow`, SSH keys) — catching credential theft that admission control
+  cannot see.
 
 Your agents can now act — but only inside a box you drew, under a sensor that
 watches. Next: **[04 — Observe with Dynatrace](04-observe.md)** to see cost and
