@@ -38,7 +38,8 @@ instrumentation a tool used.
 ## 1. Generate some traffic
 
 Observability needs something to observe. Send a few prompts so there are runs to
-inspect (from module 02):
+inspect — either way from module 02 works (kagent UI → **sre-agent**, or the A2A
+curl below):
 
 ```bash
 # SRE agent — a couple of diagnostic prompts

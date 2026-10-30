@@ -86,7 +86,29 @@ list, and all seven agents (`sre-agent` + six `bmad-*`) should be Accepted.
 
 ## 5. Send a sample prompt
 
-=== "SRE agent"
+There are two ways to talk to any agent, and they are interchangeable — both land
+on the same A2A endpoint and produce the same traces. Use whichever you prefer:
+
+- **kagent UI** — click the agent, drop a prompt in the chat. Best for exploring
+  interactively and watching the agent's loop unfold turn by turn.
+- **A2A (curl)** — one `kubectl run` that POSTs a `message/send` request to the
+  controller. Best for scripting, CI, or pasting a prompt verbatim.
+
+To use the UI, port-forward it first (leave this running in its own terminal):
+
+```bash
+kubectl -n kagent port-forward svc/kagent-ui 8080:8080   # → http://localhost:8080
+```
+
+Now send the SRE agent a prompt either way:
+
+=== "kagent UI"
+
+    Open <http://localhost:8080>, pick **sre-agent**, and paste:
+
+    > List the pods in the `kagent` namespace and tell me if any are unhealthy.
+
+=== "A2A (curl)"
 
     ```bash
     kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
@@ -95,7 +117,16 @@ list, and all seven agents (`sre-agent` + six `bmad-*`) should be Accepted.
       http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
     ```
 
-=== "BMAD orchestrator"
+For a longer, multi-hop trace, send the BMAD orchestrator a build task instead:
+
+=== "kagent UI"
+
+    Open <http://localhost:8080>, pick **bmad-orchestrator**, and paste:
+
+    > Build a simple Todo app in `<owner>/<repo>`. Run the full BMAD workflow and
+    > open a PR.
+
+=== "A2A (curl)"
 
     ```bash
     kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
@@ -103,8 +134,6 @@ list, and all seven agents (`sre-agent` + six `bmad-*`) should be Accepted.
       --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"Build a simple Todo app in <owner>/<repo>. Run the full BMAD workflow and open a PR."}]}}}' \
       http://kagent-controller.kagent:8083/api/a2a/kagent/bmad-orchestrator
     ```
-
-Or use the kagent UI: `kubectl -n kagent port-forward svc/kagent-ui 8080:8080`.
 
 ## 6. See the traces
 
