@@ -26,10 +26,20 @@ OpenTelemetry `gen_ai.*` semantic conventions, so Dynatrace sees consistent
 `gen_ai.usage.output_tokens`, and token/latency fields regardless of which
 instrumentation a tool used.
 
+!!! tip "Production tip — use the `genainormalizer` processor"
+    The workshop does this with a few OTTL `set()` statements because it runs the
+    lighter `opentelemetry-collector-k8s` image. Outside the workshop, prefer the
+    purpose-built
+    [`genainormalizer` processor](https://explorer.opentelemetry.io/collector/components/contrib/genainormalizerprocessor?type=processor&version=0.155.0):
+    it ships maintained OpenInference/OpenLLMetry (Traceloop) mappings against
+    GenAI semconv v1.40.0. It is a **contrib** component (Alpha for traces), so it
+    requires the `opentelemetry-collector-contrib` image or a custom OCB build.
+
 ## 1. Generate some traffic
 
-Observability needs something to observe. Send a couple of prompts so there are
-runs to inspect:
+Observability needs something to observe. Send a few prompts so there are runs to
+inspect — either way from module 4 works (kagent UI → **sre-agent**, or `askSreAgent`
+below):
 
 ```bash
 generateAgentTraffic      # two diagnostic prompts to the SRE agent

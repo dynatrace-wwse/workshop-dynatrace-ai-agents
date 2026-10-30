@@ -123,6 +123,28 @@ OpenTelemetry **`gen_ai.*`** convention — so Dynatrace and Phoenix see the sam
 model, token, and latency fields. The `traces` pipeline exports to Dynatrace
 **and** Phoenix from one place.
 
+> **Take this home — don't hand-roll OTTL for GenAI.** We use a few `transform`
+> `set()` statements here because the workshop runs the lighter
+> `opentelemetry-collector-k8s` image. In your own stack, prefer the purpose-built
+> [`genainormalizer` processor](https://explorer.opentelemetry.io/collector/components/contrib/genainormalizerprocessor?type=processor&version=0.155.0):
+> it ships maintained mappings for OpenInference and OpenLLMetry/Traceloop (token
+> counts, model names, request params, finish reasons) against GenAI semconv
+> v1.40.0 — so you declare *sources*, not a mapping table you keep in sync.
+>
+> ```yaml
+> processors:
+>   genainormalizer:
+>     sources:
+>       - name: openinference
+>       - name: openllmetry      # Traceloop
+>         remove_originals: true
+> # ...then list `genainormalizer` in the traces pipeline instead of transform/genai-normalize
+> ```
+>
+> It is a **contrib** component (Alpha for traces), so using it means running the
+> `opentelemetry-collector-contrib` image (or a custom OCB build with just this
+> processor) rather than the k8s distro.
+
 **Go deeper.** [6 — Observe with Dynatrace](6-observe.md#how-agent-telemetry-reaches-dynatrace).
 
 ---
@@ -156,7 +178,15 @@ input/output token counts and latency. That trace is what Steps 5 and 6 inspect.
 *whether it was any good*. Phoenix is the fast, visual, exploratory judge — open it
 and run one LLM-as-a-judge evaluation over the traces you just made.
 
-**Do it.** Phoenix is already forwarded on port **6006**. Run the bundled eval:
+**Do it.** Phoenix is already forwarded on port **6006** — so **open it first**:
+
+1. Open the **phoenix** app (`listApps`). Each
+   agent run from Step 4 is an LLM trace: prompt, response, tool spans, token
+   counts. Click one to see its `gen_ai.*` attributes. This is the surface you'll
+   configure the evaluation against and read the scores back from.
+2. From the `evals/` project, run the LLM-as-a-judge eval. The bundled dataset
+   works offline; `--from-phoenix` grades the **live** spans you just opened and
+   writes the labels back onto them:
 
 ```bash
 cd evals && uv sync
@@ -167,7 +197,8 @@ uv run python phoenix/run_phoenix_eval.py --from-phoenix # grade the LIVE spans 
 **Apply this.** The script builds two judge classifiers — **hallucination** (is
 the answer grounded in its context?) and **relevance** (does it answer the
 question?). With `--from-phoenix` it writes the scores back onto the originating
-spans, so the labels appear on the traces in the Phoenix UI. It also drops a CSV at
+spans, so **refresh the Phoenix UI** and the labels now appear on the traces you
+opened in step 1. It also drops a CSV at
 `evals/phoenix/out/phoenix_eval_results.csv`.
 
 **Go deeper.** [8 — Evaluate · Part A (Phoenix)](8-evaluate.md#part-a-phoenix-explore-and-judge-live-traces).

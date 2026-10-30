@@ -1,0 +1,70 @@
+# Tetragon TracingPolicy — detect sensitive-file access by sandboxed agents.
+#
+# WHAT: observe-only (audit) policy. It posts a Tetragon event whenever *any*
+# process in the `agent-sandbox` namespace reads (or opens) a file under a
+# sensitive path — the Kubernetes service-account token, mounted secrets, the
+# local kubeconfig, SSH keys, or the host credential files. This is the exact
+# move a prompt-injected or mis-behaving AI agent makes when it tries to steal
+# credentials, so it is a high-signal, low-noise thing to watch for.
+#
+# WHY observe, not kill: this policy uses `Post` (generate an event), NOT
+# `Sigkill`. Detection works on essentially any kernel that can attach the
+# kprobe; enforcement (killing) is kernel-dependent and may be unavailable on a
+# restricted Codespace host (see cluster/tetragon/README.md and module 03).
+# Keeping it audit-only means the workshop step works reliably and still proves
+# the security value: you *see* the access the instant it happens.
+#
+# WHY namespaced: `TracingPolicyNamespaced` scopes the kprobe selectors to the
+# `agent-sandbox` namespace, so you only get events for agent workloads — not
+# every system process on the node reading /etc/passwd. This keeps cardinality
+# down (an O11y habit: the enemy is dimensional explosion) and the demo legible.
+#
+# HOOK: `security_file_permission` is the LSM hook the kernel calls on every
+# file read/write permission check. It fires once per access with the `file`
+# struct as arg 0, so we can match on the resolved path — more reliable than
+# matching raw openat() path strings, which can be relative or symlinked.
+#
+# APPLY:   kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
+# WATCH:   kubectl -n tetragon exec ds/tetragon -c tetragon -- \
+#            tetra getevents -o compact --namespace agent-sandbox
+# REMOVE:  kubectl delete -f cluster/tetragon/sensitive-file-access.yaml
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicyNamespaced
+metadata:
+  name: detect-sensitive-file-access
+  namespace: agent-sandbox
+spec:
+  kprobes:
+    - call: "security_file_permission"
+      syscall: false
+      return: true
+      args:
+        - index: 0
+          type: "file"      # the file being accessed
+        - index: 1
+          type: "int"       # requested access mask (MAY_READ=4, MAY_WRITE=2)
+      returnArg:
+        index: 0
+        type: "int"
+      returnArgAction: "Post"
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: "Prefix"
+              values:
+                # Kubernetes service-account token + any projected secret — the
+                # #1 target: this token can call the API server as the pod.
+                - "/var/run/secrets/kubernetes.io/serviceaccount"
+                - "/run/secrets/kubernetes.io/serviceaccount"
+                # Secrets/configmaps mounted into the container filesystem.
+                - "/var/run/secrets"
+                # Credentials that should never be read from inside a sandbox.
+                - "/etc/shadow"
+                - "/etc/passwd"
+                - "/root/.kube/config"
+                - "/root/.ssh"
+                - "/home"
+          matchActions:
+            # Observe only. Swap to `Sigkill` to *enforce* once you have
+            # confirmed the host kernel supports it (see module 03 warning).
+            - action: Post

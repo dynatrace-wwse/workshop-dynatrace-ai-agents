@@ -102,27 +102,38 @@ explanation: "sre-agent and the six bmad-* agents are reconciled by the kagent c
 
 ## 5. Send a sample prompt
 
-Agents speak **A2A** (agent-to-agent, JSON-RPC over HTTP) on the kagent
-controller. `askAgent` wraps the call — a throwaway curl pod posts a
-`message/send` and prints the agent's final text:
+There are two ways to talk to any agent, and they are interchangeable — both land
+on the same A2A endpoint and produce the same traces:
 
-```bash
-askSreAgent "List the pods in the kagent namespace and tell me if any are unhealthy."
-```
+- **kagent UI** — pick the agent, drop a prompt in the chat. Best for exploring
+  interactively and watching the agent's loop unfold turn by turn.
+- **A2A** — a JSON-RPC `message/send` to the controller. Best for scripting, CI,
+  or pasting a prompt verbatim. `askAgent` wraps it.
 
-The raw call it makes, if you want to see it:
+=== "kagent UI"
 
-```bash
-kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
-  --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
-  --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace."}]}}}' \
-  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
-```
+    Open the **kagent** app (`listApps` prints the URL), pick **sre-agent**, and paste:
 
-Or open the **kagent** app (`listApps`), pick **sre-agent** and chat.
+    > List the pods in the `kagent` namespace and tell me if any are unhealthy.
 
-!!! tip "BMAD crew"
-    With a `GH_PAT`, try the full crew:
+=== "A2A"
+
+    ```bash
+    askSreAgent "List the pods in the kagent namespace and tell me if any are unhealthy."
+    ```
+
+    The raw call it makes:
+
+    ```bash
+    kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
+      --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
+      --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace."}]}}}' \
+      http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+    ```
+
+!!! tip "BMAD crew — a longer, multi-hop trace"
+    With a `GH_PAT`, send the orchestrator a build task — in the UI pick
+    **bmad-orchestrator**, or:
     `askAgent bmad-orchestrator "Build a simple Todo app in <owner>/<repo>. Run the full BMAD workflow and open a PR." 900`.
     It is optional — the rest of the workshop uses the SRE agent.
 
