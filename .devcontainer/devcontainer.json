@@ -1,112 +1,60 @@
 {
   "name": "Dynatrace AI Agent Workshop",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": "."
-  },
+  // Framework image (AMD64 + ARM64): kubectl, helm, k3d, node, python, gh preinstalled.
+  "image": "shinojosa/dt-enablement:v1.4.0",
+  // When running locally we pass the 'secrets' as env variables via runArgs "--env-file",".devcontainer/.env"
+  "runArgs": ["--init", "--privileged", "--network=host"],
+  "mounts": ["source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"],
+  // Entrypoint and CMD are overwritten by VSCode
+  "overrideCommand": false,
 
-  // Docker-in-Docker is required so kind can run a cluster inside the Codespace.
-  // The GitHub CLI feature provides `gh` for the GitHub MCP / repo operations.
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "version": "latest",
-      "moby": true,
-      "dockerDashComposeVersion": "v2"
-    },
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "latest"
+  "remoteUser": "vscode",
+
+  "postCreateCommand": "./.devcontainer/post-create.sh",
+
+  "postStartCommand": "./.devcontainer/post-start.sh",
+
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
+      "extensions": []
     }
   },
-
-  // Workshop secrets surfaced in the "Create codespace with options…" dialog.
-  // GitHub only prompts for variables declared here; descriptions render verbatim
-  // (keep them short). Source of truth is .devcontainer/SECRETS.md — keep in sync.
-  // Note: GitHub rejects any Codespaces secret whose name begins with the reserved
-  // GITHUB_ prefix, so these use GH_ instead — GH_PAT (fine-grained PAT) and
-  // GH_DEMO_REPO. GITHUB_TOKEN is itself reserved/auto-injected by Codespaces and
-  // need not be declared; the installer prefers GH_PAT and falls back to it.
-  // Preferred keys of each preferred/fallback pair are declared (check-secrets.sh
-  // accepts either half).
-  "secrets": {
-    "DT_TENANT_URL": {
-      "description": "Dynatrace tenant URL for the Operator + OTLP export, e.g. https://abc12345.live.dynatrace.com",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    },
-    "DT_API_TOKEN": {
-      "description": "Dynatrace API token (dt0c01) for the operator + OTLP ingest (metrics/traces/logs ingest scopes).",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    },
-    "DT_PLATFORM_TOKEN": {
-      "description": "Dynatrace PLATFORM token (dt0s16) for the SRE MCP + dtctl. Distinct from DT_API_TOKEN.",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    },
-    "DT_ENVIRONMENT": {
-      "description": "Optional. Dynatrace platform/apps URL (https://<env>.apps.dynatrace.com). Derived from DT_TENANT_URL if unset.",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    },
-    "DYNATRACE_API_TOKEN": {
-      "description": "Phase 4 dt-evals token (dt0c01). Scopes: storage:spans:read + storage:events:write.",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    },
-    "DEEPSEEK_API_KEY": {
-      "description": "Model key powering the kagent agents (DeepSeek by default). Fallback var: LLM_API_KEY.",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    },
-    "GH_PAT": {
-      "description": "Fine-grained PAT for the GitHub MCP / 'bad crew' demo repo (Contents+Issues+PRs RW on one repo).",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    },
-    "GH_DEMO_REPO": {
-      "description": "The demo repo the GitHub MCP writes to, as owner/repo (e.g. henrikrexed/bad-crew-demo).",
-      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
-    }
-  },
-
-  // Tool versions are pinned in the Dockerfile; override here per-Codespace if needed.
-  "containerEnv": {
-    // Cluster engine: kind is the single supported engine. See .devcontainer/DECISIONS.md.
-    "CLUSTER_TOOL": "kind",
-    "CLUSTER_NAME": "workshop",
-    "KUBECONFIG": "/home/vscode/.kube/config"
-  },
-
-  // Ports surfaced to the attendee. Phase 2 wires the actual Services behind these.
-  "forwardPorts": [8000, 6006, 8080, 8001],
+  // Apps (kagent UI, Phoenix) are exposed through the framework ingress on :80
+  // and listed by `listApps` — no NodePorts, no per-app port forwards.
+  "forwardPorts": [80],
   "portsAttributes": {
-    "8000": { "label": "mkdocs (workshop site)", "onAutoForward": "openBrowserOnce" },
-    "6006": { "label": "Phoenix (eval/trace UI)", "onAutoForward": "silent" },
-    "8080": { "label": "kagent UI", "onAutoForward": "silent" },
-    "8001": { "label": "spare / port-forward", "onAutoForward": "silent" }
+    "80": { "label": "Apps (kagent UI, Phoenix)" }
   },
-
-  // Idempotent, re-runnable. postCreate builds the cluster + preps the stack install.
-  // postStart ensures the cluster is up again after a Codespace resume.
-  "onCreateCommand": "bash .devcontainer/bootstrap/check-resources.sh",
-  "postCreateCommand": "bash .devcontainer/postCreate.sh",
-  "postStartCommand": "bash .devcontainer/postStart.sh",
-
-  // Recommended machine type for the full workshop stack. 2-core/4GB is NOT enough
-  // (see DECISIONS.md §Resource ceiling); request 4-core/16GB when creating the Codespace.
+  // Measured on a full run (platform + 7 agents + offline LLM): see the
+  // sizing section of the training README. 4 cores / 16 GB is the floor.
   "hostRequirements": {
     "cpus": 4,
     "memory": "16gb",
     "storage": "32gb"
   },
-
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-kubernetes-tools.vscode-kubernetes-tools",
-        "redhat.vscode-yaml",
-        "ms-python.python",
-        "charliermarsh.ruff",
-        "tamasfe.even-better-toml"
-      ],
-      "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
-      }
+  // Codespaces prompts for these; Orbital injects the DT_* ones per learner.
+  "secrets": {
+    "DT_ENVIRONMENT": {
+      "description": "Dynatrace platform URL, e.g. https://abc12345.apps.dynatrace.com"
+    },
+    "DT_OPERATOR_TOKEN": {
+      "description": "Dynatrace Operator token (Kubernetes monitoring): activeGateTokenManagement.create/write, entities.read, settings.read/write, DataExport, InstallerDownload"
+    },
+    "DT_INGEST_TOKEN": {
+      "description": "Dynatrace ingest token for agent telemetry (OTLP): openTelemetryTrace.ingest, metrics.ingest, logs.ingest, events.ingest"
+    },
+    "DT_PLATFORM_TOKEN": {
+      "description": "Dynatrace platform token (dt0s16) for the Dynatrace MCP server and dtctl"
+    },
+    "DEEPSEEK_API_KEY": {
+      "description": "Optional. DeepSeek API key for the agents. Without it the agents use a small in-cluster Ollama model."
+    },
+    "GH_PAT": {
+      "description": "Optional. Fine-grained GitHub PAT scoped to one demo repo (Contents/Issues/PRs RW) for the BMAD crew."
     }
-  },
-
-  "remoteUser": "vscode"
+  }
 }

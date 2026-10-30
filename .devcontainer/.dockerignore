@@ -1,8 +1,0 @@
-**/.git
-**/site
-**/.venv
-**/__pycache__
-**/.ruff_cache
-**/node_modules
-**/.env
-**/.env.*

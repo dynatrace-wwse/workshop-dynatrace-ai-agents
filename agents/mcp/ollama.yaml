@@ -1,0 +1,70 @@
+# Offline LLM for the workshop agents — used ONLY when no DeepSeek key is set.
+#
+# Orbital (the enablement platform) injects Dynatrace tokens per learner but no
+# model-provider key, so a session without DEEPSEEK_API_KEY / LLM_API_KEY would
+# otherwise install seven agents that cannot answer. This serves a small
+# tool-calling model in-cluster; kagent reaches it through its Ollama provider
+# (agents/mcp/00-modelconfig-ollama.yaml). Rendered by deployOllama with envsubst.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ollama
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: ollama
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ollama
+  labels: { app: ollama }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: ollama }
+  template:
+    metadata:
+      labels: { app: ollama }
+    spec:
+      containers:
+        - name: ollama
+          image: ${AIW_OLLAMA_IMAGE}
+          env:
+            - { name: OLLAMA_KEEP_ALIVE, value: "24h" }
+            - { name: OLLAMA_NUM_PARALLEL, value: "1" }
+            - { name: OLLAMA_MAX_LOADED_MODELS, value: "1" }
+          ports:
+            - { name: http, containerPort: 11434 }
+          readinessProbe:
+            httpGet: { path: /, port: 11434 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 500m, memory: 2560Mi }
+            limits: { memory: 5Gi }
+          volumeMounts:
+            - { name: models, mountPath: /root/.ollama }
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ollama
+spec:
+  selector: { app: ollama }
+  ports:
+    - { name: http, port: 11434, targetPort: 11434 }

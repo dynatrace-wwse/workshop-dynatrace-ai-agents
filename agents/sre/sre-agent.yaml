@@ -74,6 +74,9 @@ spec:
             - k8s_label_resource
             - k8s_annotate_resource
             - k8s_execute_command
+      # >>> dynatrace-tools  (installAgents drops this block when the session
+      #     has no Dynatrace platform token: the stdio MCP server exits without
+      #     one, and an unreachable tool server fails EVERY call of the agent)
       # Dynatrace observability (dynatrace-mcp-remote). toolNames omitted on
       # purpose: expose every discovered Dynatrace tool (problems/entities/logs/
       # metrics/Davis) — the server itself is read-oriented. Narrow this later if
@@ -83,6 +86,7 @@ spec:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
           name: dynatrace-mcp-remote
+      # <<< dynatrace-tools
     a2aConfig:
       skills:
         - id: investigate-incident

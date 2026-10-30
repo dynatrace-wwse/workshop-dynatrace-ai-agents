@@ -1,3 +1,0 @@
-# Pinned docs toolchain for reproducible CI builds (ISI-6886).
-# mkdocs-material pulls in mkdocs core and pymdownx (superfences → Mermaid).
-mkdocs-material==9.7.6
