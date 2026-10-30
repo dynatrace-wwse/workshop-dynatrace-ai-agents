@@ -13,7 +13,7 @@
       
       
       
-        <link rel="prev" href="../kagent-explainer/">
+        <link rel="prev" href="../run-of-show/">
       
       
         <link rel="next" href="../01-platform-install/">
@@ -289,6 +289,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../start-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../kagent-explainer/" class="md-nav__link">
         
   
@@ -297,6 +324,33 @@
     
   
     kagent in 5 minutes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run-of-show/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run of show (guided demo)
   
 
     
@@ -688,9 +742,15 @@
 <h1 id="00-setup-codespace">00 — Setup (Codespace)<a class="headerlink" href="#00-setup-codespace" title="Permanent link">&para;</a></h1>
 <p>This module gets you from zero to a running local Kubernetes cluster inside a
 GitHub Codespace, with the full workshop toolchain installed.</p>
+<div class="admonition tip">
+<p class="admonition-title">Start here first</p>
+<p>If you haven't forked the repo and created your tokens yet, begin with
+<strong><a href="../start-benchmark/">Start the benchmark</a></strong> — it walks fork → Codespace →
+secrets end to end. This module is the detailed Codespace reference.</p>
+</div>
 <h2 id="1-open-the-codespace">1. Open the Codespace<a class="headerlink" href="#1-open-the-codespace" title="Permanent link">&para;</a></h2>
 <ol>
-<li>On the repo, click <strong>Code → Codespaces → Create codespace on <code>main</code></strong>.</li>
+<li>On <strong>your fork</strong>, click <strong>Code → Codespaces → Create codespace on <code>main</code></strong>.</li>
 <li><strong>Machine type:</strong> choose <strong>4-core / 16 GB</strong> or larger. The default
    2-core/4GB is <em>not</em> enough for the full stack (see
    <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/DECISIONS.md"><code>.devcontainer/DECISIONS.md</code></a>).</li>
@@ -703,40 +763,12 @@ GitHub Codespace, with the full workshop toolchain installed.</p>
 <li>reports which secrets are present.</li>
 </ul>
 <h2 id="2-configure-secrets">2. Configure secrets<a class="headerlink" href="#2-configure-secrets" title="Permanent link">&para;</a></h2>
-<p>Before (or after, then rebuild) creating the Codespace, set these as
-<strong>Codespace secrets</strong> (GitHub → Settings → Codespaces → Secrets). Full contract:
+<p>All required tokens — what each is, the exact permissions, and where to create
+each one — live on a single page:
+<strong><a href="../start-benchmark/#4-create-the-required-tokens">Start the benchmark → Create the required tokens</a></strong>.
+Set them as <strong>Codespace secrets</strong> (scoped to your fork) as described there, then
+rebuild or restart the Codespace. Full machine-readable contract:
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"><code>.devcontainer/SECRETS.md</code></a>.</p>
-<table>
-<thead>
-<tr>
-<th>Secret</th>
-<th style="text-align: center;">Required</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>DT_TENANT_URL</code></td>
-<td style="text-align: center;">✅</td>
-<td>Dynatrace tenant URL</td>
-</tr>
-<tr>
-<td><code>DT_API_TOKEN</code></td>
-<td style="text-align: center;">✅</td>
-<td>Dynatrace API token</td>
-</tr>
-<tr>
-<td><code>GITHUB_TOKEN</code></td>
-<td style="text-align: center;">✅</td>
-<td>GitHub MCP (often auto-injected)</td>
-</tr>
-<tr>
-<td><code>LLM_API_KEY</code></td>
-<td style="text-align: center;">✅</td>
-<td>Model provider key for the agents</td>
-</tr>
-</tbody>
-</table>
 <p>Verify presence (values are never printed):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>bash<span class="w"> </span>.devcontainer/bootstrap/check-secrets.sh
 </code></pre></div>

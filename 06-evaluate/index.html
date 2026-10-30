@@ -289,6 +289,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../start-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../kagent-explainer/" class="md-nav__link">
         
   
@@ -297,6 +324,33 @@
     
   
     kagent in 5 minutes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run-of-show/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run of show (guided demo)
   
 
     
@@ -817,7 +871,10 @@ caused it.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Dynatrace gen_ai.* spans ─► dt-evals (sample → mask → judge) ─► bizevents ─► DQL / dashboard / alert
 </code></pre></div>
 <h3 id="1-credentials">1. Credentials<a class="headerlink" href="#1-credentials" title="Permanent link">&para;</a></h3>
-<p>dt-evals needs (put these in <code>evals/.env</code>):</p>
+<p>dt-evals needs (put these in <code>evals/.env</code>). You created these during onboarding —
+see
+<strong><a href="../start-benchmark/#4-create-the-required-tokens">Start the benchmark → Create the required tokens</a></strong>
+for exact scopes and where each is generated:</p>
 <table>
 <thead>
 <tr>
@@ -828,7 +885,7 @@ caused it.</p>
 <tbody>
 <tr>
 <td><code>DYNATRACE_API_TOKEN</code></td>
-<td>a <strong>dedicated</strong> <code>dt0c01</code> token with <code>storage:spans:read</code> + <code>storage:events:write</code> (not the Phase-2 OTLP token)</td>
+<td>a <strong>dedicated</strong> <code>dt0c01</code> token with <code>storage:spans:read</code> + <code>storage:events:write</code> (not the Phase-2 OTLP token) — <a href="../start-benchmark/#c-dynatrace-dt-evals-token-dynatrace_api_token">token C</a></td>
 </tr>
 <tr>
 <td><code>DT_ENVIRONMENT_URL</code></td>
@@ -836,7 +893,7 @@ caused it.</p>
 </tr>
 <tr>
 <td><code>OPENAI_API_KEY</code></td>
-<td>judge key — a DeepSeek key works</td>
+<td>judge key — a DeepSeek key works (<a href="../start-benchmark/#d-llm-deepseek-api-key-deepseek_api_key">token D</a>)</td>
 </tr>
 <tr>
 <td><code>DT_EVAL_SERVICE</code></td>
