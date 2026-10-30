@@ -50,6 +50,9 @@ tokens:
     scopes:
       - app-engine:apps:run
       - app-engine:functions:run
+      # Dynatrace MCP 2.1.2 runs a connection test at startup that reads the
+      # environment; without this it 403s and never answers `initialize`.
+      - platform-management:environments:read
       - environment-api:entities:read
       - settings:objects:read
       - storage:buckets:read

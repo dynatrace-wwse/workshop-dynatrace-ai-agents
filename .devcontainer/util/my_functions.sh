@@ -278,6 +278,13 @@ installAgents(){
   if aiwHasDynatraceMcp; then
     envsubst "$vars" < "${REPO_PATH}/agents/mcp/20-dynatrace-mcp.yaml" | kubectl apply -f -
     kubectl apply -k "${REPO_PATH}/agents/sre"
+    # kagent fails EVERY call of an agent whose tool server is unreachable. If
+    # the Dynatrace MCP never comes up (bad token scope, tenant down), keep the
+    # SRE agent usable with its Kubernetes tools instead of breaking it.
+    if ! aiwWaitDynatraceMcp; then
+      printWarn "Dynatrace MCP not Accepted — SRE agent falls back to Kubernetes tools only (kubectl -n kagent logs deploy/dynatrace-mcp)"
+      aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | kubectl apply -f -
+    fi
   else
     printWarn "No Dynatrace tenant/platform token — SRE agent deployed with Kubernetes tools only"
     kubectl -n kagent delete remotemcpserver dynatrace-mcp-remote --ignore-not-found >/dev/null 2>&1
@@ -289,6 +296,17 @@ installAgents(){
 }
 
 aiwHasDynatraceMcp(){ [ -n "${DT_ENVIRONMENT:-}" ] && [ -n "${DT_PLATFORM_TOKEN:-}" ]; }
+aiwWaitDynatraceMcp(){
+  local i
+  kubectl -n kagent rollout status deploy/dynatrace-mcp --timeout=180s >/dev/null 2>&1
+  for i in $(seq 1 24); do
+    kubectl -n kagent annotate remotemcpserver dynatrace-mcp-remote aiw/reconcile="$(date +%s)" --overwrite >/dev/null 2>&1
+    sleep 5
+    kubectl -n kagent get remotemcpserver dynatrace-mcp-remote \
+      -o jsonpath='{.status.conditions[?(@.type=="Accepted")].status}' 2>/dev/null | grep -q True && return 0
+  done
+  return 1
+}
 aiwStripDynatraceTools(){ sed '/# >>> dynatrace-tools/,/# <<< dynatrace-tools/d' "$1"; }
 
 # Accepted means "the controller parsed it"; Ready means its pod serves A2A.
@@ -453,8 +471,10 @@ cleanupScenario(){ bash "${REPO_PATH}/scenarios/run.sh" cleanup "${1:-01}"; }
 # so the step's checks still hold when the learner has already cleaned up.
 checkScenarioInjected(){
   local reason marker=/tmp/aiw-fault-seen
-  reason="$(kubectl -n workshop-faults get pods -o jsonpath='{range .items[*]}{.status.containerStatuses[0].state.waiting.reason}{" "}{.status.containerStatuses[0].lastState.terminated.reason}{"\n"}{end}' 2>/dev/null)"
-  if echo "$reason" | grep -qE 'CrashLoopBackOff|ImagePullBackOff|ErrImagePull|OOMKilled'; then
+  # Between CrashLoop restarts the container is briefly Running with no waiting
+  # reason, so a restarting container whose last run ended in Error counts too.
+  reason="$(kubectl -n workshop-faults get pods -o jsonpath='{range .items[*]}{.status.containerStatuses[0].state.waiting.reason}{" "}{.status.containerStatuses[0].lastState.terminated.reason}{" restarts="}{.status.containerStatuses[0].restartCount}{"\n"}{end}' 2>/dev/null)"
+  if echo "$reason" | grep -qE 'CrashLoopBackOff|ImagePullBackOff|ErrImagePull|OOMKilled|Error restarts=[1-9]'; then
     echo "$reason" | tr -s ' \n' ' ' > "$marker"
     printInfo "✅ Fault is live in workshop-faults: $(cat "$marker")"; return 0
   fi
@@ -519,12 +539,22 @@ runDiagnosisEval(){
 
 checkDiagnosisEval(){
   local csv="${REPO_PATH}/evals/phoenix/out/diagnosis_eval_results.csv"
-  # The bundled set holds a golden AND a confabulated answer per scenario, so
-  # a grader that works must produce both verdicts — all-pass would mean it
-  # grades nothing.
-  [ -s "$csv" ] && grep -q ',True,' "$csv" && grep -q ',False,' "$csv" \
-    && { printInfo "✅ Diagnosis grader ran: $(grep -c ',True,' "$csv") PASS / $(grep -c ',False,' "$csv") FAIL"; return 0; } \
-    || { printError "No grader results yet — run: runDiagnosisEval"; return 1; }
+  [ -s "$csv" ] || { printError "No grader results yet — run: runDiagnosisEval"; return 1; }
+  # The bundled set holds a golden AND a confabulated answer per scenario: a
+  # grader that works passes every golden one and fails every confabulated one.
+  # Read the `passed` column — grepping ",True," also matched root_cause_cited.
+  local summary
+  summary="$(python3 - "$csv" <<'PY'
+import csv, sys
+rows = list(csv.DictReader(open(sys.argv[1])))
+ok = lambda r: r["passed"] == "True"
+g = [r for r in rows if r["label"] == "golden"]; c = [r for r in rows if r["label"] == "confab"]
+print(f"{sum(map(ok, rows))}/{len(rows)} PASS — golden {sum(map(ok, g))}/{len(g)}, confabulated {sum(map(ok, c))}/{len(c)}")
+sys.exit(0 if g and c and all(map(ok, g)) and not any(map(ok, c)) else 1)
+PY
+)" \
+    && { printInfo "✅ Grader separates right from wrong: ${summary}"; return 0; } \
+    || { printError "Grader did not separate golden from confabulated answers: ${summary}"; return 1; }
 }
 
 # Grade the SRE agent's own last answer (from askSreAgent / diagnoseScenario)
