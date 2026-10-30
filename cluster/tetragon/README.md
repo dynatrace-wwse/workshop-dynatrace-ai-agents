@@ -7,6 +7,7 @@ module 5 of the workshop learning arc (securing agents).
 | File | Role |
 |------|------|
 | `values.yaml` | Helm values for `cilium/tetragon` (DaemonSet + operator, trimmed). |
+| `sensitive-file-access.yaml` | `TracingPolicyNamespaced` (observe-only) that posts an event when any process in `agent-sandbox` reads a credential path (service-account token, secrets, `/etc/shadow`, SSH keys, kubeconfig). Applied by hand in module 03. |
 
 ## eBPF on kind (important)
 
@@ -26,6 +27,17 @@ If the DaemonSet pods CrashLoop or stay `NotReady`:
 
 Once an agent runs in `agent-sandbox`, apply a `TracingPolicy` and watch exec/
 network events with `kubectl -n tetragon exec ds/tetragon -c tetragon -- tetra getevents -o compact`.
+
+For the sensitive-file detection step:
+
+```bash
+kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
+kubectl -n tetragon exec ds/tetragon -c tetragon -- \
+  tetra getevents -o compact --namespace agent-sandbox
+```
+
+Then trigger it by reading a credential from a sandbox pod (see module 03 →
+*Detect an agent reading sensitive files*).
 
 ## Verify
 
