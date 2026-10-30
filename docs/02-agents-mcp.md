@@ -40,12 +40,15 @@ to roll kagent and create the `kagent-tool-server`.
 
 ## 2. Provide the MCP credentials
 
-These are injected **at apply time** and never committed:
+These are injected **at apply time** and never committed. You created them during
+onboarding — see
+**[Start the benchmark → Create the required tokens](start-benchmark.md#4-create-the-required-tokens)**
+for the exact permissions and where each is generated:
 
 | Variable | Used by | Notes |
 |----------|---------|-------|
-| `GH_PAT` | GitHub MCP | Fine-grained PAT scoped to the **one** demo repo: Contents RW · Issues RW · Pull requests RW. No org/admin. |
-| `DT_PLATFORM_TOKEN` | Dynatrace MCP | Dynatrace **platform** token (`dt0s16.*`) — distinct from the Phase-2 OTLP `DT_API_TOKEN`. |
+| `GH_PAT` | GitHub MCP | Fine-grained PAT scoped to the **one** demo repo: Contents RW · Issues RW · Pull requests RW. No org/admin. ([token E](start-benchmark.md#e-github-fine-grained-pat-gh_pat)) |
+| `DT_PLATFORM_TOKEN` | Dynatrace MCP | Dynatrace **platform** token (`dt0s16.*`) — distinct from the Phase-2 OTLP `DT_API_TOKEN`. ([token B](start-benchmark.md#b-dynatrace-platform-token-dt_platform_token)) |
 | `DT_ENVIRONMENT` | Dynatrace MCP | Platform **apps** URL, e.g. `https://abc12345.apps.dynatrace.com`. Derived from `DT_TENANT_URL` (`.live.`→`.apps.`) if unset. |
 
 ```bash
