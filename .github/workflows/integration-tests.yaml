@@ -12,6 +12,9 @@ jobs:
     # Platform + Ollama model pull + agents: ~10 min on a 4-core runner.
     timeout-minutes: 30
     env:
+      # GitHub runners for private repos have 2 vCPU: CI skips Tetragon and the
+      # in-cluster LLM and Dynatrace (see aiwCiLite in my_functions.sh).
+      AIW_CI_LITE: "true"
       DT_ENVIRONMENT: ${{ secrets.DT_ENVIRONMENT }}
       DT_OPERATOR_TOKEN: ${{ secrets.DT_OPERATOR_TOKEN }}
       DT_INGEST_TOKEN: ${{ secrets.DT_INGEST_TOKEN }}
@@ -39,6 +42,7 @@ jobs:
             DT_ENVIRONMENT=$DT_ENVIRONMENT
             DT_OPERATOR_TOKEN=$DT_OPERATOR_TOKEN
             DT_INGEST_TOKEN=$DT_INGEST_TOKEN
+            AIW_CI_LITE=$AIW_CI_LITE
             EOF
             sed -i '/"runArgs": \["--init", "--privileged", "--network=host"\]/c\  "runArgs": ["--init", "--privileged", "--network=host", "--env-file",".devcontainer/.env"]' devcontainer.json
       - name: Test Codespace (devcontainer) build and run commands
@@ -60,4 +64,5 @@ jobs:
           [ -n "$N" ] || exit 0
           docker exec "$N" kubectl get pods -A -o wide | grep -vE 'Running|Completed' || true
           docker exec "$N" kubectl describe node | grep -A10 -E '^Conditions|^Allocated' || true
+          docker exec "$N" kubectl get pods -A -o custom-columns='NS:.metadata.namespace,POD:.metadata.name,CPU:.spec.containers[*].resources.requests.cpu' || true
           docker exec "$N" kubectl get events -A --sort-by=.lastTimestamp | grep -vi normal | tail -40 || true

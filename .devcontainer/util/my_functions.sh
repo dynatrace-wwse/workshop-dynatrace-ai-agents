@@ -85,6 +85,7 @@ _aiwNamespaces(){
 # framework's generator, which also handles platform-token tenants, the
 # sprint image swap and the per-learner cluster name.
 installDynatrace(){
+  if aiwCiLite; then printWarn "AIW_CI_LITE — skipping Dynatrace"; return 0; fi
   if [ -z "${DT_ENVIRONMENT:-}" ] || [ -z "${DT_OPERATOR_TOKEN:-}" ]; then
     printWarn "DT_ENVIRONMENT / DT_OPERATOR_TOKEN not set — skipping Dynatrace (agents still run, telemetry goes to Phoenix only)"
     return 0
@@ -163,14 +164,26 @@ installAgentSandbox(){
 
 # The whole of section 2 in one call — what the LAB_SOLUTION runs, and
 # what post-create runs when AIW_PREINSTALL is on (the default).
+# AIW_CI_LITE=true: CI only. GitHub's private-repo runner has 2 vCPU, and the
+# full stack REQUESTS ~2.8 (measured in CI: Dynatrace CSI driver + 2 webhooks
+# alone ~1.1, Ollama 0.5) — pods stay Pending on "Insufficient cpu". CI never
+# asks the model anything (the grader runs on fixtures), Tetragon cannot run in
+# Orbital's runtime anyway, and the DynaKube is exercised end-to-end in the
+# staging UI walk — so CI skips all three. Learners always get the full stack.
+aiwCiLite(){ [ "${AIW_CI_LITE:-false}" = "true" ]; }
+
 installPlatform(){
   installDynatrace
   installOtelGateway
   installPhoenix
   installKagent
-  installTetragon
+  if aiwCiLite; then
+    printWarn "AIW_CI_LITE — skipping Tetragon and the in-cluster LLM"
+  else
+    installTetragon
+  fi
   installAgentSandbox
-  aiwLlmBackend
+  aiwCiLite || aiwLlmBackend
 }
 
 checkPlatform(){
@@ -190,6 +203,7 @@ checkPlatform(){
 
 # Dynatrace is optional off-Orbital; on Orbital it is always injected.
 checkDynatrace(){
+  if aiwCiLite; then printWarn "AIW_CI_LITE — Dynatrace not installed"; return 0; fi
   if [ -z "${DT_ENVIRONMENT:-}" ]; then
     printInfo "No Dynatrace tenant configured — step not applicable"; return 0
   fi
@@ -247,7 +261,7 @@ aiwModelConfigFile(){
 installAgents(){
   printInfoSection "Agents & MCP wiring"
   kubectl get ns kagent >/dev/null 2>&1 || { printError "kagent not installed — run installPlatform"; return 1; }
-  aiwHasLlmKey || kubectl -n ollama get deploy ollama >/dev/null 2>&1 || deployOllama
+  aiwHasLlmKey || aiwCiLite || kubectl -n ollama get deploy ollama >/dev/null 2>&1 || deployOllama
   aiwLlmSecret
   export GITHUB_MCP_IMAGE DYNATRACE_MCP_NODE_IMAGE DYNATRACE_MCP_PACKAGE AIW_OLLAMA_MODEL AIW_OLLAMA_THREADS
   export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
@@ -392,6 +406,7 @@ tetragonBlockedByRuntime(){
 }
 
 checkTetragon(){
+  if aiwCiLite; then printWarn "AIW_CI_LITE — Tetragon not installed"; return 0; fi
   if kubectl -n tetragon get ds tetragon -o jsonpath='{.status.numberReady}' 2>/dev/null | grep -qE '^[1-9]'; then
     printInfo "✅ Tetragon DaemonSet ready"; return 0
   fi
