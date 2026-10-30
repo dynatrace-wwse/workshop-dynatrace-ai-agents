@@ -118,13 +118,13 @@ kubectl -n tetragon get pods            # tetragon DaemonSet + tetragon-operator
 
 <!-- LAB_QUESTION
 type: shell-verification
-question: "Verify Tetragon is running on your node"
+question: "Verify Tetragon is installed (and running, where eBPF is allowed)"
 buttonText: "Check Tetragon"
 command: "source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkTetragon"
 expect:
   operator: exit-zero
 hint: "Run `installTetragon`. If the pod crash-loops, see Troubleshooting → Tetragon: eBPF depends on the host kernel."
-explanation: "The Tetragon DaemonSet is Ready and is attaching its eBPF programs to the node's kernel."
+explanation: "Tetragon is installed. Where the kernel allows eBPF it attaches its programs to the node; in the Enablement App the container runtime forbids eBPF, so the check passes with a warning in the Terminal — read Part B and try it in a Codespace."
 -->
 
 ### Watch what your agents actually do
