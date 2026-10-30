@@ -18,6 +18,17 @@ Observability** — all from a single GitHub Codespace.
 
 ## Workshop arc
 
+```mermaid
+flowchart LR
+    Why[Why: cost & visibility] --> Kagent[kagent runtime]
+    Kagent --> Cluster[Build cluster]
+    Cluster --> Deploy[Deploy agents]
+    Deploy --> Secure[Secure]
+    Secure --> Observe[Observe]
+    Observe --> Evaluate[Evaluate]
+    Evaluate --> Optimize[Optimize]
+```
+
 1. **Why** — cost, visibility, reliability of AI agents in production.
 2. **kagent intro** — the agentic runtime on Kubernetes.
 3. **Build the cluster** (Codespace).
