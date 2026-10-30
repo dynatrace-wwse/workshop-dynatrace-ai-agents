@@ -79,10 +79,10 @@ type: multiple-choice
 question: "What is the biggest driver of AI agent cost that this workshop teaches you to cut?"
 options:
   - "Kubernetes node hours"
-  - "Tokens — especially input tokens re-sent on every call"
   - "The number of agents deployed"
+  - "Tokens — especially input tokens re-sent on every call"
   - "OpenTelemetry ingest volume"
-correct: 1
+correct: 2
 explanation: "Tokens drive the bill, and most of them are input: tool schemas, system prompts and growing context re-sent on every call."
 -->
 

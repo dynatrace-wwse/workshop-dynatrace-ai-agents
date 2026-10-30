@@ -165,10 +165,10 @@ type: multiple-choice
 question: "An agent shows a 38 : 1 input-to-output token ratio. What does that tell you first?"
 options:
   - "The model is too small and should be replaced"
-  - "The agent re-sends a large context (prompt, tool schemas, history) on every call"
   - "The answers are too long"
   - "Nothing — ratios above 10 : 1 are normal and free"
-correct: 1
+  - "The agent re-sends a large context (prompt, tool schemas, history) on every call"
+correct: 3
 explanation: "Input dominates: every call re-reads a big context. That points at tool schemas, the system prompt and multi-hop loops — the cuts in module 9."
 -->
 

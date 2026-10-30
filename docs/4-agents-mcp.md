@@ -110,26 +110,26 @@ on the same A2A endpoint and produce the same traces:
 - **A2A** — a JSON-RPC `message/send` to the controller. Best for scripting, CI,
   or pasting a prompt verbatim. `askAgent` wraps it.
 
-=== "kagent UI"
+**kagent UI**
 
-    Open the **kagent** app (`listApps` prints the URL), pick **sre-agent**, and paste:
+Open the **kagent** app (`listApps` prints the URL), pick **sre-agent**, and paste:
 
-    > List the pods in the `kagent` namespace and tell me if any are unhealthy.
+> List the pods in the `kagent` namespace and tell me if any are unhealthy.
 
-=== "A2A"
+**A2A**
 
-    ```bash
-    askSreAgent "List the pods in the kagent namespace and tell me if any are unhealthy."
-    ```
+```bash
+askSreAgent "List the pods in the kagent namespace and tell me if any are unhealthy."
+```
 
-    The raw call it makes:
+The raw call it makes:
 
-    ```bash
-    kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
-      --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
-      --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace."}]}}}' \
-      http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
-    ```
+```bash
+kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
+  --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
+  --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace."}]}}}' \
+  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+```
 
 !!! tip "BMAD crew — a longer, multi-hop trace"
     With a `GH_PAT`, send the orchestrator a build task — in the UI pick
@@ -174,11 +174,11 @@ module 3) through the OTel gateway to **both** backends:
 type: multiple-choice
 question: "Which protocol does the BMAD orchestrator use to hand work to the analyst, PM, architect, developer and QA agents?"
 options:
-  - "MCP — each crew member is a tool server"
   - "A2A — agents call each other as agents"
+  - "MCP — each crew member is a tool server"
   - "OTLP — the gateway collector routes the tasks"
   - "A Kubernetes Job per crew member"
-correct: 1
+correct: 0
 explanation: "MCP is how an agent calls tools; A2A is how agents call other agents. The orchestrator's crew members are listed as `type: Agent` tools and reached over A2A."
 -->
 

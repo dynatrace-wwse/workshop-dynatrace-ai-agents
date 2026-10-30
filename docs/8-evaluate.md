@@ -223,10 +223,10 @@ type: multiple-choice
 question: "Why does the deterministic grader not need a judge model for scenarios 01–03?"
 options:
   - "Because the agent's answers are always correct"
-  - "Because each scenario sits on a distinct evidence channel, so required signals and forbidden claims can be matched as text"
   - "Because Phoenix grades them automatically"
+  - "Because each scenario sits on a distinct evidence channel, so required signals and forbidden claims can be matched as text"
   - "Because Dynatrace Davis grades them"
-correct: 1
+correct: 2
 explanation: "Logs vs. events vs. terminated reason: each fault has its own evidence, so citing the right signal — and not another scenario's — is checkable without a model."
 -->
 

@@ -291,11 +291,11 @@ Beyond the guardian:
 type: multiple-choice
 question: "You trimmed tools and input tokens per call fell 40%, but the eval pass rate dropped from 4/4 to 2/4. What do you do?"
 options:
-  - "Ship it — cost is the goal of this module"
   - "Revert the change: a cheaper agent that is wrong more often costs more than one that is right"
+  - "Ship it — cost is the goal of this module"
   - "Keep it and lower the eval threshold to 2/4"
   - "Switch to a larger model and keep the trimmed tools without re-measuring"
-correct: 1
+correct: 0
 explanation: "The rule of the loop: keep a change only if cost went down AND the eval pass rate did not."
 -->
 

@@ -113,28 +113,28 @@ Open each scenario's `prompt.md` and paste the prompt **exactly** — it describ
 the *symptom* and asks for evidence, but it never tells the agent the root cause.
 For scenario 01 (`scenarios/01-crashloopbackoff/prompt.md`):
 
-=== "Terminal"
+**Terminal**
 
-    ```bash
-    diagnoseScenario 01      # sends scenarios/01-crashloopbackoff/prompt.md over A2A
-    ```
+```bash
+diagnoseScenario 01      # sends scenarios/01-crashloopbackoff/prompt.md over A2A
+```
 
-=== "kagent UI"
+**kagent UI**
 
-    Open the **kagent** app (`listApps`), pick **sre-agent**, and paste:
+Open the **kagent** app (`listApps`), pick **sre-agent**, and paste:
 
-    > A pod in the `workshop-faults` namespace keeps restarting. Investigate what
-    > is wrong with the workload there, find the root cause, and tell me the exact
-    > evidence (status, events, and logs) that supports it.
+> A pod in the `workshop-faults` namespace keeps restarting. Investigate what
+> is wrong with the workload there, find the root cause, and tell me the exact
+> evidence (status, events, and logs) that supports it.
 
-=== "A2A (curl)"
+**A2A (curl)**
 
-    ```bash
-    kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
-      --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
-      --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"A pod in the workshop-faults namespace keeps restarting. Investigate the workload there, find the root cause, and cite the exact status, events, and log lines that support it."}]}}}' \
-      http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
-    ```
+```bash
+kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
+  --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
+  --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"A pod in the workshop-faults namespace keeps restarting. Investigate the workload there, find the root cause, and cite the exact status, events, and log lines that support it."}]}}}' \
+  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+```
 
 The agent will walk its SRE loop live: list the pods, describe the failing one,
 pull its events and logs, and converge on a conclusion.

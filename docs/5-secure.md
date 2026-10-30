@@ -267,10 +267,10 @@ type: multiple-choice
 question: "A prompt-injected agent tries to curl an external URL from a pod in agent-sandbox. Which layer stops it?"
 options:
   - "Tetragon, by default — it kills every outbound connection"
-  - "The default-deny NetworkPolicy — egress is allowed only to DNS and the OTel gateway"
   - "Pod Security Admission — it blocks network calls"
+  - "The default-deny NetworkPolicy — egress is allowed only to DNS and the OTel gateway"
   - "Nothing — the sandbox only restricts privileges"
-correct: 1
+correct: 2
 explanation: "PSA restricts what a pod may BE (non-root, no caps). The NetworkPolicy restricts where it may GO. Tetragon observes the attempt and can enforce, but only with a TracingPolicy you add."
 -->
 

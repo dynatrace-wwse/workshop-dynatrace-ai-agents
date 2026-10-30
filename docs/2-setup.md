@@ -6,43 +6,43 @@ inside a dev container built from the Dynatrace enablement framework image, with
 
 How you got here depends on where you are taking the workshop:
 
-=== "Dynatrace Enablement App (recommended)"
+**Dynatrace Enablement App (recommended)**
 
-    Your trainer — or you, from the training catalog — started an environment.
-    Everything is injected for you, per learner:
+Your trainer — or you, from the training catalog — started an environment.
+Everything is injected for you, per learner:
 
-    - your tenant URL (`DT_ENVIRONMENT`),
-    - an **operator** token and an **ingest** token for the Dynatrace Operator
-      and the OpenTelemetry gateway,
-    - a **platform** token (`DT_PLATFORM_TOKEN`) for the Dynatrace MCP server,
-    - a per-learner id (`DT_HOSTGROUP`), which names your cluster so that your
-      data in a shared tenant is yours alone.
+- your tenant URL (`DT_ENVIRONMENT`),
+- an **operator** token and an **ingest** token for the Dynatrace Operator
+  and the OpenTelemetry gateway,
+- a **platform** token (`DT_PLATFORM_TOKEN`) for the Dynatrace MCP server,
+- a per-learner id (`DT_HOSTGROUP`), which names your cluster so that your
+  data in a shared tenant is yours alone.
 
-    You create **no** tokens. Open the **Terminal** tab and continue.
+You create **no** tokens. Open the **Terminal** tab and continue.
 
-=== "GitHub Codespace"
+**GitHub Codespace**
 
-    1. Create a Codespace on this repository (**Code → Codespaces → Create
-       codespace on `main`**). Choose **4-core / 16 GB** or larger.
-    2. When prompted, set the secrets declared in `devcontainer.json`
-       (full list in [`.devcontainer/SECRETS.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/.devcontainer/SECRETS.md)):
+1. Create a Codespace on this repository (**Code → Codespaces → Create
+   codespace on `main`**). Choose **4-core / 16 GB** or larger.
+2. When prompted, set the secrets declared in `devcontainer.json`
+   (full list in [`.devcontainer/SECRETS.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/.devcontainer/SECRETS.md)):
 
-        | Secret | Required | What it is |
-        |---|:---:|---|
-        | `DT_ENVIRONMENT` | for Dynatrace | `https://<env>.apps.dynatrace.com` |
-        | `DT_OPERATOR_TOKEN` | for Dynatrace | operator token (Kubernetes monitoring) |
-        | `DT_INGEST_TOKEN` | for Dynatrace | OTLP ingest: traces, metrics, logs, events |
-        | `DT_PLATFORM_TOKEN` | for the Dynatrace MCP | `dt0s16` platform token |
-        | `DEEPSEEK_API_KEY` | optional | DeepSeek key — without it the agents use an in-cluster model |
-        | `GH_PAT` | optional | fine-grained PAT, one demo repo, for the BMAD crew |
+    | Secret | Required | What it is |
+    |---|:---:|---|
+    | `DT_ENVIRONMENT` | for Dynatrace | `https://<env>.apps.dynatrace.com` |
+    | `DT_OPERATOR_TOKEN` | for Dynatrace | operator token (Kubernetes monitoring) |
+    | `DT_INGEST_TOKEN` | for Dynatrace | OTLP ingest: traces, metrics, logs, events |
+    | `DT_PLATFORM_TOKEN` | for the Dynatrace MCP | `dt0s16` platform token |
+    | `DEEPSEEK_API_KEY` | optional | DeepSeek key — without it the agents use an in-cluster model |
+    | `GH_PAT` | optional | fine-grained PAT, one demo repo, for the BMAD crew |
 
-=== "Locally (Docker)"
+**Locally (Docker)**
 
-    Put the same variables in `.devcontainer/.env`, then:
+Put the same variables in `.devcontainer/.env`, then:
 
-    ```bash
-    cd .devcontainer && make start
-    ```
+```bash
+cd .devcontainer && make start
+```
 
 !!! info "The agents' LLM"
     The agents are cost-optimized for **DeepSeek** (`deepseek-chat`). When no
@@ -100,10 +100,10 @@ type: multiple-choice
 question: "No DEEPSEEK_API_KEY is set in your environment. What do the workshop agents use as their LLM?"
 options:
   - "Nothing — the agents are installed but cannot answer"
-  - "A small tool-calling model served by Ollama inside your cluster"
   - "The Dynatrace Davis CoPilot"
   - "OpenAI, using a key shipped in the repository"
-correct: 1
+  - "A small tool-calling model served by Ollama inside your cluster"
+correct: 3
 explanation: "Without a DeepSeek key the platform deploys Ollama with qwen2.5:3b, and the shared workshop-llm ModelConfig points at it — so every agent works unchanged."
 -->
 
