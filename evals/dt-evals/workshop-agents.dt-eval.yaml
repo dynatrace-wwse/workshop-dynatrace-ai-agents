@@ -22,10 +22,19 @@ dynatrace:
 # Same cost-efficient model as the agents: DeepSeek via its OpenAI-compatible API.
 # provider: openai + a custom baseUrl is how dt-evals talks to any OpenAI-API
 # gateway. Swap to real OpenAI by dropping baseUrl and setting model: gpt-4o.
+#
+# IMPORTANT: baseUrl must NOT include /v1. The dt-evals `validate` probe
+# (probeProvider) hardcodes `${baseUrl}/v1/chat/completions`, so adding /v1 here
+# yields a double /v1 → 404. DeepSeek accepts the no-/v1 base for both the
+# validate probe (→ /v1/chat/completions) and the run path (openai SDK → /chat/completions).
 judge:
   provider: openai
   model: deepseek-chat
-  baseUrl: https://api.deepseek.com/v1
+  # Injected by run-dt-eval.sh (envsubst) from WORKSHOP_LLM_BASE_URL_NOV1 — the bare
+  # (no-/v1) DeepSeek endpoint by default, or the per-attendee LiteLLM-proxy endpoint
+  # when a room password dispensed one (ISI-6996). apiKey is the minted virtual key
+  # in the proxy case (OPENAI_API_KEY falls back to DEEPSEEK_API_KEY / LLM_API_KEY).
+  baseUrl: ${WORKSHOP_LLM_BASE_URL_NOV1}
   apiKey: ${OPENAI_API_KEY}
   timeout: 60000
   maxRetries: 2

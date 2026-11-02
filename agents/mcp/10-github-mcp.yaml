@@ -5,9 +5,15 @@
 #
 # Shape (unchanged from the reference — it is the native kagent pattern):
 #   (a) MCPServer      — kagent runs GitHub's OFFICIAL server (stdio) behind its
-#                        agentgateway adapter, exposing http://github-mcp.kagent:3000/mcp
+#                        agentgateway adapter, exposing
+#                        http://${WORKSHOP_PREFIX}-github-mcp.kagent:3000/mcp
 #   (b) RemoteMCPServer — registers that endpoint; its status.discoveredTools are
 #                        what agents reference by name (see agents/bmad-crew/*).
+#
+# Object names are templated with ${WORKSHOP_PREFIX} (ISI-6986) so attendees do
+# not collide on the shared tenant — envsubst resolves them at apply time
+# (agents/install-agents.sh). The kagent-created Service is named after the
+# MCPServer, so the RemoteMCPServer url below carries the same prefix.
 #
 # Least privilege is PER AGENT via the `toolNames` each Agent lists — the server
 # enables the issues+pull_requests+repos toolsets and GITHUB_READ_ONLY=0, but no
@@ -24,7 +30,7 @@
 apiVersion: kagent.dev/v1alpha1
 kind: MCPServer
 metadata:
-  name: github-mcp
+  name: ${WORKSHOP_PREFIX}-github-mcp
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
@@ -51,20 +57,21 @@ spec:
 apiVersion: kagent.dev/v1alpha2
 kind: RemoteMCPServer
 metadata:
-  name: github-mcp-remote
+  name: ${WORKSHOP_PREFIX}-github-mcp-remote
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
     workshop.tool: github
 spec:
-  description: GitHub MCP (issues+PRs+repos, per-agent least-privilege) fronting the in-cluster github-mcp stdio server
+  description: GitHub MCP (issues+PRs+repos, per-agent least-privilege) fronting the in-cluster ${WORKSHOP_PREFIX}-github-mcp stdio server
   protocol: STREAMABLE_HTTP
-  url: http://github-mcp.kagent:3000/mcp
+  url: http://${WORKSHOP_PREFIX}-github-mcp.kagent:3000/mcp
   timeout: 30s
   sseReadTimeout: 5m0s
   terminateOnClose: true
-# After apply, confirm the tools registered before relying on them:
-#   kubectl -n kagent get remotemcpserver github-mcp-remote \
+# After apply, confirm the tools registered before relying on them (substitute
+# your WORKSHOP_PREFIX):
+#   kubectl -n kagent get remotemcpserver ${WORKSHOP_PREFIX}-github-mcp-remote \
 #     -o jsonpath='{.status.discoveredTools[*].name}'
 #   → expect: list_issues issue_read issue_write search_issues add_issue_comment
 #     get_file_contents create_branch create_or_update_file push_files

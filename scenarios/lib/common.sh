@@ -5,6 +5,7 @@
 #
 # Exposes:
 #   log/ok/warn/err  — coloured, prefixed status lines (stdout / stderr)
+#   info             — cyan, non-error guidance (copy-paste remediation lines)
 #   SCENARIOS_DIR    — absolute path to the scenarios/ tree
 #   FAULT_NS         — the single infra blast-radius namespace (workshop-faults)
 #   NS_ALLOWLIST     — the only namespaces run.sh / a hook may ever touch
@@ -18,6 +19,10 @@ log()  { printf '\033[1;34m[scenario]\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m[  ok  ]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[ warn ]\033[0m %s\n' "$*" >&2; }
 err()  { printf '\033[1;31m[ fail ]\033[0m %s\n' "$*" >&2; }
+# info — cyan, non-error guidance (e.g. copy-paste remediation for a by-design
+# gate). Goes to stderr so it rides alongside the condition it explains without
+# wearing the red [ fail ] of a crash.
+info() { printf '\033[1;36m[ info ]\033[0m %s\n' "$*" >&2; }
 
 # Resolve the scenarios/ root from this file's location (lib/common.sh -> ..).
 SCENARIOS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

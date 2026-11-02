@@ -8,7 +8,7 @@ entity) and correlate it with cluster state, not guess from `kubectl` alone.
 
 ## Drive it from the kagent UI
 
-Open the kagent UI (`http://localhost:8080`), pick **sre-agent**, and paste:
+Open the kagent UI (`http://localhost:8080`), pick **`<prefix>-sre-agent`**, and paste:
 
 > Users of the astronomy shop (namespace `astroshop-lite`) are seeing intermittent
 > errors when they browse products — some requests work, some fail. Use Dynatrace
@@ -21,7 +21,7 @@ Open the kagent UI (`http://localhost:8080`), pick **sre-agent**, and paste:
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"The astronomy shop in the astroshop-lite namespace is returning intermittent errors on the product browse path. Use Dynatrace to find the open problem and its Davis root cause, correlate it with the cluster state, and tell me which service is at fault and why. Cite the Dynatrace problem/entity you relied on."}]}}}' \
-  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+  http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-sre-agent
 ```
 
 ## What a correct answer looks like

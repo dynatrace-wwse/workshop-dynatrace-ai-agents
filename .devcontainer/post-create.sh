@@ -25,4 +25,7 @@ fi
 
 finalizePostCreation
 
+# Upstream ISI-6986 WS4: show the attendee prefix and the filter for their data.
+aiwPrefixBanner
+
 printInfoSection "Your dev container finished creating"

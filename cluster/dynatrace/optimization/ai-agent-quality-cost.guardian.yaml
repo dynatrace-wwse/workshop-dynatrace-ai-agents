@@ -2,14 +2,14 @@
 #
 # A continuous regression gate for the kagent crew: it fails when agents get
 # more expensive (bigger prompts / chattier loops) or when answer substance
-# collapses. This is the "make it continuous" step of docs/06-optimize.md.
+# collapses. This is the "make it continuous" step of docs/9-optimize.md.
 #
 # Deploy:
 #   dtctl create settings -f ai-agent-quality-cost.guardian.yaml \
 #     --schema app:dynatrace.site.reliability.guardian:guardians --scope environment
 #
 # All objective SLIs validated against live crew telemetry before commit.
-# The Phase-4 dt-evals suite (module 05) is the complementary LLM-judge quality
+# The Phase-4 dt-evals suite (module 8) is the complementary LLM-judge quality
 # gate; the companion workflow runs both.
 name: "Workshop · AI Agent Quality & Cost Guardian (ISI-6720)"
 description: >-
@@ -25,14 +25,15 @@ objectives:
   - name: "Cost per LLM call"
     objectiveType: DQL
     description: >-
-      Avg input tokens per call_llm across the crew. Rising = prompt bloat,
-      unused tool schemas on every call, or re-sent loop context.
+      Avg input tokens per LLM call across the crew (any span carrying
+      gen_ai.usage.input_tokens). Rising = prompt bloat, unused tool schemas on
+      every call, or re-sent loop context.
     comparisonOperator: LESS_THAN_OR_EQUAL
     target: 20000
     warning: 18000
     dqlQuery: |
       fetch spans, from: now()-1d
-      | filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
+      | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
       | summarize sli = round(avg(gen_ai.usage.input_tokens))
       | fields sli
     segments: []
@@ -40,14 +41,14 @@ objectives:
   - name: "Loop efficiency"
     objectiveType: DQL
     description: >-
-      Avg call_llm hops per agent task. Rising = chatty multi-hop workflows
+      Avg LLM-call hops per agent task. Rising = chatty multi-hop workflows
       re-sending the same growing context.
     comparisonOperator: LESS_THAN_OR_EQUAL
     target: 5
     warning: 4
     dqlQuery: |
       fetch spans, from: now()-1d
-      | filter service.namespace == "kagent" and span.name == "call_llm"
+      | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
       | summarize calls = count(), by:{gen_ai.task.id}
       | summarize sli = round(avg(calls), decimals: 2)
       | fields sli
@@ -56,14 +57,14 @@ objectives:
   - name: "Answer substance (quality proxy)"
     objectiveType: DQL
     description: >-
-      Avg output tokens per call_llm. A cost cut that collapses this is
+      Avg output tokens per LLM call. A cost cut that collapses this is
       answering worse, not cheaper — revert it. Backstops the dt-evals gate.
     comparisonOperator: GREATER_THAN_OR_EQUAL
     target: 200
     warning: 300
     dqlQuery: |
       fetch spans, from: now()-1d
-      | filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.output_tokens)
+      | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
       | summarize sli = round(avg(gen_ai.usage.output_tokens))
       | fields sli
     segments: []

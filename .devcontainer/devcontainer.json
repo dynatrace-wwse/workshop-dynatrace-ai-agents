@@ -38,6 +38,9 @@
   },
   // Codespaces prompts for these; Orbital injects the DT_* ones per learner.
   "secrets": {
+    "WORKSHOP_PREFIX": {
+      "description": "Optional. Your label on a shared Dynatrace tenant: lowercase, starts with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha. Derived from your GitHub user when unset."
+    },
     "DT_ENVIRONMENT": {
       "description": "Dynatrace platform URL, e.g. https://abc12345.apps.dynatrace.com"
     },
@@ -49,6 +52,21 @@
     },
     "DT_PLATFORM_TOKEN": {
       "description": "Dynatrace platform token (dt0s16) for the Dynatrace MCP server and dtctl"
+    },
+    "WORKSHOP_DISPENSER_URL": {
+      "description": "Optional, instructor-led only. The model-proxy dispenser URL (https) from your workshop host, given together with the room password."
+    },
+    "WORKSHOP_ROOM_PASSWORD": {
+      "description": "Optional, instructor-led only. The room password from your workshop host; exchanged at startup for your own budget-capped model key."
+    },
+    "WORKSHOP_LLM_BASE_URL": {
+      "description": "Optional. OpenAI-compatible endpoint for the agents (e.g. your LiteLLM proxy, https://host/v1). Default: DeepSeek."
+    },
+    "WORKSHOP_LLM_MODEL": {
+      "description": "Optional. Model name at WORKSHOP_LLM_BASE_URL (default deepseek-chat)."
+    },
+    "WORKSHOP_LLM_API_KEY": {
+      "description": "Optional. Key for WORKSHOP_LLM_BASE_URL (a per-attendee, budget-capped LiteLLM key)."
     },
     "DEEPSEEK_API_KEY": {
       "description": "Optional. DeepSeek API key for the agents. Without it the agents use a small in-cluster Ollama model."

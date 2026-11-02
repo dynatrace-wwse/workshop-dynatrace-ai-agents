@@ -7,8 +7,8 @@ ground truth. All tests run **offline** (no judge key, no cluster, no network).
 
 ```bash
 cd evals
-python -m pytest tests/ -q            # or: uv run --group dev pytest tests/
-python phoenix/run_diagnosis_eval.py  # smoke: grade the bundled golden/confab set
+uv run --group dev pytest tests/ -q   # offline: fixture drift guard + grader spread
+uv run python phoenix/run_diagnosis_eval.py  # smoke: grade the bundled golden/confab set
 ```
 
 ## Coverage (`tests/test_ground_truth.py` — 19 tests, all passing)

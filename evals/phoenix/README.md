@@ -53,8 +53,8 @@ signals and reach the right root cause?
 
 ```bash
 cd evals
-python phoenix/run_diagnosis_eval.py        # bundled golden+confab diagnoses (offline, no key)
-python phoenix/run_diagnosis_eval.py --llm-judge      # + LLM root-cause grader (needs a judge key)
+uv run python phoenix/run_diagnosis_eval.py        # bundled golden+confab diagnoses (offline, no key)
+uv run python phoenix/run_diagnosis_eval.py --llm-judge      # + LLM root-cause grader (needs a judge key)
 uv run python phoenix/run_diagnosis_eval.py --from-phoenix   # grade live diagnosis spans + annotate
 ```
 
@@ -68,6 +68,42 @@ bad (ungrounded / off-topic) agent answers, so the eval produces a **spread** of
 labels — you can see the judge catch the hallucinated and irrelevant ones. This
 gives an inspectable result even before you've generated live traffic (you still
 need a judge key), which satisfies the Phase-4 acceptance on its own.
+
+## `--from-phoenix` span mapping
+
+Our agents export **OTel GenAI semconv** spans through the collector-gateway, so
+the prompt/response content lands under `gen_ai.*` keys — not the OpenInference
+`input.value` / `output.value` keys. `span_mapping.py` maps both conventions to
+the judge's `input` / `output` / `context` columns:
+
+- OTel GenAI indexed — `gen_ai.prompt.N.content` / `gen_ai.completion.N.content`
+- OTel GenAI structured — `gen_ai.input.messages` / `gen_ai.output.messages`
+- OpenInference — `input.value` / `output.value`
+- GenAI log-events on the span
+
+If a run reports *"Found spans but none carried recognisable LLM input/output
+attributes"*, it now prints the `attributes.*` columns your spans actually have —
+add any missing key to `INPUT_KEYS` / `OUTPUT_KEYS` in `span_mapping.py`. The
+offline test `tests/test_span_mapping.py` covers every supported form.
+
+### Which spans get pulled — `span_kind == 'LLM'`
+
+Project `PHOENIX_PROJECT` (default: `default`) holds **all** workshop traffic —
+the otel-demo app alone floods it with microservice spans (`http`/`db`/`rpc`/…).
+So `--from-phoenix` does **not** grab the newest-N of everything (which buried the
+sparse agent `call_llm` spans — ISI-6962). `span_mapping.fetch_llm_spans()` filters
+**server-side** to `span_kind == 'LLM'` *before* the limit: the collector-gateway
+OTTL (ISI-6960) stamps `openinference.span.kind=LLM` on the `call_llm` span, which
+Phoenix exposes as the queryable `span_kind` field. If that filter matches nothing
+(an older capture, or the gateway isn't stamping it yet) the call falls back to the
+unfiltered pull and the run prints which path it took, so a crowded result is never
+mistaken for a clean one.
+
+This is proven end-to-end on a real Phoenix server (no cluster/judge key needed)
+by `verify_from_phoenix.py`, run in CI by
+[`.github/workflows/phoenix-from-phoenix.yaml`](../../.github/workflows/phoenix-from-phoenix.yaml)
+(ISI-6966) — it floods a live Phoenix with infra spans + sparse LLM spans and
+asserts the old newest-N pull maps **zero** while the filter returns the LLM spans.
 
 ## Versions
 

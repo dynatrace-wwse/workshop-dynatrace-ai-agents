@@ -30,13 +30,21 @@ must-not-claim. Register the one for the scenario you ran, then grade its spans:
 
 ```bash
 cd evals/dt-evals
-npx -y "$DT_EVALS_PKG" evaluators add                 # paste evaluators/diagnosis-<id>.md
-./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-<id>
+# Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md
+./run-dt-eval.sh evaluators add
+# Then grade the diagnosis spans for that scenario:
+./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-01-crashloopbackoff
 ```
+
+Use the concrete evaluator name for the scenario you ran —
+`diagnosis-01-crashloopbackoff`, `diagnosis-02-imagepullbackoff`,
+`diagnosis-03-oomkilled`, or `diagnosis-12-intermittent-5xx` (one per
+`evaluators/*.md`). `./run-dt-eval.sh evaluators add` passes straight through to
+the pinned CLI (`dt-evals evaluators add`), so there is nothing to export.
 
 dt-evals is trace-sourced, so run this scoped to **one** scenario's diagnosis at a
 time (inject → diagnose → grade). Correct diagnoses score 1, misses 0. Regenerate
-the rubrics after an answer key changes: `python gen_diagnosis_evaluators.py`.
+the rubrics after an answer key changes: `uv run python gen_diagnosis_evaluators.py`.
 
 ## Prerequisites
 
@@ -45,7 +53,10 @@ the rubrics after an answer key changes: `python gen_diagnosis_evaluators.py`.
   Phase-2 OTel gateway does this). **Generate some agent traffic first.**
 - A **dedicated** Dynatrace token (`dt0c01`) with scopes **`storage:spans:read`** +
   **`storage:events:write`**. This is *not* the Phase-2 OTLP ingest token.
-- A judge key (`OPENAI_API_KEY`) — a DeepSeek key works (OpenAI-compatible).
+- A judge key — a DeepSeek key works (OpenAI-compatible). On a provisioned
+  Codespace this is **auto-picked-up from the workshop `DEEPSEEK_API_KEY` secret**
+  (fallback `LLM_API_KEY`), so you normally don't set anything. Set
+  `OPENAI_API_KEY` in `evals/.env` only to override it (e.g. judge with real OpenAI).
 
 Put all of these in `evals/.env` (see `evals/.env.example`).
 
@@ -80,8 +91,14 @@ dropping `baseUrl` in the YAML and setting `model: gpt-4o` + an OpenAI key.
 ```dql
 fetch bizevents
 | filter event.type == "gen_ai.evaluation.result"
+| filter service.name == "${WORKSHOP_PREFIX}-sre-agent"
 | summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 ```
+
+On the shared workshop tenant the `service.name` clause scopes the read-back to
+**your** results (dt-evals stamps each result bizevent with the evaluated agent's
+`service.name`). Replace `${WORKSHOP_PREFIX}` with your prefix (`echo
+$WORKSHOP_PREFIX`); drop the clause and you summarize every attendee's results.
 
 A threshold breach makes the run exit non-zero (CI-friendly) — see `alerts:` in
 the config.

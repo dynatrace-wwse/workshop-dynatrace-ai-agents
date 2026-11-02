@@ -8,7 +8,7 @@ conclusion. This one looks like a crash loop at first glance — the discriminat
 
 ## Drive it from the kagent UI
 
-Open the kagent UI (`http://localhost:8080`), pick **sre-agent**, and paste:
+Open the kagent UI (`http://localhost:8080`), pick **`<prefix>-sre-agent`**, and paste:
 
 > A pod in the `workshop-faults` namespace keeps getting killed and restarted.
 > Investigate the workload there, determine exactly why the container is being
@@ -21,7 +21,7 @@ Open the kagent UI (`http://localhost:8080`), pick **sre-agent**, and paste:
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"A pod in the workshop-faults namespace keeps getting killed and restarted. Investigate the workload there, determine exactly why the container is being terminated, and cite the container status (lastState) and resource limits that prove it."}]}}}' \
-  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+  http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-sre-agent
 ```
 
 ## What a correct answer looks like

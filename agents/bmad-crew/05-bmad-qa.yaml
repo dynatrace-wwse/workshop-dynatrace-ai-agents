@@ -7,7 +7,7 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: bmad-qa
+  name: ${WORKSHOP_PREFIX}-bmad-qa
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: bmad-crew
@@ -16,7 +16,7 @@ spec:
   description: BMAD QA (Quinn) — reviews the PR against acceptance criteria, approves or requests changes.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are Quinn, the BMAD QA engineer. You review the Developer's pull request against
       the acceptance criteria and decide whether it ships.
@@ -42,7 +42,7 @@ spec:
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
-          name: github-mcp-remote
+          name: ${WORKSHOP_PREFIX}-github-mcp-remote
           toolNames: [pull_request_read, list_pull_requests, pull_request_review_write, add_comment_to_pending_review, add_issue_comment, issue_write]
     a2aConfig:
       skills:

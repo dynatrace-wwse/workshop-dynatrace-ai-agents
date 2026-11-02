@@ -53,7 +53,84 @@ aiwClusterName(){
   fi
 }
 
+# Optional room-password model proxy (upstream ISI-6996). When the workshop
+# host runs one, .devcontainer/dispense-llm.sh writes the per-attendee proxy
+# URL + virtual key to this gitignored 0600 file; every terminal loads it so
+# the agents, Phoenix and the eval judge all go through the proxy. It is only
+# sourced when it is a regular file owned by this user and not writable by
+# anyone else — it is executed, so a planted file must not be.
+_AIW_LLM_ENV="${REPO_PATH}/.workshop-llm.env"
+aiwLoadLlmEnv(){
+  [ -f "$_AIW_LLM_ENV" ] && [ ! -L "$_AIW_LLM_ENV" ] || return 1
+  [ -n "$(find "$_AIW_LLM_ENV" -maxdepth 0 -user "$(id -u)" ! -perm /022 2>/dev/null)" ] || return 1
+  . "$_AIW_LLM_ENV"
+}
+aiwLoadLlmEnv || true
+
+# Any OpenAI-compatible endpoint: WORKSHOP_LLM_BASE_URL + WORKSHOP_LLM_MODEL +
+# one key name (the dispenser writes all of them). Henrik's home-lab LiteLLM, a
+# shared LLM box, or DeepSeek (the default base URL) are all just this.
+: "${LLM_API_KEY:=${WORKSHOP_LLM_API_KEY:-}}"
 aiwHasLlmKey(){ [ -n "${DEEPSEEK_API_KEY:-}${LLM_API_KEY:-}" ]; }
+
+# ----------------------------------------------------------------------
+# WORKSHOP_PREFIX — per-attendee label (upstream ISI-6986/6987/7005)
+# ----------------------------------------------------------------------
+# Upstream runs every attendee against ONE shared tenant and isolates them
+# with this prefix: agent / ModelConfig / GitHub-MCP names are templated
+# with it (kagent emits the Agent name as service.name) and the collector
+# stamps it on every span as `workshop.attendee`. Here the per-learner
+# cluster name (aiwClusterName) already isolates Grail data; the prefix
+# adds a readable label and keeps Henrik's DQL assets working unchanged.
+#
+# Never fail-closed (ISI-7005): an invalid value is normalised, an absent
+# one derived. Sources, first usable wins:
+#   WORKSHOP_PREFIX (set it yourself) > GITHUB_USER (Codespace) >
+#   DT_HOSTGROUP minus its -YYYYMMDD day (Enablement App: the learner) >
+#   CODESPACE_NAME > "workshop" (local, single learner).
+# Pure and deterministic, so every terminal resolves the same value.
+# Format: a letter, then 1-18 of [a-z0-9-] — a valid k8s name component.
+AIW_PREFIX_PATTERN='^[a-z][a-z0-9-]{1,18}$'
+
+aiwSanitizePrefix(){
+  local s
+  s="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' \
+        | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-+//; s/-+$//')"
+  [ -n "$s" ] || return 0
+  printf '%s' "$s" | grep -qE '^[a-z]' || s="w-${s}"
+  s="$(printf '%s' "$s" | cut -c1-19 | sed -E 's/-+$//')"
+  printf '%s' "$s" | grep -qE "$AIW_PREFIX_PATTERN" && printf '%s' "$s"
+  return 0
+}
+
+aiwResolvePrefix(){
+  local src derived="" hg
+  hg="$(printf '%s' "${DT_HOSTGROUP:-}" | sed -E 's/-[0-9]{8}$//')"
+  for src in "${WORKSHOP_PREFIX:-}" "${GITHUB_USER:-}" "$hg" "${CODESPACE_NAME:-}" "workshop"; do
+    derived="$(aiwSanitizePrefix "$src")"
+    [ -n "$derived" ] && break
+  done
+  printf '%s' "$derived"
+}
+
+WORKSHOP_PREFIX="$(aiwResolvePrefix)"
+export WORKSHOP_PREFIX
+
+# The cluster object name of a workshop agent: aiwAgent sre-agent -> <prefix>-sre-agent.
+# Already-prefixed names pass through, so callers may use either form.
+aiwAgent(){
+  local a="${1:-sre-agent}"
+  case "$a" in "${WORKSHOP_PREFIX}"-*) echo "$a" ;; *) echo "${WORKSHOP_PREFIX}-${a}" ;; esac
+}
+
+# Post-create banner: what the attendee filters their data by.
+aiwPrefixBanner(){
+  printInfoSection "Your workshop prefix: ${WORKSHOP_PREFIX}"
+  printInfo "Agents are named ${WORKSHOP_PREFIX}-sre-agent, ${WORKSHOP_PREFIX}-bmad-* ; every span carries workshop.attendee == \"${WORKSHOP_PREFIX}\""
+  local sid; sid="$(getDtSessionId 2>/dev/null)"
+  [ -n "$sid" ] && printInfo "Your Dynatrace data: | filter endsWith(k8s.cluster.name, \"${sid}\")"
+  printInfo "                  or: | filter workshop.attendee == \"${WORKSHOP_PREFIX}\""
+}
 
 # ======================================================================
 # Section 1 — Setup (post-create runs these; the step only verifies)
@@ -116,14 +193,15 @@ installOtelGateway(){
   fi
 
   local i rendered
-  export K8S_CLUSTER_NAME; K8S_CLUSTER_NAME="$(aiwClusterName)"
-  rendered="$(envsubst '${K8S_CLUSTER_NAME}' < "${REPO_PATH}/cluster/otel/collector-gateway.yaml")"
+  export K8S_CLUSTER_NAME WORKSHOP_PREFIX; K8S_CLUSTER_NAME="$(aiwClusterName)"
+  # Scoped envsubst: the collector's own ${env:...} references stay intact.
+  rendered="$(envsubst '${K8S_CLUSTER_NAME} ${WORKSHOP_PREFIX}' < "${REPO_PATH}/cluster/otel/collector-gateway.yaml")"
   if [ -z "${DT_ENVIRONMENT:-}" ] || [ -z "${DT_INGEST_TOKEN:-}" ]; then
     rendered="$(printf '%s\n' "$rendered" | sed '/# >>> dynatrace-exporter/,/# <<< dynatrace-exporter/d; s#otlphttp/dynatrace, ##')"
   fi
   for i in $(seq 1 20); do
     printf '%s\n' "$rendered" | kubectl apply -f - >/dev/null 2>&1 \
-      && { printInfo "Gateway collector applied (k8s.cluster.name=${K8S_CLUSTER_NAME})"; break; }
+      && { printInfo "Gateway collector applied (k8s.cluster.name=${K8S_CLUSTER_NAME}, workshop.attendee=${WORKSHOP_PREFIX})"; break; }
     sleep 5
   done
   kubectl -n opentelemetry-operator-system rollout status deploy/otel-gateway-collector --timeout=180s
@@ -145,14 +223,26 @@ installKagent(){
     --version "${KAGENT_CHART_VERSION}" --namespace kagent --wait --timeout 5m
   helm upgrade --install kagent "${KAGENT_OCI_REPO}/kagent" \
     --version "${KAGENT_CHART_VERSION}" --namespace kagent \
-    -f "${REPO_PATH}/cluster/kagent/values.yaml" --wait --timeout 8m
+    -f "${REPO_PATH}/cluster/kagent/values.yaml" \
+    --set "providers.openAI.model=${WORKSHOP_LLM_MODEL}" \
+    --set "providers.openAI.config.baseUrl=${WORKSHOP_LLM_BASE_URL}" \
+    --wait --timeout 8m
   registerApp kagent kagent kagent-ui 8080
 }
 
 installPhoenix(){
   printInfoSection "Phoenix (LLM trace + eval UI)"
   _aiwNamespaces
-  kubectl apply -f "${REPO_PATH}/cluster/phoenix/phoenix.yaml"
+  aiwLlmSecret
+  # DeepSeek preconfigured in the playground (upstream ISI-6959) only when a
+  # key exists; with the in-cluster model the block is dropped and Phoenix
+  # keeps its default provider list.
+  export WORKSHOP_LLM_BASE_URL
+  if aiwHasLlmKey; then
+    envsubst '${WORKSHOP_LLM_BASE_URL}' < "${REPO_PATH}/cluster/phoenix/phoenix.yaml" | kubectl apply -f -
+  else
+    sed '/# >>> deepseek-provider/,/# <<< deepseek-provider/d' "${REPO_PATH}/cluster/phoenix/phoenix.yaml" | kubectl apply -f -
+  fi
   kubectl -n phoenix rollout status deploy/phoenix --timeout=300s
   registerApp phoenix phoenix phoenix 6006
 }
@@ -173,6 +263,7 @@ installAgentSandbox(){
 aiwCiLite(){ [ "${AIW_CI_LITE:-false}" = "true" ]; }
 
 installPlatform(){
+  aiwDispenseLlm
   installDynatrace
   installOtelGateway
   installPhoenix
@@ -217,12 +308,46 @@ checkDynatrace(){
 # ======================================================================
 # LLM backend — DeepSeek when a key exists, in-cluster Ollama otherwise
 # ======================================================================
+# The key reaches kubectl on stdin (printf is a builtin), never in argv.
+# kagent reads secret/kagent-deepseek; Phoenix gets its own copy so its
+# playground and evals are preconfigured (upstream ISI-6959).
 aiwLlmSecret(){
-  local key="${DEEPSEEK_API_KEY:-${LLM_API_KEY:-}}"
+  local key="${DEEPSEEK_API_KEY:-${LLM_API_KEY:-}}" ns
   [ -n "$key" ] || return 0
-  kubectl -n kagent create secret generic kagent-deepseek \
-    --from-literal=DEEPSEEK_API_KEY="$key" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-  printInfo "secret/kagent-deepseek written (DeepSeek key present)"
+  for ns in kagent phoenix; do
+    kubectl get ns "$ns" >/dev/null 2>&1 || continue
+    printf '%s' "$key" | kubectl -n "$ns" create secret generic "$([ "$ns" = kagent ] && echo kagent-deepseek || echo phoenix-deepseek)" \
+      --from-file=DEEPSEEK_API_KEY=/dev/stdin --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  done
+  printInfo "LLM key secrets written (kagent-deepseek, phoenix-deepseek)"
+}
+
+# Exchange the room password for a per-attendee proxy key — only when the
+# host configured one (both Codespace secrets set). Optional and fail-closed:
+# on any failure nothing is written and the session falls back to
+# DEEPSEEK_API_KEY if set, otherwise to the in-cluster Ollama model.
+# A key already dispensed is reused; `dispenseLlmKey` mints a fresh one.
+aiwDispenseLlm(){
+  [ -n "${WORKSHOP_DISPENSER_URL:-}${WORKSHOP_ROOM_PASSWORD:-}" ] || return 0
+  if [ "${1:-}" != "force" ] && aiwLoadLlmEnv; then
+    printInfo "Model proxy key already dispensed (.workshop-llm.env) — reusing it"
+    return 0
+  fi
+  local rc
+  bash "${REPO_PATH}/.devcontainer/dispense-llm.sh" "$_AIW_LLM_ENV"; rc=$?
+  if [ "$rc" -eq 0 ] && aiwLoadLlmEnv; then
+    printInfo "Agents, Phoenix and the eval judge use the workshop model proxy"
+    return 0
+  fi
+  if aiwHasLlmKey; then printWarn "Model proxy unavailable — using DEEPSEEK_API_KEY directly"
+  else printWarn "Model proxy unavailable — agents fall back to the in-cluster Ollama model"; fi
+  return 0
+}
+
+# After the host rotates the room password: mint a new key and re-wire.
+dispenseLlmKey(){
+  aiwDispenseLlm force
+  aiwHasLlmKey && kubectl get ns kagent >/dev/null 2>&1 && installAgents
 }
 
 deployOllama(){
@@ -243,7 +368,7 @@ deployOllama(){
 
 aiwLlmBackend(){
   if aiwHasLlmKey; then
-    printInfo "LLM backend: DeepSeek (key present)"
+    printInfo "LLM backend: ${WORKSHOP_LLM_MODEL} at ${WORKSHOP_LLM_BASE_URL} (key present)"
   else
     printWarn "No DEEPSEEK_API_KEY / LLM_API_KEY — agents will use the in-cluster Ollama model"
     deployOllama
@@ -259,40 +384,63 @@ aiwModelConfigFile(){
 # Section 3 — Agents & MCP wiring
 # ======================================================================
 installAgents(){
-  printInfoSection "Agents & MCP wiring"
+  printInfoSection "Agents & MCP wiring (prefix ${WORKSHOP_PREFIX})"
   kubectl get ns kagent >/dev/null 2>&1 || { printError "kagent not installed — run installPlatform"; return 1; }
   aiwHasLlmKey || aiwCiLite || kubectl -n ollama get deploy ollama >/dev/null 2>&1 || deployOllama
   aiwLlmSecret
   export GITHUB_MCP_IMAGE DYNATRACE_MCP_NODE_IMAGE DYNATRACE_MCP_PACKAGE AIW_OLLAMA_MODEL AIW_OLLAMA_THREADS
+  export WORKSHOP_PREFIX WORKSHOP_LLM_MODEL WORKSHOP_LLM_BASE_URL
   export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
   export DT_PLATFORM_TOKEN="${DT_PLATFORM_TOKEN:-}"
   # The MCP server talks to the platform (apps) URL.
   export DT_ENVIRONMENT="${DT_ENVIRONMENT:-}"
   [ -n "$GH_PAT" ]            || printWarn "GH_PAT unset — BMAD crew installs, GitHub tools will not authenticate (optional)"
   [ -n "$DT_PLATFORM_TOKEN" ] || printWarn "DT_PLATFORM_TOKEN unset — SRE agent installs, Dynatrace tools will not authenticate"
-  local vars='${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN} ${AIW_OLLAMA_MODEL} ${AIW_OLLAMA_THREADS}'
+  aiwRemoveUnprefixedAgents
   local f
   for f in "$(aiwModelConfigFile)" "${REPO_PATH}/agents/mcp/10-github-mcp.yaml"; do
-    envsubst "$vars" < "$f" | kubectl apply -f -
+    aiwRender < "$f" | kubectl apply -f -
   done
   if aiwHasDynatraceMcp; then
-    envsubst "$vars" < "${REPO_PATH}/agents/mcp/20-dynatrace-mcp.yaml" | kubectl apply -f -
-    kubectl apply -k "${REPO_PATH}/agents/sre"
+    aiwRender < "${REPO_PATH}/agents/mcp/20-dynatrace-mcp.yaml" | kubectl apply -f -
+    kubectl kustomize "${REPO_PATH}/agents/sre" | aiwRender | kubectl apply -f -
     # kagent fails EVERY call of an agent whose tool server is unreachable. If
     # the Dynatrace MCP never comes up (bad token scope, tenant down), keep the
     # SRE agent usable with its Kubernetes tools instead of breaking it.
     if ! aiwWaitDynatraceMcp; then
       printWarn "Dynatrace MCP not Accepted — SRE agent falls back to Kubernetes tools only (kubectl -n kagent logs deploy/dynatrace-mcp)"
-      aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | kubectl apply -f -
+      aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | aiwRender | kubectl apply -f -
     fi
   else
     printWarn "No Dynatrace tenant/platform token — SRE agent deployed with Kubernetes tools only"
     kubectl -n kagent delete remotemcpserver dynatrace-mcp-remote --ignore-not-found >/dev/null 2>&1
     kubectl -n kagent delete mcpserver dynatrace-mcp --ignore-not-found >/dev/null 2>&1
-    aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | kubectl apply -f -
+    aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | aiwRender | kubectl apply -f -
   fi
-  kubectl apply -k "${REPO_PATH}/agents/bmad-crew"
+  kubectl kustomize "${REPO_PATH}/agents/bmad-crew" | aiwRender | kubectl apply -f -
   waitForAgentsAccepted
+}
+
+# envsubst with an explicit whitelist: every other $ in the manifests (and
+# the Dynatrace MCP's own ${...}) is left intact. Tokens are injected at
+# apply time only, never written to a file.
+aiwRender(){
+  envsubst '${WORKSHOP_PREFIX} ${WORKSHOP_LLM_MODEL} ${WORKSHOP_LLM_BASE_URL} ${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN} ${AIW_OLLAMA_MODEL} ${AIW_OLLAMA_THREADS}'
+}
+
+# A cluster set up before the prefix existed carries the bare names
+# (sre-agent, bmad-*, workshop-llm, github-mcp*). kubectl apply never deletes,
+# so without this a re-run would leave 14 agents. The Dynatrace MCP objects are
+# not prefixed and are left alone.
+aiwRemoveUnprefixedAgents(){
+  local a
+  for a in sre-agent bmad-analyst bmad-pm bmad-architect bmad-developer bmad-qa bmad-orchestrator; do
+    [ "$(aiwAgent "$a")" = "$a" ] && continue
+    kubectl -n kagent delete agent "$a" --ignore-not-found >/dev/null 2>&1
+  done
+  kubectl -n kagent delete modelconfig workshop-llm --ignore-not-found >/dev/null 2>&1
+  kubectl -n kagent delete remotemcpserver github-mcp-remote --ignore-not-found >/dev/null 2>&1
+  kubectl -n kagent delete mcpserver github-mcp --ignore-not-found >/dev/null 2>&1
 }
 
 aiwHasDynatraceMcp(){ [ -n "${DT_ENVIRONMENT:-}" ] && [ -n "${DT_PLATFORM_TOKEN:-}" ]; }
@@ -357,11 +505,14 @@ checkToolsDiscovered(){
 # Usage: askAgent <agent> "<prompt>" [timeout-seconds]
 askAgent(){
   local agent="${1:-sre-agent}" prompt="${2:-List the pods in the kagent namespace.}" t="${3:-300}"
+  # Callers pass the base name (sre-agent); the cluster object carries the
+  # prefix. The reply file stays keyed on the base name for the checks.
+  agent="${agent#"${WORKSHOP_PREFIX}"-}"
   local body
   body="$(python3 -c 'import json,sys;print(json.dumps({"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":sys.argv[1]}]}}}))' "$prompt")"
   kubectl -n kagent run "a2a-$RANDOM" --rm -i --restart=Never --quiet --image=curlimages/curl:8.10.1 \
     --command -- curl -s -m "$t" -X POST -H 'Content-Type: application/json' --data "$body" \
-    "http://kagent-controller.kagent:8083/api/a2a/kagent/${agent}" 2>/dev/null \
+    "http://kagent-controller.kagent:8083/api/a2a/kagent/$(aiwAgent "$agent")" 2>/dev/null \
     | tee "/tmp/aiw-last-${agent}.json" \
     | python3 -c '
 import json,sys
@@ -384,7 +535,8 @@ askSreAgent(){ askAgent sre-agent "${1:-List the pods in the kagent namespace an
 
 # An A2A answer came back that is a real reply, not a JSON-RPC error.
 checkAgentAnswered(){
-  local agent="${1:-sre-agent}" f="/tmp/aiw-last-${1:-sre-agent}.json"
+  local agent="${1:-sre-agent}"; agent="${agent#"${WORKSHOP_PREFIX}"-}"
+  local f="/tmp/aiw-last-${agent}.json"
   [ -s "$f" ] || { printError "No A2A reply recorded yet — run: askSreAgent"; return 1; }
   python3 - "$f" <<'PY' && { printInfo "✅ ${agent} answered over A2A"; return 0; }
 import json,sys
@@ -394,7 +546,7 @@ r=d.get("result") or {}
 # back as a result with status.state "failed". Only a completed task counts.
 sys.exit(0 if not d.get("error") and (r.get("status") or {}).get("state") == "completed" else 1)
 PY
-  printError "${agent} did not complete the task — check the model backend and tools (kubectl -n kagent logs deploy/${agent})"; return 1
+  printError "${agent} did not complete the task — check the model backend and tools (kubectl -n kagent logs deploy/$(aiwAgent "$agent"))"; return 1
 }
 
 # ======================================================================
@@ -625,7 +777,8 @@ applyLeanSreAgent(){
   # Re-attaching an MCP server that is not Accepted breaks EVERY call of the
   # agent, so only trim when the Dynatrace tools actually work.
   if aiwHasDynatraceMcp && aiwDynatraceMcpAccepted; then
-    kubectl apply -f "${REPO_PATH}/agents/sre/sre-agent-lean.yaml"
+    export WORKSHOP_PREFIX
+    aiwRender < "${REPO_PATH}/agents/sre/sre-agent-lean.yaml" | kubectl apply -f -
   else
     printWarn "Dynatrace MCP not available in this session — nothing to trim; the agent keeps only its Kubernetes tools"
   fi
@@ -633,7 +786,7 @@ applyLeanSreAgent(){
 
 checkLeanSreAgent(){
   local n
-  n="$(kubectl -n kagent get agent sre-agent -o json 2>/dev/null | python3 -c '
+  n="$(kubectl -n kagent get agent "$(aiwAgent sre-agent)" -o json 2>/dev/null | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
 tools=d["spec"]["declarative"]["tools"]
@@ -641,15 +794,60 @@ print(sum(len(t.get("mcpServer",{}).get("toolNames") or []) for t in tools if t.
   if ! aiwHasDynatraceMcp || ! aiwDynatraceMcpAccepted; then
     printInfo "Dynatrace MCP not available in this session — step not applicable"; return 0
   fi
-  [ "${n:-0}" -gt 0 ] \
-    && { printInfo "✅ sre-agent pins ${n} Dynatrace tool(s) instead of all of them"; return 0; } \
-    || { printError "sre-agent still exposes every Dynatrace tool — run: applyLeanSreAgent"; return 1; }
+  # The full agent pins eight read tools; the lean one five.
+  [ "${n:-0}" -gt 0 ] && [ "${n:-0}" -le 5 ] \
+    && { printInfo "✅ sre-agent pins ${n} Dynatrace tool(s) instead of eight"; return 0; } \
+    || { printError "sre-agent still carries ${n:-all} Dynatrace tools — run: applyLeanSreAgent"; return 1; }
+}
+
+# Henrik's optimization assets (cluster/dynatrace/optimization) filter every
+# DQL on workshop.attendee == "${WORKSHOP_PREFIX}". Render them with YOUR
+# prefix into .rendered/ (gitignored): the YAML for dtctl, the JSON for the
+# Dynatrace UI's Upload button. Replaces upstream's in-cluster docs site
+# (ISI-7007), which this framework does not run.
+renderOptimizationAssets(){
+  local src="${REPO_PATH}/cluster/dynatrace/optimization" json="${REPO_PATH}/docs/assets/optimization"
+  local out="${REPO_PATH}/.rendered/optimization" f
+  mkdir -p "$out"
+  export WORKSHOP_PREFIX
+  for f in "$src"/*.yaml "$json"/*.json; do
+    [ -f "$f" ] || continue
+    envsubst '${WORKSHOP_PREFIX}' < "$f" > "$out/$(basename "$f")"
+  done
+  if grep -l '\${WORKSHOP_PREFIX}' "$out"/* >/dev/null 2>&1; then
+    printError "Unrendered \${WORKSHOP_PREFIX} left in $out"; return 1
+  fi
+  printInfo "Rendered for workshop.attendee == \"${WORKSHOP_PREFIX}\" into ${out#"${REPO_PATH}"/}"
+  printInfo "dtctl: the .yaml files · Dynatrace UI upload: the .json files"
+}
+
+# Deploy the read-the-run notebook, the dashboard and the before/after
+# notebook with dtctl (needs a tenant + platform token).
+deployOptimizationAssets(){
+  if [ -z "${DT_ENVIRONMENT:-}" ] || [ -z "${DT_PLATFORM_TOKEN:-}" ]; then
+    printWarn "No Dynatrace tenant/platform token in this session — upload the .json files from .rendered/optimization in the Dynatrace UI instead"
+    renderOptimizationAssets; return 0
+  fi
+  renderOptimizationAssets || return 1
+  command -v dtctl >/dev/null 2>&1 || installDtctl || return 1
+  local d="${REPO_PATH}/.rendered/optimization"
+  dtctl create notebook -f "$d/ai-agent-workflow-steps.notebook.yaml" \
+    && dtctl apply -f "$d/ai-agent-optimization.dashboard.yaml" \
+    && dtctl create notebook -f "$d/ai-agent-optimization-before-after.notebook.yaml"
+}
+
+checkOptimizationAssetsRendered(){
+  local d="${REPO_PATH}/.rendered/optimization"
+  grep -qF "workshop.attendee == \"${WORKSHOP_PREFIX}\"" "$d/ai-agent-workflow-steps.notebook.yaml" 2>/dev/null \
+    && ! grep -lq '\${WORKSHOP_PREFIX}' "$d"/* 2>/dev/null \
+    && { printInfo "✅ Optimization assets rendered for workshop.attendee == \"${WORKSHOP_PREFIX}\""; return 0; } \
+    || { printError "Not rendered yet — run: renderOptimizationAssets"; return 1; }
 }
 
 # ======================================================================
 # Cleanup
 # ======================================================================
 removeAgents(){
-  kubectl delete -k "${REPO_PATH}/agents/bmad-crew" --ignore-not-found
-  kubectl delete -k "${REPO_PATH}/agents/sre" --ignore-not-found
+  kubectl kustomize "${REPO_PATH}/agents/bmad-crew" | aiwRender | kubectl delete --ignore-not-found -f -
+  kubectl kustomize "${REPO_PATH}/agents/sre" | aiwRender | kubectl delete --ignore-not-found -f -
 }

@@ -2,12 +2,13 @@
 
 > Generated from `evals/ground-truth/01-crashloopbackoff.json`
 > (answer key: `scenarios/01-crashloopbackoff/expected-diagnosis.md`). Do not hand-edit — run
-> `python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
+> `uv run python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
 
-Register once (interactive — paste the prompt below when asked):
+Register once (interactive — paste the **Judge prompt** section below when asked):
 
 ```bash
-npx -y @dynatrace-oss/dt-evals@0.3.4-alpha evaluators add
+cd evals/dt-evals
+./run-dt-eval.sh evaluators add          # passthrough to the pinned dt-evals CLI
 #   name:           diagnosis-01-crashloopbackoff
 #   scale:          binary   (1 = correct, 0 = incorrect)
 #   required field: output   (dt-evals maps the gen_ai response span attribute)
@@ -16,8 +17,9 @@ npx -y @dynatrace-oss/dt-evals@0.3.4-alpha evaluators add
 Then enable it in a run scoped to spans from this scenario's diagnosis:
 
 ```bash
-DT_EVAL_SERVICE=<sre-agent service.name> \
-  ./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-01-crashloopbackoff
+# DT_EVAL_SERVICE defaults to ${WORKSHOP_PREFIX}-sre-agent (your SRE agent's
+# service.name); export it only to evaluate a different agent.
+./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-01-crashloopbackoff
 ```
 
 ## Judge prompt

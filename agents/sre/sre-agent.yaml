@@ -13,7 +13,10 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: sre-agent
+  # Templated with ${WORKSHOP_PREFIX} (ISI-6986/6989): kagent emits the Agent
+  # name as the OTel service.name, so traces arrive as ${WORKSHOP_PREFIX}-sre-agent.
+  # Resolved by envsubst at apply time (installAgents) — never commit an edit.
+  name: ${WORKSHOP_PREFIX}-sre-agent
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
@@ -22,7 +25,7 @@ spec:
   description: SRE agent — investigates and operates the Kubernetes cluster with Dynatrace observability.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are the SRE agent for a Kubernetes cluster that is monitored by Dynatrace.
       Your job is to INVESTIGATE problems and, when asked, safely OPERATE the cluster.
@@ -77,15 +80,24 @@ spec:
       # >>> dynatrace-tools  (installAgents drops this block when the session
       #     has no Dynatrace platform token: the stdio MCP server exits without
       #     one, and an unreachable tool server fails EVERY call of the agent)
-      # Dynatrace observability (dynatrace-mcp-remote). toolNames omitted on
-      # purpose: expose every discovered Dynatrace tool (problems/entities/logs/
-      # metrics/Davis) — the server itself is read-oriented. Narrow this later if
-      # you want to restrict the surface.
+      # Dynatrace observability (dynatrace-mcp-remote): the server's read tools.
+      # Its write tools (send_email, send_slack_message, send_event,
+      # create_dynatrace_notebook, reset_grail_budget) are never exposed to a
+      # learner's agent. Module 9 trims these eight to the five the traces use.
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
           name: dynatrace-mcp-remote
+          toolNames:
+            - get_environment_info
+            - list_problems
+            - list_vulnerabilities
+            - list_exceptions
+            - find_entity_by_name
+            - get_kubernetes_events
+            - verify_dql
+            - execute_dql
       # <<< dynatrace-tools
     a2aConfig:
       skills:

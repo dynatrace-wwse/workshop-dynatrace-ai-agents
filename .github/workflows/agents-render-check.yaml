@@ -1,0 +1,45 @@
+# Ported from upstream (ISI-6989, WS3 of ISI-6986): static render/consistency
+# gate for the prefixed agent and MCP manifests. Renders them exactly as
+# installAgents does and fails if a name leaks unprefixed, a placeholder is
+# left unresolved, or the Dynatrace MCP wiring changed. No cluster, no
+# secrets — runs on a 2-vCPU runner in seconds.
+name: agents-render-check
+
+on:
+  pull_request:
+    paths:
+      - 'agents/**'
+      - 'cluster/otel/**'
+      - 'cluster/check-prefix-render.sh'
+      - 'cluster/dynatrace/optimization/**'
+      - 'docs/assets/optimization/**'
+      - '.devcontainer/util/my_functions.sh'
+      - '.github/workflows/agents-render-check.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'agents/**'
+      - 'cluster/otel/**'
+      - 'cluster/check-prefix-render.sh'
+      - 'cluster/dynatrace/optimization/**'
+      - 'docs/assets/optimization/**'
+      - '.devcontainer/util/my_functions.sh'
+      - '.github/workflows/agents-render-check.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure envsubst (gettext)
+        run: |
+          if ! command -v envsubst >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y gettext-base
+          fi
+      - name: Render & consistency check (collector, DQL assets, agents / MCP)
+        run: bash cluster/check-prefix-render.sh

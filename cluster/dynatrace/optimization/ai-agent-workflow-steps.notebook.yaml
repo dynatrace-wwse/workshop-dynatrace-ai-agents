@@ -1,0 +1,254 @@
+name: Workshop · Read an AI Agent Run — step by step (ISI-6976)
+type: notebook
+content:
+  defaultSegments: []
+  defaultTimeframe:
+    from: now()-7d
+    to: now()
+  sections:
+  - id: 5c32d250-af97-4dac-8c06-be6c288c3eb9
+    type: markdown
+    markdown: |-
+      # Read an AI agent run — from the outside in
+
+      **ISI-6976 · Phase 5** · Tenant `oat05854.dev.apps.dynatracelabs.com` · data: `gen_ai.*` spans from the kagent crew (`workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"`).
+
+      Before you *cut* an agent's cost you have to *read* what it is doing. This notebook walks **one agent run** top-to-bottom, zooming in one level at a time:
+
+      > **who is in the crew → what each agent does → one task, step by step → how agents hand off → the reasoning loop → the tool calls → the token bill.**
+
+      It is the understand-first companion to `ai-agent-optimization-before-after.notebook.yaml` (that one cuts cost; this one explains the run first). Run it top-to-bottom.
+
+      **How this crew emits telemetry** — reconciled against the live tenant, correct these to whatever *your* crew emits:
+      - An LLM call is a `generate_content <model>` span — key on the OTel GenAI operation `gen_ai.operation.name == "generate_content"`, never on a framework span name. (Some SDK layers also wrap each call in an extra framework/HTTP span; keying on the `generate_content` operation counts each LLM call exactly once.)
+      - Tool calls are `gen_ai.operation.name == "execute_tool"`, tool name in `gen_ai.tool.name`. Drop `gen_ai.tool.name == "(merged tools)"` — a Dynatrace span-merge artifact.
+      - Tokens live on `gen_ai.usage.input_tokens` / `gen_ai.usage.output_tokens` (on the `generate_content` spans).
+      - A unit of work for **one agent** is `gen_ai.task.id` (single-service). A full **cross-agent** run is `trace.id` — one trace spans the whole crew.
+      - Time order is `start_time` (`timestamp` is null on spans).
+  - id: d3619122-c973-49d0-a831-4a08ad8d2cf3
+    type: markdown
+    markdown: |-
+      ## 1 · Who is in the crew
+
+      These are your agents. Every service in the `kagent` namespace that actually makes an LLM call (a `generate_content` operation) is an agent (the filter `llmCalls > 0` drops the `kagent-controller` plumbing). `llmCalls` is how many times it reasoned; `toolCalls` is how often it acted.
+  - drilldownPath: []
+    filterSegments: []
+    id: 270723c7-4eea-4073-a7e3-dfe912c7e745
+    previousFilterSegments: []
+    showInput: true
+    showTitle: true
+    state:
+      input:
+        timeframe:
+          from: now()-7d
+          to: now()
+        value: |-
+          fetch spans
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
+          | summarize spans = count(),
+              llmCalls = countIf(gen_ai.operation.name == "generate_content"),
+              toolCalls = countIf(gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"),
+              by:{agent = service.name}
+          | filter llmCalls > 0
+          | sort llmCalls desc
+    title: The crew — agents by LLM call & tool call (7d)
+    type: dql
+  - id: 8364e980-0a93-43ca-b29d-03d56a2bb3c8
+    type: markdown
+    markdown: |-
+      ## 2 · What operations an agent performs
+
+      This is the vocabulary. Everything an agent emits falls into a handful of activities: it **reasons** (`generate_content` — the OTel GenAI LLM-call operation), it **acts** (`execute_tool`), and it **talks to other agents** (`a2a.*` messaging + `invoke_agent`). Everything else — framework wrappers, HTTP plumbing — is the `Other` bucket you can ignore while reading the run.
+  - drilldownPath: []
+    filterSegments: []
+    id: 2316ad1e-d22d-46dc-bed4-73d1df4b02be
+    previousFilterSegments: []
+    showInput: true
+    showTitle: true
+    state:
+      input:
+        timeframe:
+          from: now()-7d
+          to: now()
+        value: |-
+          fetch spans
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
+          | fieldsAdd activity = if(gen_ai.operation.name == "generate_content", "LLM call (generate_content)",
+              else: if(gen_ai.operation.name == "execute_tool", "Tool call (execute_tool)",
+              else: if(gen_ai.operation.name == "invoke_agent", "Agent invocation (invoke_agent)",
+              else: if(startsWith(span.name, "a2a."), "A2A messaging",
+              else: "Other (HTTP / framework)"))))
+          | summarize spans = count(), by:{activity}
+          | sort spans desc
+    title: The vocabulary — activities the crew emits (7d)
+    type: dql
+  - id: e44ec7f7-4f66-4ff6-813c-cc16b53eca37
+    type: markdown
+    markdown: |-
+      ## 3 · Anatomy of one task
+
+      This is one run, step by step. The sub-query picks the task with the **most `generate_content` hops** (the busiest reasoning loop — the most interesting example) and joins its spans back on `gen_ai.task.id`. Read top-to-bottom: an LLM call (`generate_content`), then the tools it decided to run (`execute_tool`), then the next LLM call. `kagent__NS__<agent>` tools are hand-offs to sub-agents (see section 4).
+  - drilldownPath: []
+    filterSegments: []
+    id: 72bfc46c-d445-4d55-b3b6-4a0a47c4a55c
+    previousFilterSegments: []
+    showInput: true
+    showTitle: true
+    state:
+      input:
+        timeframe:
+          from: now()-7d
+          to: now()
+        value: |-
+          fetch spans
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
+          | join [
+              fetch spans
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | summarize hops = count(), by:{gen_ai.task.id}
+              | sort hops desc, gen_ai.task.id asc
+              | limit 1
+            ], on:{gen_ai.task.id}, kind:inner, fields:{}
+          | filter gen_ai.operation.name == "generate_content" or gen_ai.operation.name == "execute_tool"
+          | filter gen_ai.tool.name != "(merged tools)" or isNull(gen_ai.tool.name)
+          | fieldsAdd durationMs = duration / 1000000
+          | fields start_time, agent = service.name, step = span.name, operation = gen_ai.operation.name, durationMs
+          | sort start_time asc
+    title: One task, step by step — busiest reasoning loop, ordered by start_time
+    type: dql
+  - id: d1b08419-ae08-4d64-9fd4-0ee16108d040
+    type: markdown
+    markdown: |-
+      ## 4 · The A2A hand-offs
+
+      This is the workflow graph. In this crew an agent delegates to another agent by calling it **as a tool** named `kagent__NS__<agent>`. Stripping that prefix gives the edge `fromAgent → toAgent`. (Hand-offs cross `service.name`, so they are correlated by `trace.id`, not `gen_ai.task.id` — a single task.id stays inside one service.) Here the orchestrator is the hub that fans work out to the specialists.
+
+      **Returns nothing?** That's expected unless the **BMAD crew** has run. A2A hand-offs (`kagent__NS__<agent>` tool calls) are only emitted when the **`bmad-orchestrator`** delegates to its specialists — the solo `sre-agent` (the default k8s-only investigation path) calls only `kagent-tool-server` tools and produces **zero** `kagent__` spans by design. To populate this graph, run the BMAD crew (the A2A sample prompt from module 02) and re-run the cell. Two things to check:
+      1. **Timeframe** — this cell is hard-coded to `now()-7d`; widen it or re-run after the crew has executed within the window.
+      2. **Any `kagent__` spans at all?** Sanity-check with: `fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__") | summarize count(), by:{gen_ai.tool.name}`. No rows here means no crew hand-offs have happened yet.
+  - drilldownPath: []
+    filterSegments: []
+    id: a37df4a6-e1b2-40fb-ab78-5e8f04c3db04
+    previousFilterSegments: []
+    showInput: true
+    showTitle: true
+    state:
+      input:
+        timeframe:
+          from: now()-7d
+          to: now()
+        value: |-
+          fetch spans
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
+          | filter startsWith(gen_ai.tool.name, "kagent__")
+          | fieldsAdd callee = replaceString(gen_ai.tool.name, "kagent__NS__", "")
+          | summarize handoffs = count(), by:{fromAgent = service.name, toAgent = callee}
+          | sort handoffs desc
+    title: The workflow graph — A2A hand-offs (fromAgent → toAgent, 7d)
+    type: dql
+  - id: c0db5828-3340-4ea2-93fe-0298ced45fc0
+    type: markdown
+    markdown: |-
+      ## 5 · The reasoning loop
+
+      This is where a loop re-reads context. Same busiest task as section 3, but only its `generate_content` (LLM-call) hops in order. Watch `inputTokens` climb hop after hop while `outputTokens` stays small: every hop re-sends the whole growing conversation back to the model. That growth is the single biggest lever in the optimize guide (§2c). A flat line here means a tight agent; a staircase means a context that never gets trimmed.
+  - drilldownPath: []
+    filterSegments: []
+    id: 3bb30b5c-2997-47b8-9827-ea61f7be9b64
+    previousFilterSegments: []
+    showInput: true
+    showTitle: true
+    state:
+      input:
+        timeframe:
+          from: now()-7d
+          to: now()
+        value: |-
+          fetch spans
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+          | join [
+              fetch spans
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | summarize hops = count(), by:{gen_ai.task.id}
+              | sort hops desc, gen_ai.task.id asc
+              | limit 1
+            ], on:{gen_ai.task.id}, kind:inner, fields:{}
+          | fields start_time, agent = service.name, inputTokens = gen_ai.usage.input_tokens, outputTokens = gen_ai.usage.output_tokens
+          | sort start_time asc
+    title: The reasoning loop — input tokens growing per generate_content hop
+    type: dql
+  - id: f0de15fc-729a-42e0-9df1-fe08e8aefef3
+    type: markdown
+    markdown: |-
+      ## 6 · The tool-call sequence
+
+      This is what the agent decided to do. Same busiest task, now only its `execute_tool` spans in order. Each row is a decision the model made between reasoning hops — a memory lookup, a sub-agent delegation (`kagent__NS__*`), a diagnostic call. The `(merged tools)` artifact is filtered out. Read it as the agent's plan, executed.
+  - drilldownPath: []
+    filterSegments: []
+    id: a3970b1c-7e51-4aba-b923-d8ce42bb7c63
+    previousFilterSegments: []
+    showInput: true
+    showTitle: true
+    state:
+      input:
+        timeframe:
+          from: now()-7d
+          to: now()
+        value: |-
+          fetch spans
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+          | join [
+              fetch spans
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | summarize hops = count(), by:{gen_ai.task.id}
+              | sort hops desc, gen_ai.task.id asc
+              | limit 1
+            ], on:{gen_ai.task.id}, kind:inner, fields:{}
+          | fieldsAdd durationMs = duration / 1000000
+          | fields start_time, agent = service.name, tool = gen_ai.tool.name, durationMs
+          | sort start_time asc
+    title: The tool-call sequence — execute_tool spans in order
+    type: dql
+  - id: cf6e73d4-6db6-473b-b419-6a4075c31587
+    type: markdown
+    markdown: |-
+      ## 7 · Token accumulation across the run
+
+      This is the bill, built one hop at a time. Same busiest task, every `generate_content` (LLM-call) hop with its `inputTokens`, `outputTokens`, and `hopCost` (the two added). Sum the `inputTokens` column and you get the run's input bill — on the reference tenant that is ~182k input tokens vs ~14k output across 10 hops (≈13:1). The last hop alone costs several times the first, purely because the context grew. That is why trimming the loop (section 5) beats trimming almost anything else.
+  - drilldownPath: []
+    filterSegments: []
+    id: 2ace488c-a0aa-48f8-a39c-7a25349b9eb2
+    previousFilterSegments: []
+    showInput: true
+    showTitle: true
+    state:
+      input:
+        timeframe:
+          from: now()-7d
+          to: now()
+        value: |-
+          fetch spans
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+          | join [
+              fetch spans
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | summarize hops = count(), by:{gen_ai.task.id}
+              | sort hops desc, gen_ai.task.id asc
+              | limit 1
+            ], on:{gen_ai.task.id}, kind:inner, fields:{}
+          | fieldsAdd hopCost = gen_ai.usage.input_tokens + gen_ai.usage.output_tokens
+          | fields start_time, inputTokens = gen_ai.usage.input_tokens, outputTokens = gen_ai.usage.output_tokens, hopCost
+          | sort start_time asc
+    title: The token bill — per generate_content hop, in order
+    type: dql
+  - id: e5ca84ea-a826-4ebe-a97a-b4f63aaf9663
+    type: markdown
+    markdown: |-
+      ## Where to go next
+
+      You just read one run from the crew list down to the per-hop bill. Now **cut** it: open `ai-agent-optimization-before-after.notebook.yaml` and the optimize guide (`docs/9-optimize.md`). The two biggest levers you just saw:
+
+      - **The loop (section 5)** — a staircase of input tokens means the agent re-reads a context that never gets trimmed. Shortening the system prompt / dropping unused tool schemas flattens it.
+      - **The tools (section 6)** — tools granted but never called are billed as input on every prompt. Compare what you saw here against each agent's granted `toolNames`.
+
+      Change **one** thing, replay the **same** prompts, and re-run these cells over the before/after windows (use each cell's timeframe picker). Keep the change only if cost dropped **and** eval pass rate held (module 8).

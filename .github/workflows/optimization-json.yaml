@@ -1,0 +1,46 @@
+name: Optimization JSON in lockstep
+
+# The UI-importable JSON under docs/assets/optimization/ is GENERATED from the
+# dtctl YAML in cluster/dynatrace/optimization/ (scripts/gen-optimization-json.sh)
+# and must never be hand-edited. This guard regenerates it and fails if the
+# committed JSON differs — so a YAML edit that forgets to regen cannot merge.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cluster/dynatrace/optimization/**"
+      - "docs/assets/optimization/**"
+      - "scripts/gen-optimization-json.sh"
+      - ".github/workflows/optimization-json.yaml"
+  pull_request:
+    paths:
+      - "cluster/dynatrace/optimization/**"
+      - "docs/assets/optimization/**"
+      - "scripts/gen-optimization-json.sh"
+      - ".github/workflows/optimization-json.yaml"
+  workflow_dispatch: {}
+
+jobs:
+  regen-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq (mikefarah)
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/download/v4.44.6/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Regenerate optimization JSON
+        run: bash scripts/gen-optimization-json.sh
+
+      - name: Fail if committed JSON is stale
+        run: |
+          if ! git diff --exit-code -- docs/assets/optimization/; then
+            echo "::error::docs/assets/optimization/*.json is out of sync with the dtctl YAML." \
+                 "Run scripts/gen-optimization-json.sh and commit the result."
+            exit 1
+          fi

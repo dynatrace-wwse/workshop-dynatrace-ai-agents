@@ -158,7 +158,7 @@ somewhere in the firehose" into a single, named event the moment the file is
 touched.
 
 Apply the ready-made detection policy
-([`cluster/tetragon/sensitive-file-access.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/tetragon/sensitive-file-access.yaml)):
+([`cluster/tetragon/sensitive-file-access.yaml`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/cluster/tetragon/sensitive-file-access.yaml)):
 
 ```bash
 kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
@@ -187,21 +187,44 @@ kubectl -n tetragon exec ds/tetragon -c tetragon -- \
   tetra getevents -o compact --namespace agent-sandbox
 ```
 
-…and in a second terminal, schedule a compliant pod into the sandbox and have it
-read its own service-account token (exactly what a credential-stealing agent
-would do):
+…and in a second terminal, schedule a compliant pod into the sandbox that reads
+credentials **in a loop** — `/etc/passwd` and its own service-account token,
+exactly what a credential-stealing agent would do:
 
 ```bash
 kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}' \
-  --command -- sh -c "cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"
+  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"]}]}}' \
+  --command -- sh -c 'while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done'
 ```
 
+!!! tip "Why a loop?"
+    `tetra getevents` is a **live tail** — it only shows events that happen
+    *after* it attaches, and never replays history. A one-shot `cat … ; sleep 30`
+    reads the file exactly once at startup, so if the pod started before your
+    watch, the single read is already gone and you see nothing. Reading in a
+    loop every 2 s means the trigger always lands inside your watch window — no
+    timing luck required. `/etc/passwd` is a real path on the container rootfs
+    (no symlink indirection), so it is guaranteed to match the policy's prefix;
+    the service-account token is the realistic credential-theft target.
+
 !!! success "Expected"
-    The first terminal prints a `process_kprobe` line for `security_file_permission`
-    on the `snoop` pod, naming the binary (`cat`) and the sensitive path. That is
-    your detection firing — the pod ran clean under Pod Security *and* was caught
+    Within a couple of seconds the first terminal prints a `process_kprobe` line
+    for `security_file_permission` on the `snoop` pod, naming the binary (`cat`)
+    and the sensitive path (`/etc/passwd` and/or the token path). That is your
+    detection firing — the pod ran clean under Pod Security *and* was caught
     reading a credential, because runtime detection sees what admission cannot.
+
+!!! warning "No events? Check the policy *loaded*, not just that it applied"
+    `kubectl apply` only stores the policy — the Tetragon agent still has to load
+    the kprobe into the kernel and can **silently reject** it, leaving nothing to
+    fire. Confirm it loaded before you blame the trigger:
+    ```bash
+    kubectl -n tetragon exec ds/tetragon -c tetragon -- tetra tracingpolicy list
+    ```
+    `STATE` should read `enabled`. A `load_error` (or a `ReturnArgAction … Post
+    unsupported` line in `kubectl -n tetragon logs ds/tetragon -c tetragon`)
+    usually means a **stale policy** — `git pull origin main` and re-apply. Full
+    ladder: [Troubleshooting → Tetragon fires no events](troubleshooting.md#tetragon-is-ready-but-the-sensitive-file-policy-fires-no-events).
 
 Clean up:
 

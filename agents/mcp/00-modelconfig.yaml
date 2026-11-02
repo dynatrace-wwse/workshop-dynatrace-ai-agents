@@ -1,6 +1,7 @@
 # ── Phase 3 · shared agent LLM (the "brain") ─────────────────────────────────
 # Every workshop agent — the SRE agent and the whole BMAD crew — points at THIS
-# ModelConfig by name (`modelConfig: workshop-llm`). Defining it once here keeps
+# ModelConfig by name (`modelConfig: ${WORKSHOP_PREFIX}-workshop-llm`; the prefix is
+# resolved by envsubst in installAgents, ISI-6986). Defining it once here keeps
 # the model/provider choice in a single place.
 #
 # Default: DeepSeek (ISI-6716 — chosen for the workshop's cost-efficiency theme).
@@ -8,7 +9,7 @@
 # baseUrl pointed at DeepSeek. The model MUST support function/tool calling (the
 # BMAD crew is multi-hop tool use); deepseek-chat (DeepSeek-V3) does.
 #
-# The key is read from secret/kagent-deepseek (created by cluster/secrets.sh from
+# The key is read from secret/kagent-deepseek (created by aiwLlmSecret from
 # DEEPSEEK_API_KEY, or LLM_API_KEY as a fallback).
 #
 # ── Alternatives (swap here + the matching secret in cluster/secrets.sh) ──────
@@ -19,14 +20,19 @@
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
-  name: workshop-llm
+  name: ${WORKSHOP_PREFIX}-workshop-llm
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
 spec:
   provider: OpenAI                  # DeepSeek is OpenAI-API-compatible
-  model: deepseek-chat              # keep in sync with WORKSHOP_LLM_MODEL in cluster/versions.env
+  # model + baseUrl are injected at apply time (envsubst in installAgents) from
+  # WORKSHOP_LLM_MODEL / WORKSHOP_LLM_BASE_URL in cluster/versions.env —
+  # DeepSeek direct by default, or the per-attendee model-proxy endpoint when a
+  # room password dispensed one (ISI-6996; the key in secret/kagent-deepseek is
+  # then the minted virtual key).
+  model: ${WORKSHOP_LLM_MODEL}
   apiKeySecret: kagent-deepseek     # v1alpha2 field name (apiKeySecretRef is v1alpha1 and is pruned here)
   apiKeySecretKey: DEEPSEEK_API_KEY
   openAI:
-    baseUrl: https://api.deepseek.com/v1   # DeepSeek OpenAI-compatible endpoint
+    baseUrl: ${WORKSHOP_LLM_BASE_URL}

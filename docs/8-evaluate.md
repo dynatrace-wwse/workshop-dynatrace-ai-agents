@@ -5,22 +5,28 @@ does **not** tell you whether the answer was correct, grounded, or useful. That'
 **evaluation** — scoring agent outputs against expectations — and it's the step
 most teams skip, which is why their agents quietly regress.
 
-Both tools here evaluate the **same `gen_ai.*` spans** the OTel gateway already
-produces (module 4/6) — you don't re-run the agents to grade them, you grade
-the traces they already emitted:
+This module's evals read the **same `gen_ai.*` spans** the OTel gateway already
+produces (module 4/6) — you don't re-run the agents to grade them, you grade the
+traces they already emitted. You **create your evaluation in Arize Phoenix**:
 
-- **Phoenix (Arize)** — interactive trace + eval UI, already running from
-  module 3. Great for *exploratory* LLM-as-a-judge over live traces.
-- **dt-evals** — [`dynatrace-oss/dt-evals`](https://github.com/dynatrace-oss/dt-evals),
-  the **primary** path: a config-driven CLI that pulls `gen_ai.*` spans from
-  Dynatrace, scores them with a judge, and writes the results back as bizevents
-  next to the rest of your telemetry.
+- **Phoenix (Arize)** — the **recommended path**. An interactive trace + eval UI,
+  already running from module 3, where you **build and run an LLM-as-a-judge
+  evaluation entirely in the web UI** — no code.
+- **dt-evals** — a short **alternative** for teams that want eval scores to land
+  **inside Dynatrace** as bizevents, next to the rest of their telemetry.
+- **The diagnosis grader** (Part C) — deterministic, needs **no** model at all.
 
 Everything for this module lives under
 [`evals/`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/tree/main/evals).
-Both paths reuse the cost-efficient workshop judge — **DeepSeek** (`deepseek-chat`),
-the same model that powers the agents — set once in `evals/.env`
-(copy from `evals/.env.example`).
+The judge is the workshop model — **DeepSeek** (`deepseek-chat`), the same model
+that powers the agents, reached through the room-password proxy or your own
+`DEEPSEEK_API_KEY` (module 2). Nothing to configure: the key is picked up from your
+terminal.
+
+!!! note "No LLM key in your session?"
+    The Enablement App runs the agents on the in-cluster model and provides no
+    judge key. Read Parts A and B, then run **Part C**, which grades
+    deterministically and needs nothing.
 
 !!! warning "Generate traffic first"
     Evals score real traces. Drive the SRE agent or a BMAD task (module 4)
@@ -28,48 +34,100 @@ the same model that powers the agents — set once in `evals/.env`
 
 ---
 
-## Part A — Phoenix: explore and judge live traces
+## Part A — Phoenix: create an evaluation in the UI
 
 Open the **phoenix** app (`listApps` prints its URL).
 
 Every agent run shows up as an LLM trace: prompt, response, tool spans, token
-counts. Click a span to see its `gen_ai.*` attributes.
+counts. Click a span to see its `gen_ai.*` attributes. The OTel gateway also copies
+each LLM call's prompt and completion onto the span as OpenInference
+`input.value` / `output.value`, so the **Input** and **Output** are visible right in
+the trace view — which is exactly what the judge reads.
 
-### Run an evaluation (LLM-as-a-judge)
+!!! tip "The DeepSeek judge is already wired"
+    When your session has a model key, Phoenix is preconfigured for DeepSeek: the
+    key and endpoint are injected from your environment (`secret/phoenix-deepseek`)
+    and `PHOENIX_ALLOWED_PROVIDERS=DEEPSEEK` restricts the model menu, so DeepSeek
+    is the only — and obvious — choice wherever you pick a judge model. You never
+    hand-enter a key. After a room-password rotation run `dispenseLlmKey`, then
+    `installPhoenix`.
 
-!!! note "Needs a judge key"
-    Parts A and B call an LLM judge (DeepSeek by default, `OPENAI_API_KEY` in
-    `evals/.env`). Without a key, read them and run **Part C**, which grades
-    deterministically and needs nothing.
+### Create and run an LLM-as-a-judge (no code)
 
-The repo ships a small, version-pinned eval script that builds two judge
-classifiers — **hallucination** (is the answer grounded in its context?) and
-**relevance** (does it answer the question?):
+You'll score the SRE-agent traces from your last run with a judge classifier —
+**hallucination** (is the answer grounded in the tool output it was given?) or
+**relevance** (does it answer the question?).
+
+1. **Pick the traces.** Open the **Traces** table and filter to the LLM spans so
+   each example carries a clean question → answer pair — paste this into the
+   filter bar:
+
+    ```text
+    span_kind == 'LLM'
+    ```
+
+    Phoenix is per learner, so this is all the scoping you need. (The spans also
+    carry `workshop.attendee` and your agents' names carry your `WORKSHOP_PREFIX` —
+    that matters in a shared Dynatrace tenant, not here.)
+
+2. **Capture them as a dataset.** Select the spans and use **Add to Dataset** —
+   each example keeps the span's **Input** (the question) and **Output** (the
+   agent's answer).
+3. **Add an LLM evaluator.** Open the dataset → **Evaluators** → **Add evaluator**
+   → **LLM**. Phoenix opens it in the **Playground**:
+    - **Model:** DeepSeek (already keyed).
+    - **Template:** the judge prompt, e.g. *"You are grading whether the ANSWER is
+      grounded in the provided CONTEXT/question. Reply with a single label:
+      `hallucinated` or `factual`."* (or a relevance rubric: `relevant` /
+      `irrelevant`).
+    - **Input mapping:** map the template's `{question}` / `{answer}` variables to
+      the dataset's **input** / **output** fields.
+    - **Test** it on one example, then **Save**.
+4. **Run it.** From the dataset, **Run** an experiment. Phoenix calls the judge
+   **server-side** over every example.
+
+The results table gains one **label / score column per evaluator**. Sort by it to
+surface the weakest answers, and click a row to read the judge's label and
+explanation next to the input and output.
+
+### Script the same judge instead (optional)
+
+The repo also ships a small, version-pinned script that builds the same two
+classifiers from code — handy for CI, for grading the **live** spans in place, or
+when you have no traffic yet:
 
 ```bash
 cd evals && uv sync
 # Bundled sample dataset — no cluster/traffic needed (just a judge key):
 uv run python phoenix/run_phoenix_eval.py
-# Live spans pulled from Phoenix, scores logged back onto the traces:
+# Live LLM spans pulled from Phoenix, scores logged back onto the traces:
 uv run python phoenix/run_phoenix_eval.py --from-phoenix
 ```
 
-It prints a per-metric summary, writes `phoenix/out/phoenix_eval_results.csv`,
-and (with `--from-phoenix`) annotates the originating spans so the labels show up
-on the traces in the UI. Details: [`evals/phoenix/README.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/phoenix/README.md).
+It prints a per-metric summary, writes `phoenix/out/phoenix_eval_results.csv`, and
+(with `--from-phoenix`) annotates the originating spans so the labels show up on
+the traces in the UI. `--from-phoenix` filters server-side to `span_kind == 'LLM'`
+before its row limit, so the agents' sparse LLM spans are not buried under the
+demo app's infrastructure spans. Details:
+[`evals/phoenix/README.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/phoenix/README.md).
 
-This is *exploratory*: fast, visual, good for discovering failure modes. For a
-gate you can run in CI, use dt-evals.
+!!! note "`--from-phoenix` needs message content on the spans"
+    The live path maps prompt/response content out of every shape these agents
+    emit — OTel GenAI semconv (`gen_ai.input.messages`, indexed
+    `gen_ai.prompt.N.content` / `gen_ai.completion.N.content`, or `gen_ai.*`
+    log-events) and OpenInference (`input.value` / `output.value`). If it finds no
+    content it prints exactly which `attributes.*` were present. The bundled
+    dataset path always works offline.
 
 ---
 
-## Part B — dt-evals: trace-sourced evals in Dynatrace
+## Part B — dt-evals: scores inside Dynatrace (optional)
 
-[`dt-evals`](https://github.com/dynatrace-oss/dt-evals) is the **primary eval
-path**. It samples `gen_ai.*` spans from your Dynatrace environment, masks PII,
-scores each with an LLM judge, and writes `gen_ai.evaluation.result` **bizevents**
-back — so a low score is one click from the trace, prompt, and tool calls that
-caused it.
+[`dt-evals`](https://github.com/dynatrace-oss/dt-evals) is a config-driven CLI that
+samples `gen_ai.*` spans from your Dynatrace environment, scores each with an LLM
+judge, and writes `gen_ai.evaluation.result` **bizevents** back — so a low score is
+one click from the trace, prompt, and tool calls that caused it. Where Part A had
+you *create* an evaluation by clicking, here **the config file is the evaluation**.
 
 ```mermaid
 flowchart LR
@@ -78,58 +136,47 @@ flowchart LR
     biz --> out["DQL / dashboard / alert"]
 ```
 
-### 1. Credentials
+**The config is the evaluation.** Open
+[`evals/dt-evals/workshop-agents.dt-eval.yaml`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/dt-evals/workshop-agents.dt-eval.yaml).
+Four blocks define it — grade **what**, judged **by whom**, scored on **which
+metrics**, failing **when**:
 
-dt-evals needs (put these in `evals/.env`). You created these during onboarding —
-see
-[`.devcontainer/SECRETS.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/.devcontainer/SECRETS.md) (see also [TODO-HENRIK §8](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/TODO-HENRIK.md))
-for exact scopes and where each is generated:
+| Block | What you declare | Authoring question |
+|-------|------------------|--------------------|
+| `scope` | which spans to pull (`service`, `since`, `sampling`) | *What do I grade?* |
+| `judge` | the LLM-as-a-judge (DeepSeek, OpenAI-compatible) | *Who grades it?* |
+| `metrics.enabled` | relevance, faithfulness, hallucination, coherence, toxicity, prompt-injection | *What am I scoring for?* |
+| `alerts.thresholds` | the pass/fail bar per metric that makes the run exit non-zero | *When does it fail?* |
 
-| Var | What |
-|-----|------|
-| `DYNATRACE_API_TOKEN` | a **dedicated** `dt0c01` token with `storage:spans:read` + `storage:events:write` (not the module 3 OTLP token) |
-| `DT_ENVIRONMENT_URL` | your `…apps.dynatrace.com` URL (derived from `DT_TENANT_URL` if unset) |
-| `OPENAI_API_KEY` | judge key — a DeepSeek key works |
-| `DT_EVAL_SERVICE` | the agent's `service.name` — **discover it, don't guess** |
+**Author it in two edits:** `DT_EVAL_SERVICE` fills `scope.service` (it defaults to
+`${WORKSHOP_PREFIX}-sre-agent`, your SRE agent), and tightening an
+`alerts.thresholds` line — e.g. `relevance: 0.8` — sets the gate.
 
-Discover the service with DQL (Dynatrace Notebook):
-
-```dql
-fetch spans, from: now() - 2h
-| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
-| summarize span_count = count(), by: { service.name }
-| sort span_count desc
-```
-
-### 2. Run it
-
-The CLI runs via `npx` (Node ≥ 22); the wrapper renders the config
-([`evals/dt-evals/workshop-agents.dt-eval.yaml`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/dt-evals/workshop-agents.dt-eval.yaml))
-with your env values and runs `validate` + `run`:
+**Credentials** (in `evals/.env`, copy from `evals/.env.example`): a Dynatrace token
+with `storage:spans:read` + `storage:events:write` as `DYNATRACE_API_TOKEN`; the
+tenant URL comes from `DT_ENVIRONMENT`. The judge key is picked up from your
+session (room-password proxy or `DEEPSEEK_API_KEY`) — see
+[`.devcontainer/SECRETS.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/.devcontainer/SECRETS.md) and
+[TODO-HENRIK §8](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/TODO-HENRIK.md) for the open question on the token type.
 
 ```bash
 cd evals/dt-evals
-./run-dt-eval.sh
+./run-dt-eval.sh                     # renders the config, then validate + run
 ```
 
-The config enables agent-relevant metrics (relevance, faithfulness,
-hallucination, coherence, toxicity, prompt-injection) and sets alert thresholds
-that make the run **exit non-zero** on a breach — a ready-made CI gate.
-
-### 3. Read the scores
+The run exits non-zero on a threshold breach — a ready-made CI gate. Read the
+scores back in a Dynatrace Notebook (replace `<prefix>` with `echo $WORKSHOP_PREFIX`):
 
 ```dql
 fetch bizevents
 | filter event.type == "gen_ai.evaluation.result"
+| filter service.name == "<prefix>-sre-agent"
 | summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 ```
 
-!!! tip "Shared vs per-attendee tenant"
-    dt-evals reads spans **and** writes bizevents scoped by `service.name`. The
-    workshop default is a **per-attendee Dynatrace tenant** (a free trial is
-    enough) so nobody grades anyone else's traffic; a shared-tenant fallback with
-    per-attendee `service.name` suffixes is documented in
-    [`evals/dt-evals/README.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/dt-evals/README.md#tenant-model-74).
+The `service.name` clause scopes the read-back to **your** results in a shared
+tenant. Details:
+[`evals/dt-evals/README.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/dt-evals/README.md).
 
 ---
 
@@ -185,23 +232,38 @@ reveal: |
   grades each bundled diagnosis by required signals, root cause and forbidden
   cross-channel claims — pure stdlib, no model.
 -->
- Add `--llm-judge` (needs a judge key) to
+Add `--llm-judge` (needs a judge key) to
 also run an LLM root-cause grader, or `--from-phoenix` to grade the agent's *live*
 diagnosis spans and annotate them back onto the traces.
 
-### In Dynatrace (dt-evals)
+### Author a custom evaluator in Dynatrace (dt-evals — optional)
 
-Each answer key is also rendered into a dt-evals custom evaluator. Register the
-one for the scenario you ran, then grade its spans:
+The sharpest form of authoring is a rubric that encodes exactly what a correct
+diagnosis of *one* scenario must say. Each answer key is compiled into one.
+
+**1. Read the rubric.** Open
+[`evals/dt-evals/evaluators/diagnosis-01-crashloopbackoff.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/dt-evals/evaluators/diagnosis-01-crashloopbackoff.md).
+Its **Judge prompt** section *is* the evaluator — binary (1 = correct, 0 =
+incorrect) with three clauses: **identify the root cause**, **cite ≥ 3 required
+signals**, and make **none of the must-not-claim** cross-channel confabulations.
+That *required-signals + must-not-claim* shape is the pattern for any objective
+grader. (Generated from the answer key with
+`uv run python dt-evals/gen_diagnosis_evaluators.py` — don't hand-edit.)
+
+**2. Register it, enable it, run it.** Uncomment its line under `metrics.enabled`
+(and the matching `alerts.thresholds`) in
+[`scenario-diagnosis.dt-eval.yaml`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/dt-evals/scenario-diagnosis.dt-eval.yaml),
+then:
 
 ```bash
 cd evals/dt-evals
-npx -y "$DT_EVALS_PKG" evaluators add            # paste evaluators/diagnosis-<id>.md
+./run-dt-eval.sh evaluators add      # paste the Judge prompt of evaluators/diagnosis-<id>.md
 ./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-<id>
 ```
 
-Correct diagnoses score 1, misses score 0 — a per-scenario pass/fail bizevent next
-to the trace. Details:
+`./run-dt-eval.sh evaluators add` is a passthrough to the pinned `dt-evals` CLI.
+Correct diagnoses score 1, misses 0 — a per-scenario pass/fail bizevent next to the
+trace. Details:
 [`evals/ground-truth/README.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/evals/ground-truth/README.md).
 
 !!! tip "Closing the diagnose → evaluate → optimize loop"
@@ -232,10 +294,10 @@ explanation: "Logs vs. events vs. terminated reason: each fault has its own evid
 
 ## What you achieved (acceptance)
 
-- A Phoenix eval run produces labelled scores you can inspect in the UI (or the
-  CSV) — even offline against the bundled dataset.
-- A dt-evals run scores the agents' real traces and lands the results in
-  Dynatrace as queryable bizevents, with a CI-friendly pass/fail gate.
+- You **created an evaluation in the Phoenix UI** (dataset → evaluator → judge)
+  and read its labelled scores — or scored the bundled dataset from code.
+- *(Optional)* You saw the same evaluation **authored as a dt-evals config**, with
+  the scores landing in Dynatrace as queryable bizevents and a CI-friendly gate.
 - A diagnosis-grading run (Part C) scores an SRE-agent diagnosis against a
   scenario answer key — PASS/FAIL against registered ground truth, offline or in
   Dynatrace.

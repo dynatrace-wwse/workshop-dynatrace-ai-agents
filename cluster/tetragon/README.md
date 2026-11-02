@@ -7,7 +7,8 @@ module 5 of the workshop learning arc (securing agents).
 | File | Role |
 |------|------|
 | `values.yaml` | Helm values for `cilium/tetragon` (DaemonSet + operator, trimmed). |
-| `sensitive-file-access.yaml` | `TracingPolicyNamespaced` (observe-only) that posts an event when any process in `agent-sandbox` reads a credential path (service-account token, secrets, `/etc/shadow`, SSH keys, kubeconfig). Applied by hand in module 03. |
+| `sensitive-file-access.yaml` | `TracingPolicyNamespaced` (observe-only) that posts an event when any process in `agent-sandbox` reads a credential path (service-account token, secrets, `/etc/shadow`, SSH keys, kubeconfig). Applied by hand in module 5. |
+| `validate-live.sh` | Reproducible live check: Tetragon + the policy + a loop-snoop pod, asserting the `process_kprobe` event fires and printing the raw `getevents` line. Run it against the workshop cluster when the detection step shows nothing. |
 
 ## eBPF on k3d (important)
 
@@ -36,8 +37,27 @@ kubectl -n tetragon exec ds/tetragon -c tetragon -- \
   tetra getevents -o compact --namespace agent-sandbox
 ```
 
-Then trigger it by reading a credential from a sandbox pod (see module 03 →
-*Detect an agent reading sensitive files*).
+Then trigger it from a sandbox pod that reads credentials **in a loop** — so the
+read always lands inside the live `getevents` watch window (a one-shot `cat` can
+fire before you attach, and `getevents` never replays history):
+
+```bash
+kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"]}]}}' \
+  --command -- sh -c 'while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done'
+
+kubectl -n agent-sandbox delete pod snoop --ignore-not-found   # clean up after you see the event
+```
+
+`/etc/passwd` is a real path on the container rootfs (no symlink indirection) and
+is in the policy's prefix list, so it is guaranteed to match; the service-account
+token is the realistic credential-theft target. See module 5 →
+*Detect an agent reading sensitive files* for the full walkthrough.
+
+`bash cluster/tetragon/validate-live.sh` exercises this exact flow end-to-end
+against the current cluster and asserts the `process_kprobe` event fires.
+(Upstream also runs it in a kind-based CI job; not ported — it needs a
+privileged eBPF-capable runner.)
 
 ## Verify
 

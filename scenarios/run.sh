@@ -64,9 +64,13 @@ cmd_inject() {
     case "$reqs" in
       *astroshop-lite*)
         if ! kubectl get ns astroshop-lite >/dev/null 2>&1; then
-          err "scenario '${name}' requires the astroshop-lite app, which is not deployed."
-          err "Deploy just the demo (platform stack already installed), then retry:"
-          err "  deployOtelDemoLight"
+          # Not a crash — scenario 12 is the opt-in top tier and simply needs the
+          # demo app deployed first. One warn for the condition, then cyan
+          # [ info ] remediation so the copy-paste line doesn't read as a failure
+          # cascade. (upstream ISI-6956)
+          warn "scenario '${name}' is opt-in (the highest tier) — it needs the astroshop-lite app, which isn't deployed yet. This is expected, not a bug."
+          info "Deploy just the demo (the platform stack is already installed), then re-run this command:"
+          info "  deployOtelDemoLight"
           exit 2
         fi
         ;;

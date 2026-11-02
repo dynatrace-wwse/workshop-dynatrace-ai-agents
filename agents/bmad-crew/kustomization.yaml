@@ -1,8 +1,11 @@
-# Apply the whole BMAD crew with:  kubectl apply -k agents/bmad-crew
+# The crew's Agent names, modelConfig and MCP refs carry ${WORKSHOP_PREFIX}
+# (ISI-6986), so render through envsubst instead of applying this directly:
+#   kubectl kustomize agents/bmad-crew | envsubst '${WORKSHOP_PREFIX}' | kubectl apply -f -
+# `installAgents` (.devcontainer/util/my_functions.sh) does exactly this.
 #
-# Prereqs (applied by agents/install-agents.sh BEFORE this):
-#   • agents/mcp — the workshop-llm ModelConfig and the github-mcp-remote server
-#     the agents reference by name.
+# Prereqs (applied by installAgents BEFORE this):
+#   • agents/mcp — the ${WORKSHOP_PREFIX}-workshop-llm ModelConfig and the
+#     ${WORKSHOP_PREFIX}-github-mcp-remote server the agents reference by name.
 # Order below matters only for readability — the controller reconciles the
 # reference graph as objects appear; the orchestrator's `type: Agent` tools
 # resolve once the child agents exist.
