@@ -811,19 +811,31 @@ rotate them after the workshop.</p>
 <h2 id="3-install-the-agents">3. Install the agents<a class="headerlink" href="#3-install-the-agents" title="Permanent link">#</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>installAgents
 </span></code></pre></div>
-<p><code>installAgents</code> applies, in order: the <code>workshop-llm</code> ModelConfig (DeepSeek
+<p><code>installAgents</code> applies, in order: the <code>&lt;prefix&gt;-workshop-llm</code> ModelConfig (DeepSeek
 when you have a key, the in-cluster Ollama model otherwise), the GitHub and
 Dynatrace MCP servers, the SRE agent, then the six BMAD agents — and waits until
 all seven are Accepted.</p>
+<div class="admonition info">
+<p class="admonition-title">Your agents carry your prefix</p>
+<p>The manifests template their names with <code>${WORKSHOP_PREFIX}</code> (module 2), and
+<code>installAgents</code> resolves it with <code>envsubst</code> at apply time: you get
+<code>${WORKSHOP_PREFIX}-sre-agent</code>, <code>${WORKSHOP_PREFIX}-bmad-*</code>,
+<code>${WORKSHOP_PREFIX}-workshop-llm</code> and <code>${WORKSHOP_PREFIX}-github-mcp-remote</code>.
+kagent reports the agent name as the OpenTelemetry <code>service.name</code>, so your
+traces arrive as <code>${WORKSHOP_PREFIX}-sre-agent</code>. The built-in
+<code>kagent-tool-server</code>, the Dynatrace MCP server and the <code>kagent</code> namespace are
+not prefixed. The helpers (<code>askSreAgent</code>, <code>askAgent sre-agent …</code>) add the
+prefix for you.</p>
+</div>
 <h2 id="4-verify-the-tools-registered">4. Verify the tools registered<a class="headerlink" href="#4-verify-the-tools-registered" title="Permanent link">#</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>mcpserver,remotemcpserver
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>remotemcpserver<span class="w"> </span>kagent-tool-server<span class="w">  </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.status.discoveredTools[*].name}'</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>remotemcpserver<span class="w"> </span>github-mcp-remote<span class="w">    </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.status.discoveredTools[*].name}'</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>remotemcpserver<span class="w"> </span><span class="si">${</span><span class="nv">WORKSHOP_PREFIX</span><span class="si">}</span>-github-mcp-remote<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.status.discoveredTools[*].name}'</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>remotemcpserver<span class="w"> </span>dynatrace-mcp-remote<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.status.discoveredTools[*].name}'</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>agents
 </span></code></pre></div>
 <p>Each <code>RemoteMCPServer</code> should be Accepted with a non-empty <code>discoveredTools</code>
-list, and all seven agents (<code>sre-agent</code> + six <code>bmad-*</code>) should be Accepted.</p>
+list, and all seven agents (<code>&lt;prefix&gt;-sre-agent</code> + six <code>&lt;prefix&gt;-bmad-*</code>) should be Accepted.</p>
 <!-- LAB_QUESTION
 type: shell-verification
 question: "Verify all seven agents are Accepted"
@@ -845,7 +857,8 @@ on the same A2A endpoint and produce the same traces:</p>
   or pasting a prompt verbatim. <code>askAgent</code> wraps it.</li>
 </ul>
 <p><strong>kagent UI</strong></p>
-<p>Open the <strong>kagent</strong> app (<code>listApps</code> prints the URL), pick <strong>sre-agent</strong>, and paste:</p>
+<p>Open the <strong>kagent</strong> app (<code>listApps</code> prints the URL), pick <strong><code>&lt;prefix&gt;-sre-agent</code></strong>
+(<code>echo $WORKSHOP_PREFIX</code>), and paste:</p>
 <blockquote>
 <p>List the pods in the <code>kagent</code> namespace and tell me if any are unhealthy.</p>
 </blockquote>
@@ -856,12 +869,12 @@ on the same A2A endpoint and produce the same traces:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/<span class="si">${</span><span class="nv">WORKSHOP_PREFIX</span><span class="si">}</span>-sre-agent
 </span></code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">BMAD crew — a longer, multi-hop trace</p>
 <p>With a <code>GH_PAT</code>, send the orchestrator a build task — in the UI pick
-<strong>bmad-orchestrator</strong>, or:
+<strong><code>&lt;prefix&gt;-bmad-orchestrator</code></strong>, or:
 <code>askAgent bmad-orchestrator "Build a simple Todo app in &lt;owner&gt;/&lt;repo&gt;. Run the full BMAD workflow and open a PR." 900</code>.
 It is optional — the rest of the workshop uses the SRE agent.</p>
 </div>
@@ -885,8 +898,9 @@ verify:
   - source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkAgentAnswered sre-agent
 reveal: |
   `installAgents` renders the MCP layer with your tokens (envsubst at apply
-  time, never committed), applies `agents/sre` and `agents/bmad-crew` with
-  kustomize and waits for all seven agents to be Accepted. `askSreAgent` then
+  time, never committed), renders `agents/sre` and `agents/bmad-crew` with
+  `kubectl kustomize | envsubst` so every name carries your `WORKSHOP_PREFIX`,
+  and waits for all seven agents to be Accepted. `askSreAgent` then
   sends one A2A `message/send` to the SRE agent and prints its answer.
 -->
 

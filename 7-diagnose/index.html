@@ -891,7 +891,7 @@ For scenario 01 (<code>scenarios/01-crashloopbackoff/prompt.md</code>):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>diagnoseScenario<span class="w"> </span><span class="m">01</span><span class="w">      </span><span class="c1"># sends scenarios/01-crashloopbackoff/prompt.md over A2A</span>
 </span></code></pre></div>
 <p><strong>kagent UI</strong></p>
-<p>Open the <strong>kagent</strong> app (<code>listApps</code>), pick <strong>sre-agent</strong>, and paste:</p>
+<p>Open the <strong>kagent</strong> app (<code>listApps</code>), pick <strong><code>&lt;prefix&gt;-sre-agent</code></strong>, and paste:</p>
 <blockquote>
 <p>A pod in the <code>workshop-faults</code> namespace keeps restarting. Investigate what
 is wrong with the workload there, find the root cause, and tell me the exact
@@ -901,7 +901,7 @@ evidence (status, events, and logs) that supports it.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>run<span class="w"> </span>a2a<span class="w"> </span>--rm<span class="w"> </span>-i<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--image<span class="o">=</span>curlimages/curl:8.10.1<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>-m<span class="w"> </span><span class="m">300</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">'{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"A pod in the workshop-faults namespace keeps restarting. Investigate the workload there, find the root cause, and cite the exact status, events, and log lines that support it."}]}}}'</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>http://kagent-controller.kagent:8083/api/a2a/kagent/<span class="si">${</span><span class="nv">WORKSHOP_PREFIX</span><span class="si">}</span>-sre-agent
 </span></code></pre></div>
 <p>The agent will walk its SRE loop live: list the pods, describe the failing one,
 pull its events and logs, and converge on a conclusion.</p>

@@ -567,6 +567,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#tetragon-is-ready-but-the-sensitive-file-policy-fires-no-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tetragon is Ready but the sensitive-file policy fires no events
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -692,6 +701,15 @@
   <a href="#tetragon-not-ready-or-crashlooping" class="md-nav__link">
     <span class="md-ellipsis">
       Tetragon not Ready or CrashLooping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tetragon-is-ready-but-the-sensitive-file-policy-fires-no-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tetragon is Ready but the sensitive-file policy fires no events
     </span>
   </a>
   
@@ -835,18 +853,62 @@ permissions.</p>
   known Codespace limitation rather than blocking the workshop. See
   <a href="https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/cluster/tetragon/README.md"><code>cluster/tetragon/README.md</code></a>.</li>
 </ul>
+<h3 id="tetragon-is-ready-but-the-sensitive-file-policy-fires-no-events">Tetragon is Ready but the sensitive-file policy fires no events<a class="headerlink" href="#tetragon-is-ready-but-the-sensitive-file-policy-fires-no-events" title="Permanent link">#</a></h3>
+<p>You applied <code>sensitive-file-access.yaml</code>, started the <code>getevents</code> watch, and
+launched the <code>snoop</code> pod — but the stream stays empty. The Tetragon pods are
+healthy, so this is almost never a kernel problem. Work down this ladder:</p>
+<p><strong>1. Confirm the policy actually <em>loaded</em>, not just that <code>kubectl apply</code>
+succeeded.</strong> <code>apply</code> only means the apiserver stored the custom resource — the
+Tetragon agent still has to load the kprobe selectors into the kernel, and it
+can <strong>silently reject</strong> the policy at load time (it only logs a warn, and leaves
+the kprobe un-attached, so <strong>no event ever fires</strong>). This is the single most
+common cause. Check the per-policy state:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>ds/tetragon<span class="w"> </span>-c<span class="w"> </span>tetragon<span class="w"> </span>--<span class="w"> </span>tetra<span class="w"> </span>tracingpolicy<span class="w"> </span>list
+</span></code></pre></div>
+<p><code>STATE: enabled</code> is good. A <code>load_error</code> state (or an <code>ERROR</code> column) means the
+kprobe never attached. Look at <em>why</em> in the agent log:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span>logs<span class="w"> </span>ds/tetragon<span class="w"> </span>-c<span class="w"> </span>tetragon<span class="w"> </span>--tail<span class="o">=</span><span class="m">500</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-iE<span class="w"> </span><span class="s2">"tracing policy|detect-sensitive-file-access"</span>
+</span></code></pre></div>
+<p>A line like <code>ReturnArgAction type 'Post' unsupported</code> means you are running a
+<strong>stale copy of the policy</strong> from before the fix in this repo. Re-apply the
+policy from this repository (the fix removed <code>returnArgAction: Post</code>):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>-f<span class="w"> </span>cluster/tetragon/sensitive-file-access.yaml<span class="w"> </span>--ignore-not-found
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>kubectl<span class="w"> </span>apply<span class="w">  </span>-f<span class="w"> </span>cluster/tetragon/sensitive-file-access.yaml
+</span></code></pre></div>
+<p><strong>2. Give the kprobe a few seconds to attach, and keep the read in a loop.</strong>
+<code>tetra getevents</code> is a <strong>live tail</strong> — it shows only events that happen <em>after</em>
+it attaches and never replays history. After <code>apply</code>, wait ~10 s for the agent
+to load the selectors, and make sure the <code>snoop</code> pod reads <strong>in a loop</strong> (the
+workshop one-liner does: <code>while true; do cat … ; sleep 2; done</code>). A one-shot
+<code>cat</code> can fire before the kprobe is live and you will see nothing.</p>
+<p><strong>3. Isolate the <code>--namespace</code> filter.</strong> Drop it and watch the raw stream (or
+filter by pod) while the loop runs — this tells you whether the policy fired at
+all vs. whether the namespace filter dropped the event (pod metadata can take a
+few seconds to resolve):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>ds/tetragon<span class="w"> </span>-c<span class="w"> </span>tetragon<span class="w"> </span>--<span class="w"> </span>tetra<span class="w"> </span>getevents<span class="w"> </span>-o<span class="w"> </span>compact<span class="w"> </span>--pods<span class="w"> </span>snoop
+</span></code></pre></div>
+<p><strong>4. Read the output correctly.</strong> The compact renderer prints a
+<code>security_file_permission</code> file read as a <strong><code>read</code></strong> action line — <em>not</em> the
+literal word "kprobe":</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>📚 read    agent-sandbox/snoop /bin/cat /etc/passwd
+</span></code></pre></div>
+<p>If you see <code>process</code>/<code>exit</code> lines for <code>snoop</code> but no <code>read</code> line, the pod is
+running but the policy is not loaded — go back to step 1. A reproducible
+end-to-end check lives in
+<a href="https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/cluster/tetragon/validate-live.sh"><code>cluster/tetragon/validate-live.sh</code></a>.</p>
 <p><strong>Phoenix not Ready.</strong> It uses one RWO PVC with <code>strategy: Recreate</code> — never two
 pods on the same volume.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>get<span class="w"> </span>pods
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>logs<span class="w"> </span>deploy/phoenix
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>get<span class="w"> </span>pods
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>logs<span class="w"> </span>deploy/phoenix
 </span></code></pre></div>
 <hr />
 <h2 id="module-4-agents-mcp-wiring">Module 4 — Agents &amp; MCP wiring<a class="headerlink" href="#module-4-agents-mcp-wiring" title="Permanent link">#</a></h2>
 <p><strong>A <code>RemoteMCPServer</code> isn't <code>Accepted</code> / <code>discoveredTools</code> is empty.</strong> The tool
 server couldn't start or authenticate. Check the token and the server pod:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>mcpserver,remotemcpserver
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>remotemcpserver<span class="w"> </span>dynatrace-mcp-remote
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>logs<span class="w"> </span>deploy/kagent-controller
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>mcpserver,remotemcpserver
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>remotemcpserver<span class="w"> </span>dynatrace-mcp-remote
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>logs<span class="w"> </span>deploy/kagent-controller
 </span></code></pre></div>
 <ul>
 <li><code>GH_PAT</code> must be a fine-grained PAT scoped to the demo repo (Contents /
@@ -857,9 +919,9 @@ server couldn't start or authenticate. Check the token and the server pod:</p>
 </ul>
 <p><strong>An <code>Agent</code> isn't <code>Accepted</code>.</strong> Usually a bad <code>ModelConfig</code> or missing model
 secret.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>agents
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>agent<span class="w"> </span>sre-agent
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>kagent-deepseek<span class="w">    </span><span class="c1"># model key present?</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>agents
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>agent<span class="w"> </span><span class="si">${</span><span class="nv">WORKSHOP_PREFIX</span><span class="si">}</span>-sre-agent
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>kagent-deepseek<span class="w">    </span><span class="c1"># model key present?</span>
 </span></code></pre></div>
 <p><strong>A2A prompt times out.</strong> Multi-hop BMAD runs take minutes — keep the client
 timeout generous (<code>curl -m 300</code>). Watch progress in the kagent UI
@@ -877,19 +939,34 @@ egress rule if a workload legitimately needs more.</p>
 <h2 id="module-6-observe">Module 6 — Observe<a class="headerlink" href="#module-6-observe" title="Permanent link">#</a></h2>
 <p><strong>No agent traces in Dynatrace.</strong> First generate traffic (send a prompt). Then
 check the pipeline end to end:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>get<span class="w"> </span>otelcol
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/otel-gateway-collector<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-40
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>get<span class="w"> </span>otelcol
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/otel-gateway-collector<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-40
 </span></code></pre></div>
 <p>Confirm kagent <code>otel.tracing</code> points at
 <code>otel-gateway-collector.opentelemetry-operator-system.svc:4317</code>, and that the
 tenant/token scopes include <code>openTelemetryTrace.ingest</code>.</p>
+<p><strong>Gateway logs <code>connection refused</code> to <code>phoenix.phoenix.svc...:4317</code> at startup.</strong>
+Benign and self-healing — the gateway starts before Phoenix is Ready and retries.
+Once Phoenix is up the <code>otlp/phoenix</code> exporter connects and the warnings stop.
+Only investigate if it persists after <code>kubectl -n phoenix get pods</code> shows Phoenix
+<code>Running</code>.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>otlphttp</code>/<code>k8sattributes</code>/<code>resourcedetection</code> deprecation warnings</p>
+<p><code>"otlphttp" alias is deprecated; use "otlp_http"</code> and the matching
+<code>resource_detection</code> / <code>k8s_attributes</code> lines are informational in collector
+0.161+. The old aliases still work — not an error, no action needed.</p>
+</div>
+<p><strong>Phoenix shows the trace but Input / Output are empty.</strong> The gateway copies the
+kagent/ADK <code>gcp.vertex.agent.llm_request</code> / <code>llm_response</code> attributes onto the
+OpenInference <code>input.value</code> / <code>output.value</code> keys Phoenix reads. A collector from
+before that change shows bare spans — re-render it with <code>installOtelGateway</code>.</p>
 <hr />
 <h2 id="module-7-diagnose">Module 7 — Diagnose<a class="headerlink" href="#module-7-diagnose" title="Permanent link">#</a></h2>
-<p><strong><code>run.sh inject 12</code> exits 2 with "requires the astroshop-lite app".</strong> Scenario 12 is
+<p><strong><code>run.sh inject 12</code> exits 2 with "is opt-in … needs the astroshop-lite app".</strong> Scenario 12 is
 the opt-in app scenario. Either skip it (run 01–03) or deploy the demo once with a
 single Helm install (the platform stack is already up):
-<code>deployOtelDemoLight</code>
-(<code>deployOtelDemoLight</code>). Scenarios
+<code>deployOtelDemoLight</code>. The yellow <code>[ warn ]</code> + cyan <code>[ info ]</code> lines are guidance,
+not a failure. Scenarios
 01–03 have no such dependency.</p>
 <p><strong><code>unknown/ambiguous scenario id</code>.</strong> Pass a numeric prefix (<code>01</code>, <code>12</code>) or the
 full dir name (<code>01-crashloopbackoff</code>); run <code>bash scenarios/run.sh list</code> to see
@@ -911,10 +988,10 @@ namespace. Re-run it, or <code>kubectl delete ns workshop-faults --ignore-not-fo
 <h2 id="module-8-evaluate">Module 8 — Evaluate<a class="headerlink" href="#module-8-evaluate" title="Permanent link">#</a></h2>
 <p><strong>Phoenix UI empty.</strong> Same root cause as "no traces" above — fix the OTel
 pipeline, then re-send prompts. Confirm the forward:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>listApps<span class="w">    </span><span class="c1"># the phoenix URL</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>listApps<span class="w">    </span><span class="c1"># the phoenix URL</span>
 </span></code></pre></div>
 <p><strong>dt-evals can't resolve dependencies.</strong> Run inside <code>evals/</code> with <code>uv</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
 </span></code></pre></div>
 <p>The concrete suite ships in module 8 — <code>evals/dt-evals/workshop-agents.dt-eval.yaml</code>
 plus the Phoenix scripts are on <code>main</code>.</p>

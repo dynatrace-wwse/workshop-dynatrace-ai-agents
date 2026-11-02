@@ -744,7 +744,7 @@ requires the <code>opentelemetry-collector-contrib</code> image or a custom OCB 
 </div>
 <h2 id="1-generate-some-traffic">1. Generate some traffic<a class="headerlink" href="#1-generate-some-traffic" title="Permanent link">#</a></h2>
 <p>Observability needs something to observe. Send a few prompts so there are runs to
-inspect — either way from module 4 works (kagent UI → <strong>sre-agent</strong>, or <code>askSreAgent</code>
+inspect — either way from module 4 works (kagent UI → <strong><code>&lt;prefix&gt;-sre-agent</code></strong>, or <code>askSreAgent</code>
 below):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>generateAgentTraffic<span class="w">      </span><span class="c1"># two diagnostic prompts to the SRE agent</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>askSreAgent<span class="w"> </span><span class="s2">"List pods in all namespaces and summarise anything not Running."</span>

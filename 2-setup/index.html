@@ -359,6 +359,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="1. Look at your cluster">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#your-workshop-prefix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Your workshop prefix
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -591,6 +606,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="1. Look at your cluster">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#your-workshop-prefix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Your workshop prefix
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -674,14 +704,24 @@ Everything is injected for you, per learner:</p>
 <td><code>dt0s16</code> platform token</td>
 </tr>
 <tr>
+<td><code>WORKSHOP_DISPENSER_URL</code> + <code>WORKSHOP_ROOM_PASSWORD</code></td>
+<td style="text-align: center;">optional</td>
+<td>instructor-led: both from your workshop host — exchanged for your own model-proxy key</td>
+</tr>
+<tr>
 <td><code>DEEPSEEK_API_KEY</code></td>
 <td style="text-align: center;">optional</td>
-<td>DeepSeek key — without it the agents use an in-cluster model</td>
+<td>DeepSeek key — without it (and without a room password) the agents use an in-cluster model</td>
 </tr>
 <tr>
 <td><code>GH_PAT</code></td>
 <td style="text-align: center;">optional</td>
 <td>fine-grained PAT, one demo repo, for the BMAD crew</td>
+</tr>
+<tr>
+<td><code>WORKSHOP_PREFIX</code></td>
+<td style="text-align: center;">optional</td>
+<td>your label, e.g. <code>team-alpha</code> — derived from your GitHub user when unset</td>
 </tr>
 </tbody>
 </table>
@@ -693,10 +733,19 @@ Everything is injected for you, per learner:</p>
 </span></code></pre></div>
 <div class="admonition info">
 <p class="admonition-title">The agents' LLM</p>
-<p>The agents are cost-optimized for <strong>DeepSeek</strong> (<code>deepseek-chat</code>). When no
-<code>DEEPSEEK_API_KEY</code> is present — the default in the Enablement App — the
+<p>The agents are cost-optimized for <strong>DeepSeek</strong> (<code>deepseek-chat</code>), reached one
+of three ways, first match wins:</p>
+<ol>
+<li><strong>Room password</strong> — at an instructor-led workshop the host gives you a
+   room password and a dispenser URL. At startup they are exchanged for a
+   personal, budget-capped key on the host's model proxy; you never handle a
+   DeepSeek key. Re-run <code>dispenseLlmKey</code> if the host rotates the password.</li>
+<li><strong>Your own <code>DEEPSEEK_API_KEY</code>.</strong></li>
+<li><strong>In-cluster model</strong> — otherwise.</li>
+</ol>
+<p>When none of the first two is present — the default in the Enablement App — the
 platform deploys <strong>Ollama</strong> with a small tool-calling model
-(<code>qwen2.5:3b</code>) inside your cluster, and the same <code>workshop-llm</code>
+(<code>qwen2.5:3b</code>) inside your cluster, and the same <code>&lt;prefix&gt;-workshop-llm</code>
 <code>ModelConfig</code> points at it. Every step of the workshop works on it; answers
 are slower and less sharp than DeepSeek's, which is itself a useful lesson
 for module 9.</p>
@@ -711,6 +760,18 @@ created when the environment started — module 3 walks through each.</p>
 <p>Check which credentials your session has (names only — values are never printed):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>variablesNeeded<span class="w"> </span>DT_ENVIRONMENT:false<span class="w"> </span>DT_INGEST_TOKEN:false<span class="w"> </span>DT_PLATFORM_TOKEN:false<span class="w"> </span>DEEPSEEK_API_KEY:false
 </span></code></pre></div>
+<h3 id="your-workshop-prefix">Your workshop prefix<a class="headerlink" href="#your-workshop-prefix" title="Permanent link">#</a></h3>
+<p>Every learner gets a short label, <code>WORKSHOP_PREFIX</code>. Your agents are named after
+it (<code>&lt;prefix&gt;-sre-agent</code>, <code>&lt;prefix&gt;-bmad-orchestrator</code>, …) and the OpenTelemetry
+gateway stamps it on every span as <code>workshop.attendee</code>, so in a tenant shared by
+a whole class you can always find <em>your</em> agents and <em>your</em> telemetry:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="nv">$WORKSHOP_PREFIX</span><span class="s2">"</span>
+</span></code></pre></div>
+<p>You never have to set it. In a Codespace it is derived from your GitHub user, in
+the Enablement App from your learner id, locally it is <code>workshop</code>. Set the
+<code>WORKSHOP_PREFIX</code> Codespace secret to pick your own (lowercase, starts with a
+letter, 2–19 characters of <code>a-z 0-9 -</code>); an invalid value is normalised, never
+rejected.</p>
 <!-- LAB_QUESTION
 type: shell-verification
 question: "Verify your k3d cluster is up"
@@ -725,7 +786,7 @@ explanation: "Your single-node k3d cluster is Ready."
 <h2 id="2-the-apps-you-will-open">2. The apps you will open<a class="headerlink" href="#2-the-apps-you-will-open" title="Permanent link">#</a></h2>
 <p>The workshop has two web UIs. Instead of port-forwards, they are published
 through the framework's ingress and listed by one command:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>listApps
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>listApps
 </span></code></pre></div>
 <table>
 <thead>

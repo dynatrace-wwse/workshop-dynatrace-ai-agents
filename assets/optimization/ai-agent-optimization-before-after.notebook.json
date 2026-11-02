@@ -1,0 +1,163 @@
+{
+  "defaultSegments": [],
+  "defaultTimeframe": {
+    "from": "now()-7d",
+    "to": "now()"
+  },
+  "sections": [
+    {
+      "id": "84922054-3f91-4f1c-854e-9071c5846864",
+      "type": "markdown",
+      "markdown": "# AI Agent Optimization — a measurable before/after\n\n**ISI-6720 · Phase 5** · Tenant `oat05854.dev.apps.dynatracelabs.com` · data: `gen_ai.*` spans from the kagent crew (`workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\"`).\n\nThis notebook is the *reproducible story* behind module **`docs/9-optimize.md`**. It follows the optimization loop:\n\n> **observe → find the waste → make one change → re-measure → keep only if quality held.**\n\nRun it top-to-bottom. Sections 1–3 find the waste; section 4 is the change; section 5 is the measured before/after; section 6 is the keep/revert rule."
+    },
+    {
+      "id": "c3cdea9d-a2c8-43b0-88d8-a81c23daaac3",
+      "type": "markdown",
+      "markdown": "## 1 · Rank agents by spend\nStart at the top of this list — a 20% cut on the priciest agent beats a 50% cut on a rare one."
+    },
+    {
+      "drilldownPath": [],
+      "filterSegments": [],
+      "id": "87a84b47-5a68-470c-9291-c945c4085284",
+      "previousFilterSegments": [],
+      "showInput": true,
+      "showTitle": true,
+      "state": {
+        "input": {
+          "timeframe": {
+            "from": "now()-7d",
+            "to": "now()"
+          },
+          "value": "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens)\n| summarize llmCalls = count(),\n    inputTokens = sum(gen_ai.usage.input_tokens),\n    outputTokens = sum(gen_ai.usage.output_tokens),\n    by:{agent = service.name}\n| fieldsAdd totalTokens = inputTokens + outputTokens\n| sort totalTokens desc"
+        }
+      },
+      "title": "Token spend by agent (7d)",
+      "type": "dql"
+    },
+    {
+      "id": "f8a17b82-74c6-4adf-9881-e41672836c75",
+      "type": "markdown",
+      "markdown": "## 2 · Spot the waste signature\nA high **input : output ratio** and a large **avg input per call** means the model re-reads a bloated context (big system prompt + unused tool schemas) on every single call. `${WORKSHOP_PREFIX}-sre-agent` is the outlier here."
+    },
+    {
+      "drilldownPath": [],
+      "filterSegments": [],
+      "id": "63ed07a9-002e-4338-afcc-4c0e103faa08",
+      "previousFilterSegments": [],
+      "showInput": true,
+      "showTitle": true,
+      "state": {
+        "input": {
+          "timeframe": {
+            "from": "now()-7d",
+            "to": "now()"
+          },
+          "value": "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens)\n| summarize llmCalls = count(),\n    inputTokens = sum(gen_ai.usage.input_tokens),\n    outputTokens = sum(gen_ai.usage.output_tokens),\n    by:{agent = service.name}\n| fieldsAdd totalTokens = inputTokens + outputTokens,\n    inOutRatio = round(toDouble(inputTokens) / outputTokens, decimals: 1),\n    avgInputPerCall = round(toDouble(inputTokens) / llmCalls)\n| sort avgInputPerCall desc"
+        }
+      },
+      "title": "Input : output ratio & avg input per call",
+      "type": "dql"
+    },
+    {
+      "id": "8b9b2285-2da8-4bd9-a6bd-d5ba86a82e20",
+      "type": "markdown",
+      "markdown": "## 3 · Which tools does the agent actually use?\nEvery tool granted in the agent's `toolNames` is described in **every** prompt — billed as input tokens whether it is called or not. List the tools the SRE agent *actually* calls, then compare against its granted set in `agents/sre/sre-agent.yaml`. Anything granted-but-never-called is pure overhead to drop."
+    },
+    {
+      "drilldownPath": [],
+      "filterSegments": [],
+      "id": "85dd7f75-6b29-434f-a4e7-326fd7b62c62",
+      "previousFilterSegments": [],
+      "showInput": true,
+      "showTitle": true,
+      "state": {
+        "input": {
+          "timeframe": {
+            "from": "now()-7d",
+            "to": "now()"
+          },
+          "value": "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\"\n    and gen_ai.operation.name == \"execute_tool\" and gen_ai.tool.name != \"(merged tools)\"\n| summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name}\n| sort agent asc, calls desc"
+        }
+      },
+      "title": "Tools actually called, by agent (7d)",
+      "type": "dql"
+    },
+    {
+      "id": "a1c0ffee-6972-4c0e-9a11-7001c0bba601",
+      "type": "markdown",
+      "markdown": "### 3a · Tool coverage — the NEVER-called tools, by name\nThe cell above lists tools the agent *did* call. The optimization you want is the **complement**: which granted tools did it **never** call? Those are the pure-overhead schemas to drop first. The cell below left-joins the SRE agent's **granted** tool set (from `agents/sre/sre-agent.yaml`, shipped as `tool-grants.lookup.json`) against the tools it actually called — `coalesce(…, 0)` turns an uncalled tool into `0` and the `verdict` column flags the drop candidates. The `service.name` filter is **intentional** here: coverage is a per-agent question. Swap the `service.name` and the inline `data record(…)` rows to score another agent."
+    },
+    {
+      "drilldownPath": [],
+      "filterSegments": [],
+      "id": "a1c0ffee-6972-4c0e-9a11-7001c0bba602",
+      "previousFilterSegments": [],
+      "showInput": true,
+      "showTitle": true,
+      "state": {
+        "input": {
+          "timeframe": {
+            "from": "now()-7d",
+            "to": "now()"
+          },
+          "value": "data record(tool = \"k8s_get_resources\"),\n     record(tool = \"k8s_describe_resource\"),\n     record(tool = \"k8s_get_resource_yaml\"),\n     record(tool = \"k8s_get_pod_logs\"),\n     record(tool = \"k8s_get_events\"),\n     record(tool = \"k8s_get_available_api_resources\"),\n     record(tool = \"k8s_get_cluster_configuration\"),\n     record(tool = \"k8s_check_service_connectivity\"),\n     record(tool = \"k8s_apply_manifest\"),\n     record(tool = \"k8s_patch_resource\"),\n     record(tool = \"k8s_scale\"),\n     record(tool = \"k8s_rollout\"),\n     record(tool = \"k8s_label_resource\"),\n     record(tool = \"k8s_annotate_resource\"),\n     record(tool = \"k8s_execute_command\")\n| lookup [\n    fetch spans\n    | filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\"\n        and service.name == \"${WORKSHOP_PREFIX}-sre-agent\"\n        and gen_ai.operation.name == \"execute_tool\"\n        and gen_ai.tool.name != \"(merged tools)\"\n    | summarize calls = count(), by:{tool = gen_ai.tool.name}\n  ], sourceField:tool, lookupField:tool, prefix:\"called_\"\n| fieldsAdd calls = coalesce(called_calls, 0)\n| fieldsAdd verdict = if(calls == 0, \"NEVER CALLED — drop candidate\", else: \"used\")\n| fieldsRemove called_tool, called_calls\n| sort calls asc"
+        }
+      },
+      "title": "Granted vs. called tools (SRE agent) — drop the zero-call rows",
+      "type": "dql"
+    },
+    {
+      "id": "310445da-9dc0-4495-bd4e-0cee95c1da7c",
+      "type": "markdown",
+      "markdown": "## 4 · The change — trim the unused tools\nIn `agents/sre/sre-agent.yaml` the Dynatrace MCP server is attached with **no `toolNames` filter**, so *every* discovered Dynatrace tool schema is injected into every prompt, and the k8s tool list grants 15 tools. Section 3 shows the agent only ever calls a handful.\n\nPin `toolNames` to just the tools the traces prove it uses, re-apply (`applyLeanSreAgent` — it applies `agents/sre/sre-agent-lean.yaml`, which pins five Dynatrace tools), then re-run the **same** prompts so the before/after is apples-to-apples:\n\n```yaml\n- type: McpServer\n  mcpServer:\n    apiGroup: kagent.dev\n    kind: RemoteMCPServer\n    name: dynatrace-mcp-remote\n    toolNames:          # was: unset (every tool) → now: only what the traces show\n      - list_problems\n      - get_logs\n      - execute_dql\n```\n\n> Change **one** thing at a time. If you trim tools *and* shorten the prompt in the same step, you can't attribute the win."
+    },
+    {
+      "id": "e17550d8-5359-4f60-b137-492c0e61c351",
+      "type": "markdown",
+      "markdown": "## 5 · Re-measure — the before/after\nThe metric that moves is **avg input tokens per LLM call**, broken out **per agent**. Run this query over your **before** window, apply the change, replay the prompts, then run it again over the **after** window — reading the row for the agent you changed. The `timeframe` picker on this section is how you switch windows."
+    },
+    {
+      "drilldownPath": [],
+      "filterSegments": [],
+      "id": "75ce79ac-01b7-4a31-b81e-c61c2e1bfef9",
+      "previousFilterSegments": [],
+      "showInput": true,
+      "showTitle": true,
+      "state": {
+        "input": {
+          "timeframe": {
+            "from": "now()-7d",
+            "to": "now()"
+          },
+          "value": "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\" and isNotNull(gen_ai.usage.input_tokens)\n| summarize llmCalls = count(),\n    avgInputPerCall = round(avg(gen_ai.usage.input_tokens)),\n    medianInputPerCall = round(median(gen_ai.usage.input_tokens)),\n    totalInputTokens = sum(gen_ai.usage.input_tokens), by:{service.name}\n| sort avgInputPerCall desc"
+        }
+      },
+      "title": "Avg input tokens per call, by agent (switch the timeframe for before vs after)",
+      "type": "dql"
+    },
+    {
+      "drilldownPath": [],
+      "filterSegments": [],
+      "id": "28f9dca3-826c-4b09-8952-9909bd493704",
+      "previousFilterSegments": [],
+      "showInput": true,
+      "showTitle": true,
+      "state": {
+        "input": {
+          "timeframe": {
+            "from": "now()-7d",
+            "to": "now()"
+          },
+          "value": "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\" and isNotNull(gen_ai.usage.input_tokens)\n| makeTimeseries inputTokens = sum(gen_ai.usage.input_tokens), by:{service.name}"
+        }
+      },
+      "title": "Input-token trend by agent — watch the top line bend down after the change",
+      "type": "dql"
+    },
+    {
+      "id": "3b569c67-2df8-49eb-b97e-e15a1e54b18e",
+      "type": "markdown",
+      "markdown": "## 6 · The rule — keep or revert\nShip the change only when **cost went down AND the eval pass rate did not** (module 05, `evals/dt-evals`). A cheaper agent that answers wrong is more expensive than the costly one that's right.\n\n| Metric | Before | After | Keep? |\n|---|:--:|:--:|:--:|\n| Avg input tokens / call | _(§5)_ | _(§5)_ | — |\n| Eval pass rate | _(module 8)_ | _(module 8)_ | ✅ only if ≥ before |\n\nThen make it continuous: keep `dt-evals` in CI as a budget + regression gate, and alert when any agent's tokens-per-task drifts back up (companion dashboard: *Workshop · AI Agent Optimization*)."
+    }
+  ]
+}
