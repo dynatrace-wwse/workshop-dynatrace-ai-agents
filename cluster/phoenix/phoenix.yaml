@@ -51,6 +51,27 @@ spec:
               value: "6006"
             - name: PHOENIX_GRPC_PORT
               value: "4317"
+            # >>> deepseek-provider  (installPhoenix drops this block when the
+            # session has no LLM key — the in-cluster Ollama path)
+            # DeepSeek preconfigured for the playground/evals (upstream ISI-6959):
+            # attendees never hand-enter a key. Phoenix resolves Browser > DB
+            # Secrets > Env, so an env default needs no PHOENIX_SECRET.
+            # optional: true keeps Phoenix booting before the secret exists.
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: phoenix-deepseek
+                  key: DEEPSEEK_API_KEY
+                  optional: true
+            # Restrict the playground model menu to the one approved provider.
+            - name: PHOENIX_ALLOWED_PROVIDERS
+              value: "DEEPSEEK"
+            # Injected by envsubst in installPhoenix from WORKSHOP_LLM_BASE_URL:
+            # DeepSeek direct by default, or the per-attendee model-proxy
+            # endpoint when a room password dispensed one (ISI-6996).
+            - name: DEEPSEEK_BASE_URL
+              value: "${WORKSHOP_LLM_BASE_URL}"
+            # <<< deepseek-provider
           ports:
             - { name: ui-http, containerPort: 6006 }
             - { name: otlp-grpc, containerPort: 4317 }

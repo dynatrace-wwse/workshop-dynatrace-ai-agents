@@ -53,6 +53,20 @@ aiwClusterName(){
   fi
 }
 
+# Optional room-password model proxy (upstream ISI-6996). When the workshop
+# host runs one, .devcontainer/dispense-llm.sh writes the per-attendee proxy
+# URL + virtual key to this gitignored 0600 file; every terminal loads it so
+# the agents, Phoenix and the eval judge all go through the proxy. It is only
+# sourced when it is a regular file owned by this user and not writable by
+# anyone else — it is executed, so a planted file must not be.
+_AIW_LLM_ENV="${REPO_PATH}/.workshop-llm.env"
+aiwLoadLlmEnv(){
+  [ -f "$_AIW_LLM_ENV" ] && [ ! -L "$_AIW_LLM_ENV" ] || return 1
+  [ -n "$(find "$_AIW_LLM_ENV" -maxdepth 0 -user "$(id -u)" ! -perm /022 2>/dev/null)" ] || return 1
+  . "$_AIW_LLM_ENV"
+}
+aiwLoadLlmEnv || true
+
 aiwHasLlmKey(){ [ -n "${DEEPSEEK_API_KEY:-}${LLM_API_KEY:-}" ]; }
 
 # ----------------------------------------------------------------------
@@ -205,14 +219,26 @@ installKagent(){
     --version "${KAGENT_CHART_VERSION}" --namespace kagent --wait --timeout 5m
   helm upgrade --install kagent "${KAGENT_OCI_REPO}/kagent" \
     --version "${KAGENT_CHART_VERSION}" --namespace kagent \
-    -f "${REPO_PATH}/cluster/kagent/values.yaml" --wait --timeout 8m
+    -f "${REPO_PATH}/cluster/kagent/values.yaml" \
+    --set "providers.openAI.model=${WORKSHOP_LLM_MODEL}" \
+    --set "providers.openAI.config.baseUrl=${WORKSHOP_LLM_BASE_URL}" \
+    --wait --timeout 8m
   registerApp kagent kagent kagent-ui 8080
 }
 
 installPhoenix(){
   printInfoSection "Phoenix (LLM trace + eval UI)"
   _aiwNamespaces
-  kubectl apply -f "${REPO_PATH}/cluster/phoenix/phoenix.yaml"
+  aiwLlmSecret
+  # DeepSeek preconfigured in the playground (upstream ISI-6959) only when a
+  # key exists; with the in-cluster model the block is dropped and Phoenix
+  # keeps its default provider list.
+  export WORKSHOP_LLM_BASE_URL
+  if aiwHasLlmKey; then
+    envsubst '${WORKSHOP_LLM_BASE_URL}' < "${REPO_PATH}/cluster/phoenix/phoenix.yaml" | kubectl apply -f -
+  else
+    sed '/# >>> deepseek-provider/,/# <<< deepseek-provider/d' "${REPO_PATH}/cluster/phoenix/phoenix.yaml" | kubectl apply -f -
+  fi
   kubectl -n phoenix rollout status deploy/phoenix --timeout=300s
   registerApp phoenix phoenix phoenix 6006
 }
@@ -233,6 +259,7 @@ installAgentSandbox(){
 aiwCiLite(){ [ "${AIW_CI_LITE:-false}" = "true" ]; }
 
 installPlatform(){
+  aiwDispenseLlm
   installDynatrace
   installOtelGateway
   installPhoenix
@@ -277,12 +304,46 @@ checkDynatrace(){
 # ======================================================================
 # LLM backend — DeepSeek when a key exists, in-cluster Ollama otherwise
 # ======================================================================
+# The key reaches kubectl on stdin (printf is a builtin), never in argv.
+# kagent reads secret/kagent-deepseek; Phoenix gets its own copy so its
+# playground and evals are preconfigured (upstream ISI-6959).
 aiwLlmSecret(){
-  local key="${DEEPSEEK_API_KEY:-${LLM_API_KEY:-}}"
+  local key="${DEEPSEEK_API_KEY:-${LLM_API_KEY:-}}" ns
   [ -n "$key" ] || return 0
-  kubectl -n kagent create secret generic kagent-deepseek \
-    --from-literal=DEEPSEEK_API_KEY="$key" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-  printInfo "secret/kagent-deepseek written (DeepSeek key present)"
+  for ns in kagent phoenix; do
+    kubectl get ns "$ns" >/dev/null 2>&1 || continue
+    printf '%s' "$key" | kubectl -n "$ns" create secret generic "$([ "$ns" = kagent ] && echo kagent-deepseek || echo phoenix-deepseek)" \
+      --from-file=DEEPSEEK_API_KEY=/dev/stdin --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  done
+  printInfo "LLM key secrets written (kagent-deepseek, phoenix-deepseek)"
+}
+
+# Exchange the room password for a per-attendee proxy key — only when the
+# host configured one (both Codespace secrets set). Optional and fail-closed:
+# on any failure nothing is written and the session falls back to
+# DEEPSEEK_API_KEY if set, otherwise to the in-cluster Ollama model.
+# A key already dispensed is reused; `dispenseLlmKey` mints a fresh one.
+aiwDispenseLlm(){
+  [ -n "${WORKSHOP_DISPENSER_URL:-}${WORKSHOP_ROOM_PASSWORD:-}" ] || return 0
+  if [ "${1:-}" != "force" ] && aiwLoadLlmEnv; then
+    printInfo "Model proxy key already dispensed (.workshop-llm.env) — reusing it"
+    return 0
+  fi
+  local rc
+  bash "${REPO_PATH}/.devcontainer/dispense-llm.sh" "$_AIW_LLM_ENV"; rc=$?
+  if [ "$rc" -eq 0 ] && aiwLoadLlmEnv; then
+    printInfo "Agents, Phoenix and the eval judge use the workshop model proxy"
+    return 0
+  fi
+  if aiwHasLlmKey; then printWarn "Model proxy unavailable — using DEEPSEEK_API_KEY directly"
+  else printWarn "Model proxy unavailable — agents fall back to the in-cluster Ollama model"; fi
+  return 0
+}
+
+# After the host rotates the room password: mint a new key and re-wire.
+dispenseLlmKey(){
+  aiwDispenseLlm force
+  aiwHasLlmKey && kubectl get ns kagent >/dev/null 2>&1 && installAgents
 }
 
 deployOllama(){

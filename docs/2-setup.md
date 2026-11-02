@@ -33,7 +33,8 @@ You create **no** tokens. Open the **Terminal** tab and continue.
     | `DT_OPERATOR_TOKEN` | for Dynatrace | operator token (Kubernetes monitoring) |
     | `DT_INGEST_TOKEN` | for Dynatrace | OTLP ingest: traces, metrics, logs, events |
     | `DT_PLATFORM_TOKEN` | for the Dynatrace MCP | `dt0s16` platform token |
-    | `DEEPSEEK_API_KEY` | optional | DeepSeek key — without it the agents use an in-cluster model |
+    | `WORKSHOP_DISPENSER_URL` + `WORKSHOP_ROOM_PASSWORD` | optional | instructor-led: both from your workshop host — exchanged for your own model-proxy key |
+    | `DEEPSEEK_API_KEY` | optional | DeepSeek key — without it (and without a room password) the agents use an in-cluster model |
     | `GH_PAT` | optional | fine-grained PAT, one demo repo, for the BMAD crew |
     | `WORKSHOP_PREFIX` | optional | your label, e.g. `team-alpha` — derived from your GitHub user when unset |
 
@@ -46,8 +47,17 @@ cd .devcontainer && make start
 ```
 
 !!! info "The agents' LLM"
-    The agents are cost-optimized for **DeepSeek** (`deepseek-chat`). When no
-    `DEEPSEEK_API_KEY` is present — the default in the Enablement App — the
+    The agents are cost-optimized for **DeepSeek** (`deepseek-chat`), reached one
+    of three ways, first match wins:
+
+    1. **Room password** — at an instructor-led workshop the host gives you a
+       room password and a dispenser URL. At startup they are exchanged for a
+       personal, budget-capped key on the host's model proxy; you never handle a
+       DeepSeek key. Re-run `dispenseLlmKey` if the host rotates the password.
+    2. **Your own `DEEPSEEK_API_KEY`.**
+    3. **In-cluster model** — otherwise.
+
+    When none of the first two is present — the default in the Enablement App — the
     platform deploys **Ollama** with a small tool-calling model
     (`qwen2.5:3b`) inside your cluster, and the same `<prefix>-workshop-llm`
     `ModelConfig` points at it. Every step of the workshop works on it; answers

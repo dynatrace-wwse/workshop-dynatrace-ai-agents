@@ -238,3 +238,11 @@ __pycache__/
 evals/dt-evals/*.generated.yaml
 evals/dt-evals/*.generated.dt-eval.yaml
 evals/phoenix/out/
+
+# ── Ported from upstream (ISI-6996 / ISI-6986) ─────────────────────────────
+# Dispensed per-attendee model-proxy endpoint + virtual key (0600), written by
+# .devcontainer/dispense-llm.sh. Never commit.
+.workshop-llm.env
+.workshop-llm.env.*
+# Attendee-rendered Dynatrace assets (envsubst output of ${WORKSHOP_PREFIX})
+.rendered/

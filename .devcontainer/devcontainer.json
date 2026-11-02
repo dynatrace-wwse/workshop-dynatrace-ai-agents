@@ -53,6 +53,12 @@
     "DT_PLATFORM_TOKEN": {
       "description": "Dynatrace platform token (dt0s16) for the Dynatrace MCP server and dtctl"
     },
+    "WORKSHOP_DISPENSER_URL": {
+      "description": "Optional, instructor-led only. The model-proxy dispenser URL (https) from your workshop host, given together with the room password."
+    },
+    "WORKSHOP_ROOM_PASSWORD": {
+      "description": "Optional, instructor-led only. The room password from your workshop host; exchanged at startup for your own budget-capped model key."
+    },
     "DEEPSEEK_API_KEY": {
       "description": "Optional. DeepSeek API key for the agents. Without it the agents use a small in-cluster Ollama model."
     },
