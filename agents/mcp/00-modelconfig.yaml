@@ -1,6 +1,7 @@
 # ── Phase 3 · shared agent LLM (the "brain") ─────────────────────────────────
 # Every workshop agent — the SRE agent and the whole BMAD crew — points at THIS
-# ModelConfig by name (`modelConfig: workshop-llm`). Defining it once here keeps
+# ModelConfig by name (`modelConfig: ${WORKSHOP_PREFIX}-workshop-llm`; the prefix is
+# resolved by envsubst in installAgents, ISI-6986). Defining it once here keeps
 # the model/provider choice in a single place.
 #
 # Default: DeepSeek (ISI-6716 — chosen for the workshop's cost-efficiency theme).
@@ -19,7 +20,7 @@
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
-  name: workshop-llm
+  name: ${WORKSHOP_PREFIX}-workshop-llm
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents

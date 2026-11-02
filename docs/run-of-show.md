@@ -53,7 +53,7 @@ then the **SRE agent**, then the BMAD crew. kagent's built-in
 ```bash
 kubectl -n kagent get mcpserver,remotemcpserver
 kubectl -n kagent get remotemcpserver kagent-tool-server -o jsonpath='{.status.discoveredTools[*].name}'; echo
-kubectl -n kagent get agents          # sre-agent + six bmad-* should be Accepted
+kubectl -n kagent get agents          # <prefix>-sre-agent + six <prefix>-bmad-* should be Accepted
 ```
 
 **Go deeper.** [4 — Agents & MCP wiring](4-agents-mcp.md).
@@ -65,14 +65,14 @@ kubectl -n kagent get agents          # sre-agent + six bmad-* should be Accepte
 **What & why.** Prove the agent is alive and can reach its Kubernetes tools with a
 harmless read-only prompt. This is the "list the pods" baseline — no fault yet.
 
-**Do it.** Paste the prompt into the **sre-agent** in the kagent UI
+**Do it.** Paste the prompt into the **`<prefix>-sre-agent`** in the kagent UI
 (the **kagent** app — `listApps`), or send it over A2A:
 
 ```bash
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace and tell me if any are unhealthy."}]}}}' \
-  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+  http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-sre-agent
 ```
 
 **Apply this.** You should get a grounded answer naming real pods — the agent
@@ -161,7 +161,7 @@ are fresh runs to open in Phoenix and Dynatrace in the next steps.
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List pods in all namespaces and summarise anything not Running."}]}}}' \
-  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+  http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-sre-agent
 ```
 
 **Apply this.** Within a few seconds this run is a trace in both backends: an
@@ -273,13 +273,13 @@ the platform: the **BMAD crew** — a six-member orchestrated workflow (analyst 
 → architect → developer → QA, driven by the orchestrator). A BMAD run is a long,
 multi-hop trace — exactly the kind of workload the optimize steps later target.
 
-**Do it.** Send the orchestrator a task (kagent UI → **bmad-orchestrator**, or A2A):
+**Do it.** Send the orchestrator a task (kagent UI → **`<prefix>-bmad-orchestrator`**, or A2A):
 
 ```bash
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"Build a simple Todo app in <owner>/<repo>. Run the full BMAD workflow and open a PR."}]}}}' \
-  http://kagent-controller.kagent:8083/api/a2a/kagent/bmad-orchestrator
+  http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-bmad-orchestrator
 ```
 
 **Apply this.** In the trace you'll see the orchestrator's **A2A hops** to each

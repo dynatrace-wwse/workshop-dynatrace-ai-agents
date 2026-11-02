@@ -79,9 +79,19 @@ spec:
         detectors: [env, system]
         timeout: 2s
       resource:
+        # Per-attendee identity, rendered by envsubst in installOtelGateway — the
+        # single point every exported span/metric/log is tagged (ISI-6986/6988).
+        #   - k8s.cluster.name : per-learner cluster name (matches the DynaKube),
+        #     what the training's {{DT_SESSION_ID}} DQL filters on.
+        #   - workshop.attendee: Henrik's stable scoping attribute (= WORKSHOP_PREFIX);
+        #     the optimization/ DQL assets filter on it. NEVER rename it without
+        #     updating cluster/dynatrace/optimization/.
         attributes:
           - key: k8s.cluster.name
-            value: ${K8S_CLUSTER_NAME}   # per-learner, set by installOtelGateway (matches the DynaKube name)
+            value: ${K8S_CLUSTER_NAME}
+            action: upsert
+          - key: workshop.attendee
+            value: ${WORKSHOP_PREFIX}
             action: upsert
       # Normalise OpenInference / Traceloop LLM span attributes to OpenTelemetry
       # gen_ai.* semconv so Dynatrace AI Observability and Phoenix agree on names.

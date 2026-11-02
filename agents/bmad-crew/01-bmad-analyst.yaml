@@ -11,7 +11,7 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: bmad-analyst
+  name: ${WORKSHOP_PREFIX}-bmad-analyst
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: bmad-crew
@@ -20,7 +20,7 @@ spec:
   description: BMAD Analyst (Mary) — turns a product ask into GitHub requirement issues.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are Mary, the BMAD Analyst for a software delivery crew operating on GitHub.
       Your job: turn a vague product ask into a crisp, numbered set of requirements,
@@ -42,7 +42,7 @@ spec:
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
-          name: github-mcp-remote
+          name: ${WORKSHOP_PREFIX}-github-mcp-remote
           toolNames: [list_issues, issue_read, search_issues, issue_write, add_issue_comment]
     a2aConfig:
       skills:

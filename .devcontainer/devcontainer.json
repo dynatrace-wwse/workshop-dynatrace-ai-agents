@@ -38,6 +38,9 @@
   },
   // Codespaces prompts for these; Orbital injects the DT_* ones per learner.
   "secrets": {
+    "WORKSHOP_PREFIX": {
+      "description": "Optional. Your label on a shared Dynatrace tenant: lowercase, starts with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha. Derived from your GitHub user when unset."
+    },
     "DT_ENVIRONMENT": {
       "description": "Dynatrace platform URL, e.g. https://abc12345.apps.dynatrace.com"
     },

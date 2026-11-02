@@ -13,7 +13,10 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: sre-agent
+  # Templated with ${WORKSHOP_PREFIX} (ISI-6986/6989): kagent emits the Agent
+  # name as the OTel service.name, so traces arrive as ${WORKSHOP_PREFIX}-sre-agent.
+  # Resolved by envsubst at apply time (installAgents) — never commit an edit.
+  name: ${WORKSHOP_PREFIX}-sre-agent
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
@@ -22,7 +25,7 @@ spec:
   description: SRE agent — investigates and operates the Kubernetes cluster with Dynatrace observability.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are the SRE agent for a Kubernetes cluster that is monitored by Dynatrace.
       Your job is to INVESTIGATE problems and, when asked, safely OPERATE the cluster.

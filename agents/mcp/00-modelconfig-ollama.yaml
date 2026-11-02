@@ -1,10 +1,10 @@
-# Offline twin of 00-modelconfig.yaml — same name (`workshop-llm`), so every
+# Offline twin of 00-modelconfig.yaml — same name (`${WORKSHOP_PREFIX}-workshop-llm`), so every
 # agent works unchanged; installAgents applies this one only when no DeepSeek
 # key is present. The model must support tool calling (qwen2.5 does).
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
-  name: workshop-llm
+  name: ${WORKSHOP_PREFIX}-workshop-llm
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents

@@ -55,6 +55,65 @@ aiwClusterName(){
 
 aiwHasLlmKey(){ [ -n "${DEEPSEEK_API_KEY:-}${LLM_API_KEY:-}" ]; }
 
+# ----------------------------------------------------------------------
+# WORKSHOP_PREFIX — per-attendee label (upstream ISI-6986/6987/7005)
+# ----------------------------------------------------------------------
+# Upstream runs every attendee against ONE shared tenant and isolates them
+# with this prefix: agent / ModelConfig / GitHub-MCP names are templated
+# with it (kagent emits the Agent name as service.name) and the collector
+# stamps it on every span as `workshop.attendee`. Here the per-learner
+# cluster name (aiwClusterName) already isolates Grail data; the prefix
+# adds a readable label and keeps Henrik's DQL assets working unchanged.
+#
+# Never fail-closed (ISI-7005): an invalid value is normalised, an absent
+# one derived. Sources, first usable wins:
+#   WORKSHOP_PREFIX (set it yourself) > GITHUB_USER (Codespace) >
+#   DT_HOSTGROUP minus its -YYYYMMDD day (Enablement App: the learner) >
+#   CODESPACE_NAME > "workshop" (local, single learner).
+# Pure and deterministic, so every terminal resolves the same value.
+# Format: a letter, then 1-18 of [a-z0-9-] — a valid k8s name component.
+AIW_PREFIX_PATTERN='^[a-z][a-z0-9-]{1,18}$'
+
+aiwSanitizePrefix(){
+  local s
+  s="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' \
+        | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-+//; s/-+$//')"
+  [ -n "$s" ] || return 0
+  printf '%s' "$s" | grep -qE '^[a-z]' || s="w-${s}"
+  s="$(printf '%s' "$s" | cut -c1-19 | sed -E 's/-+$//')"
+  printf '%s' "$s" | grep -qE "$AIW_PREFIX_PATTERN" && printf '%s' "$s"
+  return 0
+}
+
+aiwResolvePrefix(){
+  local src derived="" hg
+  hg="$(printf '%s' "${DT_HOSTGROUP:-}" | sed -E 's/-[0-9]{8}$//')"
+  for src in "${WORKSHOP_PREFIX:-}" "${GITHUB_USER:-}" "$hg" "${CODESPACE_NAME:-}" "workshop"; do
+    derived="$(aiwSanitizePrefix "$src")"
+    [ -n "$derived" ] && break
+  done
+  printf '%s' "$derived"
+}
+
+WORKSHOP_PREFIX="$(aiwResolvePrefix)"
+export WORKSHOP_PREFIX
+
+# The cluster object name of a workshop agent: aiwAgent sre-agent -> <prefix>-sre-agent.
+# Already-prefixed names pass through, so callers may use either form.
+aiwAgent(){
+  local a="${1:-sre-agent}"
+  case "$a" in "${WORKSHOP_PREFIX}"-*) echo "$a" ;; *) echo "${WORKSHOP_PREFIX}-${a}" ;; esac
+}
+
+# Post-create banner: what the attendee filters their data by.
+aiwPrefixBanner(){
+  printInfoSection "Your workshop prefix: ${WORKSHOP_PREFIX}"
+  printInfo "Agents are named ${WORKSHOP_PREFIX}-sre-agent, ${WORKSHOP_PREFIX}-bmad-* ; every span carries workshop.attendee == \"${WORKSHOP_PREFIX}\""
+  local sid; sid="$(getDtSessionId 2>/dev/null)"
+  [ -n "$sid" ] && printInfo "Your Dynatrace data: | filter endsWith(k8s.cluster.name, \"${sid}\")"
+  printInfo "                  or: | filter workshop.attendee == \"${WORKSHOP_PREFIX}\""
+}
+
 # ======================================================================
 # Section 1 — Setup (post-create runs these; the step only verifies)
 # ======================================================================
@@ -116,14 +175,15 @@ installOtelGateway(){
   fi
 
   local i rendered
-  export K8S_CLUSTER_NAME; K8S_CLUSTER_NAME="$(aiwClusterName)"
-  rendered="$(envsubst '${K8S_CLUSTER_NAME}' < "${REPO_PATH}/cluster/otel/collector-gateway.yaml")"
+  export K8S_CLUSTER_NAME WORKSHOP_PREFIX; K8S_CLUSTER_NAME="$(aiwClusterName)"
+  # Scoped envsubst: the collector's own ${env:...} references stay intact.
+  rendered="$(envsubst '${K8S_CLUSTER_NAME} ${WORKSHOP_PREFIX}' < "${REPO_PATH}/cluster/otel/collector-gateway.yaml")"
   if [ -z "${DT_ENVIRONMENT:-}" ] || [ -z "${DT_INGEST_TOKEN:-}" ]; then
     rendered="$(printf '%s\n' "$rendered" | sed '/# >>> dynatrace-exporter/,/# <<< dynatrace-exporter/d; s#otlphttp/dynatrace, ##')"
   fi
   for i in $(seq 1 20); do
     printf '%s\n' "$rendered" | kubectl apply -f - >/dev/null 2>&1 \
-      && { printInfo "Gateway collector applied (k8s.cluster.name=${K8S_CLUSTER_NAME})"; break; }
+      && { printInfo "Gateway collector applied (k8s.cluster.name=${K8S_CLUSTER_NAME}, workshop.attendee=${WORKSHOP_PREFIX})"; break; }
     sleep 5
   done
   kubectl -n opentelemetry-operator-system rollout status deploy/otel-gateway-collector --timeout=180s
@@ -259,40 +319,63 @@ aiwModelConfigFile(){
 # Section 3 — Agents & MCP wiring
 # ======================================================================
 installAgents(){
-  printInfoSection "Agents & MCP wiring"
+  printInfoSection "Agents & MCP wiring (prefix ${WORKSHOP_PREFIX})"
   kubectl get ns kagent >/dev/null 2>&1 || { printError "kagent not installed — run installPlatform"; return 1; }
   aiwHasLlmKey || aiwCiLite || kubectl -n ollama get deploy ollama >/dev/null 2>&1 || deployOllama
   aiwLlmSecret
   export GITHUB_MCP_IMAGE DYNATRACE_MCP_NODE_IMAGE DYNATRACE_MCP_PACKAGE AIW_OLLAMA_MODEL AIW_OLLAMA_THREADS
+  export WORKSHOP_PREFIX WORKSHOP_LLM_MODEL WORKSHOP_LLM_BASE_URL
   export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
   export DT_PLATFORM_TOKEN="${DT_PLATFORM_TOKEN:-}"
   # The MCP server talks to the platform (apps) URL.
   export DT_ENVIRONMENT="${DT_ENVIRONMENT:-}"
   [ -n "$GH_PAT" ]            || printWarn "GH_PAT unset — BMAD crew installs, GitHub tools will not authenticate (optional)"
   [ -n "$DT_PLATFORM_TOKEN" ] || printWarn "DT_PLATFORM_TOKEN unset — SRE agent installs, Dynatrace tools will not authenticate"
-  local vars='${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN} ${AIW_OLLAMA_MODEL} ${AIW_OLLAMA_THREADS}'
+  aiwRemoveUnprefixedAgents
   local f
   for f in "$(aiwModelConfigFile)" "${REPO_PATH}/agents/mcp/10-github-mcp.yaml"; do
-    envsubst "$vars" < "$f" | kubectl apply -f -
+    aiwRender < "$f" | kubectl apply -f -
   done
   if aiwHasDynatraceMcp; then
-    envsubst "$vars" < "${REPO_PATH}/agents/mcp/20-dynatrace-mcp.yaml" | kubectl apply -f -
-    kubectl apply -k "${REPO_PATH}/agents/sre"
+    aiwRender < "${REPO_PATH}/agents/mcp/20-dynatrace-mcp.yaml" | kubectl apply -f -
+    kubectl kustomize "${REPO_PATH}/agents/sre" | aiwRender | kubectl apply -f -
     # kagent fails EVERY call of an agent whose tool server is unreachable. If
     # the Dynatrace MCP never comes up (bad token scope, tenant down), keep the
     # SRE agent usable with its Kubernetes tools instead of breaking it.
     if ! aiwWaitDynatraceMcp; then
       printWarn "Dynatrace MCP not Accepted — SRE agent falls back to Kubernetes tools only (kubectl -n kagent logs deploy/dynatrace-mcp)"
-      aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | kubectl apply -f -
+      aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | aiwRender | kubectl apply -f -
     fi
   else
     printWarn "No Dynatrace tenant/platform token — SRE agent deployed with Kubernetes tools only"
     kubectl -n kagent delete remotemcpserver dynatrace-mcp-remote --ignore-not-found >/dev/null 2>&1
     kubectl -n kagent delete mcpserver dynatrace-mcp --ignore-not-found >/dev/null 2>&1
-    aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | kubectl apply -f -
+    aiwStripDynatraceTools "${REPO_PATH}/agents/sre/sre-agent.yaml" | aiwRender | kubectl apply -f -
   fi
-  kubectl apply -k "${REPO_PATH}/agents/bmad-crew"
+  kubectl kustomize "${REPO_PATH}/agents/bmad-crew" | aiwRender | kubectl apply -f -
   waitForAgentsAccepted
+}
+
+# envsubst with an explicit whitelist: every other $ in the manifests (and
+# the Dynatrace MCP's own ${...}) is left intact. Tokens are injected at
+# apply time only, never written to a file.
+aiwRender(){
+  envsubst '${WORKSHOP_PREFIX} ${WORKSHOP_LLM_MODEL} ${WORKSHOP_LLM_BASE_URL} ${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN} ${AIW_OLLAMA_MODEL} ${AIW_OLLAMA_THREADS}'
+}
+
+# A cluster set up before the prefix existed carries the bare names
+# (sre-agent, bmad-*, workshop-llm, github-mcp*). kubectl apply never deletes,
+# so without this a re-run would leave 14 agents. The Dynatrace MCP objects are
+# not prefixed and are left alone.
+aiwRemoveUnprefixedAgents(){
+  local a
+  for a in sre-agent bmad-analyst bmad-pm bmad-architect bmad-developer bmad-qa bmad-orchestrator; do
+    [ "$(aiwAgent "$a")" = "$a" ] && continue
+    kubectl -n kagent delete agent "$a" --ignore-not-found >/dev/null 2>&1
+  done
+  kubectl -n kagent delete modelconfig workshop-llm --ignore-not-found >/dev/null 2>&1
+  kubectl -n kagent delete remotemcpserver github-mcp-remote --ignore-not-found >/dev/null 2>&1
+  kubectl -n kagent delete mcpserver github-mcp --ignore-not-found >/dev/null 2>&1
 }
 
 aiwHasDynatraceMcp(){ [ -n "${DT_ENVIRONMENT:-}" ] && [ -n "${DT_PLATFORM_TOKEN:-}" ]; }
@@ -357,11 +440,14 @@ checkToolsDiscovered(){
 # Usage: askAgent <agent> "<prompt>" [timeout-seconds]
 askAgent(){
   local agent="${1:-sre-agent}" prompt="${2:-List the pods in the kagent namespace.}" t="${3:-300}"
+  # Callers pass the base name (sre-agent); the cluster object carries the
+  # prefix. The reply file stays keyed on the base name for the checks.
+  agent="${agent#"${WORKSHOP_PREFIX}"-}"
   local body
   body="$(python3 -c 'import json,sys;print(json.dumps({"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":sys.argv[1]}]}}}))' "$prompt")"
   kubectl -n kagent run "a2a-$RANDOM" --rm -i --restart=Never --quiet --image=curlimages/curl:8.10.1 \
     --command -- curl -s -m "$t" -X POST -H 'Content-Type: application/json' --data "$body" \
-    "http://kagent-controller.kagent:8083/api/a2a/kagent/${agent}" 2>/dev/null \
+    "http://kagent-controller.kagent:8083/api/a2a/kagent/$(aiwAgent "$agent")" 2>/dev/null \
     | tee "/tmp/aiw-last-${agent}.json" \
     | python3 -c '
 import json,sys
@@ -384,7 +470,8 @@ askSreAgent(){ askAgent sre-agent "${1:-List the pods in the kagent namespace an
 
 # An A2A answer came back that is a real reply, not a JSON-RPC error.
 checkAgentAnswered(){
-  local agent="${1:-sre-agent}" f="/tmp/aiw-last-${1:-sre-agent}.json"
+  local agent="${1:-sre-agent}"; agent="${agent#"${WORKSHOP_PREFIX}"-}"
+  local f="/tmp/aiw-last-${agent}.json"
   [ -s "$f" ] || { printError "No A2A reply recorded yet — run: askSreAgent"; return 1; }
   python3 - "$f" <<'PY' && { printInfo "✅ ${agent} answered over A2A"; return 0; }
 import json,sys
@@ -394,7 +481,7 @@ r=d.get("result") or {}
 # back as a result with status.state "failed". Only a completed task counts.
 sys.exit(0 if not d.get("error") and (r.get("status") or {}).get("state") == "completed" else 1)
 PY
-  printError "${agent} did not complete the task — check the model backend and tools (kubectl -n kagent logs deploy/${agent})"; return 1
+  printError "${agent} did not complete the task — check the model backend and tools (kubectl -n kagent logs deploy/$(aiwAgent "$agent"))"; return 1
 }
 
 # ======================================================================
@@ -625,7 +712,8 @@ applyLeanSreAgent(){
   # Re-attaching an MCP server that is not Accepted breaks EVERY call of the
   # agent, so only trim when the Dynatrace tools actually work.
   if aiwHasDynatraceMcp && aiwDynatraceMcpAccepted; then
-    kubectl apply -f "${REPO_PATH}/agents/sre/sre-agent-lean.yaml"
+    export WORKSHOP_PREFIX
+    aiwRender < "${REPO_PATH}/agents/sre/sre-agent-lean.yaml" | kubectl apply -f -
   else
     printWarn "Dynatrace MCP not available in this session — nothing to trim; the agent keeps only its Kubernetes tools"
   fi
@@ -633,7 +721,7 @@ applyLeanSreAgent(){
 
 checkLeanSreAgent(){
   local n
-  n="$(kubectl -n kagent get agent sre-agent -o json 2>/dev/null | python3 -c '
+  n="$(kubectl -n kagent get agent "$(aiwAgent sre-agent)" -o json 2>/dev/null | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
 tools=d["spec"]["declarative"]["tools"]
@@ -650,6 +738,6 @@ print(sum(len(t.get("mcpServer",{}).get("toolNames") or []) for t in tools if t.
 # Cleanup
 # ======================================================================
 removeAgents(){
-  kubectl delete -k "${REPO_PATH}/agents/bmad-crew" --ignore-not-found
-  kubectl delete -k "${REPO_PATH}/agents/sre" --ignore-not-found
+  kubectl kustomize "${REPO_PATH}/agents/bmad-crew" | aiwRender | kubectl delete --ignore-not-found -f -
+  kubectl kustomize "${REPO_PATH}/agents/sre" | aiwRender | kubectl delete --ignore-not-found -f -
 }

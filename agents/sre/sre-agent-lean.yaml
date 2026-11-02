@@ -3,7 +3,7 @@
 # pinned to the five tools a diagnosis actually calls, instead of every tool the
 # server discovers (17 in @dynatrace-oss/dynatrace-mcp-server 2.1.2). Each tool
 # schema rides along in every prompt, so this shrinks input tokens on every call.
-# Apply with `applyLeanSreAgent`; revert with `kubectl apply -k agents/sre`.
+# Apply with `applyLeanSreAgent`; revert with `installAgents`.
 # ── Phase 3 · SRE agent ──────────────────────────────────────────────────────
 # A single kagent Agent that investigates and operates the workshop cluster.
 # Tools (plan §4/§5):
@@ -19,7 +19,10 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: sre-agent
+  # Templated with ${WORKSHOP_PREFIX} (ISI-6986/6989): kagent emits the Agent
+  # name as the OTel service.name, so traces arrive as ${WORKSHOP_PREFIX}-sre-agent.
+  # Resolved by envsubst at apply time (installAgents) — never commit an edit.
+  name: ${WORKSHOP_PREFIX}-sre-agent
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
@@ -28,7 +31,7 @@ spec:
   description: SRE agent — investigates and operates the Kubernetes cluster with Dynatrace observability.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are the SRE agent for a Kubernetes cluster that is monitored by Dynatrace.
       Your job is to INVESTIGATE problems and, when asked, safely OPERATE the cluster.

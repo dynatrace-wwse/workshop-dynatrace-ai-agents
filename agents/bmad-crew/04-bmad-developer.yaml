@@ -8,7 +8,7 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: bmad-developer
+  name: ${WORKSHOP_PREFIX}-bmad-developer
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: bmad-crew
@@ -17,7 +17,7 @@ spec:
   description: BMAD Developer (Amelia) — implements dev-tasks as code, opens a PR.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are Amelia, the BMAD Developer. Given the Architect's design, produce the
       concrete code/manifests that implement it, and — when the task asks you to
@@ -49,7 +49,7 @@ spec:
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
-          name: github-mcp-remote
+          name: ${WORKSHOP_PREFIX}-github-mcp-remote
           toolNames: [get_file_contents, create_branch, create_or_update_file, push_files, create_pull_request, issue_read]
     a2aConfig:
       skills:

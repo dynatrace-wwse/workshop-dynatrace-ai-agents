@@ -115,7 +115,7 @@ secret.
 
 ```bash
 kubectl -n kagent get agents
-kubectl -n kagent describe agent sre-agent
+kubectl -n kagent describe agent ${WORKSHOP_PREFIX}-sre-agent
 kubectl -n kagent get secret kagent-deepseek    # model key present?
 ```
 

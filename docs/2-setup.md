@@ -35,6 +35,7 @@ You create **no** tokens. Open the **Terminal** tab and continue.
     | `DT_PLATFORM_TOKEN` | for the Dynatrace MCP | `dt0s16` platform token |
     | `DEEPSEEK_API_KEY` | optional | DeepSeek key — without it the agents use an in-cluster model |
     | `GH_PAT` | optional | fine-grained PAT, one demo repo, for the BMAD crew |
+    | `WORKSHOP_PREFIX` | optional | your label, e.g. `team-alpha` — derived from your GitHub user when unset |
 
 **Locally (Docker)**
 
@@ -48,7 +49,7 @@ cd .devcontainer && make start
     The agents are cost-optimized for **DeepSeek** (`deepseek-chat`). When no
     `DEEPSEEK_API_KEY` is present — the default in the Enablement App — the
     platform deploys **Ollama** with a small tool-calling model
-    (`qwen2.5:3b`) inside your cluster, and the same `workshop-llm`
+    (`qwen2.5:3b`) inside your cluster, and the same `<prefix>-workshop-llm`
     `ModelConfig` points at it. Every step of the workshop works on it; answers
     are slower and less sharp than DeepSeek's, which is itself a useful lesson
     for module 9.
@@ -69,6 +70,23 @@ Check which credentials your session has (names only — values are never printe
 ```bash
 variablesNeeded DT_ENVIRONMENT:false DT_INGEST_TOKEN:false DT_PLATFORM_TOKEN:false DEEPSEEK_API_KEY:false
 ```
+
+### Your workshop prefix
+
+Every learner gets a short label, `WORKSHOP_PREFIX`. Your agents are named after
+it (`<prefix>-sre-agent`, `<prefix>-bmad-orchestrator`, …) and the OpenTelemetry
+gateway stamps it on every span as `workshop.attendee`, so in a tenant shared by
+a whole class you can always find *your* agents and *your* telemetry:
+
+```bash
+echo "$WORKSHOP_PREFIX"
+```
+
+You never have to set it. In a Codespace it is derived from your GitHub user, in
+the Enablement App from your learner id, locally it is `workshop`. Set the
+`WORKSHOP_PREFIX` Codespace secret to pick your own (lowercase, starts with a
+letter, 2–19 characters of `a-z 0-9 -`); an invalid value is normalised, never
+rejected.
 
 <!-- LAB_QUESTION
 type: shell-verification

@@ -8,7 +8,7 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: bmad-pm
+  name: ${WORKSHOP_PREFIX}-bmad-pm
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: bmad-crew
@@ -17,7 +17,7 @@ spec:
   description: BMAD Product Manager (John) — turns requirement issues into a milestone + plan.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are John, the BMAD Product Manager. You take the Analyst's requirement issues
       and shape them into an executable plan on GitHub.
@@ -38,7 +38,7 @@ spec:
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
-          name: github-mcp-remote
+          name: ${WORKSHOP_PREFIX}-github-mcp-remote
           toolNames: [list_issues, issue_read, issue_write, add_issue_comment, get_file_contents]
     a2aConfig:
       skills:

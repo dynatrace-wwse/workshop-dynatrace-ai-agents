@@ -71,23 +71,34 @@ it just cannot open issues or pull requests.
 installAgents
 ```
 
-`installAgents` applies, in order: the `workshop-llm` ModelConfig (DeepSeek
+`installAgents` applies, in order: the `<prefix>-workshop-llm` ModelConfig (DeepSeek
 when you have a key, the in-cluster Ollama model otherwise), the GitHub and
 Dynatrace MCP servers, the SRE agent, then the six BMAD agents — and waits until
 all seven are Accepted.
+
+!!! info "Your agents carry your prefix"
+    The manifests template their names with `${WORKSHOP_PREFIX}` (module 2), and
+    `installAgents` resolves it with `envsubst` at apply time: you get
+    `${WORKSHOP_PREFIX}-sre-agent`, `${WORKSHOP_PREFIX}-bmad-*`,
+    `${WORKSHOP_PREFIX}-workshop-llm` and `${WORKSHOP_PREFIX}-github-mcp-remote`.
+    kagent reports the agent name as the OpenTelemetry `service.name`, so your
+    traces arrive as `${WORKSHOP_PREFIX}-sre-agent`. The built-in
+    `kagent-tool-server`, the Dynatrace MCP server and the `kagent` namespace are
+    not prefixed. The helpers (`askSreAgent`, `askAgent sre-agent …`) add the
+    prefix for you.
 
 ## 4. Verify the tools registered
 
 ```bash
 kubectl -n kagent get mcpserver,remotemcpserver
 kubectl -n kagent get remotemcpserver kagent-tool-server  -o jsonpath='{.status.discoveredTools[*].name}'; echo
-kubectl -n kagent get remotemcpserver github-mcp-remote    -o jsonpath='{.status.discoveredTools[*].name}'; echo
+kubectl -n kagent get remotemcpserver ${WORKSHOP_PREFIX}-github-mcp-remote -o jsonpath='{.status.discoveredTools[*].name}'; echo
 kubectl -n kagent get remotemcpserver dynatrace-mcp-remote -o jsonpath='{.status.discoveredTools[*].name}'; echo
 kubectl -n kagent get agents
 ```
 
 Each `RemoteMCPServer` should be Accepted with a non-empty `discoveredTools`
-list, and all seven agents (`sre-agent` + six `bmad-*`) should be Accepted.
+list, and all seven agents (`<prefix>-sre-agent` + six `<prefix>-bmad-*`) should be Accepted.
 
 <!-- LAB_QUESTION
 type: shell-verification
@@ -112,7 +123,8 @@ on the same A2A endpoint and produce the same traces:
 
 **kagent UI**
 
-Open the **kagent** app (`listApps` prints the URL), pick **sre-agent**, and paste:
+Open the **kagent** app (`listApps` prints the URL), pick **`<prefix>-sre-agent`**
+(`echo $WORKSHOP_PREFIX`), and paste:
 
 > List the pods in the `kagent` namespace and tell me if any are unhealthy.
 
@@ -128,12 +140,12 @@ The raw call it makes:
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
   --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace."}]}}}' \
-  http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+  http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-sre-agent
 ```
 
 !!! tip "BMAD crew — a longer, multi-hop trace"
     With a `GH_PAT`, send the orchestrator a build task — in the UI pick
-    **bmad-orchestrator**, or:
+    **`<prefix>-bmad-orchestrator`**, or:
     `askAgent bmad-orchestrator "Build a simple Todo app in <owner>/<repo>. Run the full BMAD workflow and open a PR." 900`.
     It is optional — the rest of the workshop uses the SRE agent.
 
@@ -157,8 +169,9 @@ verify:
   - source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkAgentAnswered sre-agent
 reveal: |
   `installAgents` renders the MCP layer with your tokens (envsubst at apply
-  time, never committed), applies `agents/sre` and `agents/bmad-crew` with
-  kustomize and waits for all seven agents to be Accepted. `askSreAgent` then
+  time, never committed), renders `agents/sre` and `agents/bmad-crew` with
+  `kubectl kustomize | envsubst` so every name carries your `WORKSHOP_PREFIX`,
+  and waits for all seven agents to be Accepted. `askSreAgent` then
   sends one A2A `message/send` to the SRE agent and prints its answer.
 -->
 

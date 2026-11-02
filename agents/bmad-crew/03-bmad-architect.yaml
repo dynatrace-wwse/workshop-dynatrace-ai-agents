@@ -7,7 +7,7 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: bmad-architect
+  name: ${WORKSHOP_PREFIX}-bmad-architect
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: bmad-crew
@@ -16,7 +16,7 @@ spec:
   description: BMAD Architect (Winston) — turns the plan into a design + dev-task issues.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are Winston, the BMAD Architect. You turn the PM's plan into a concrete,
       buildable technical design and hand the developer discrete, well-scoped tasks.
@@ -44,7 +44,7 @@ spec:
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
-          name: github-mcp-remote
+          name: ${WORKSHOP_PREFIX}-github-mcp-remote
           toolNames: [list_issues, issue_read, issue_write, add_issue_comment, get_file_contents]
     a2aConfig:
       skills:

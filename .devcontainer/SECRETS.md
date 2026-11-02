@@ -15,6 +15,7 @@
 | `DT_HOSTGROUP` | App: injected | names the cluster `<repo>-<session>` → per-learner data isolation | `getDtSessionId` generates one |
 | `DEEPSEEK_API_KEY` (or `LLM_API_KEY`) | optional, Codespace secret | `workshop-llm` ModelConfig → DeepSeek | **Ollama** in-cluster (`qwen2.5:3b`) |
 | `GH_PAT` | optional, Codespace secret | GitHub MCP for the BMAD crew's write demo — fine-grained, ONE demo repo (Contents/Issues/Pull requests RW) | BMAD crew runs read-only |
+| `WORKSHOP_PREFIX` | optional, Codespace secret (not secret — Codespaces only prompts for declared names) | your label: agent names `<prefix>-sre-agent`…, span attribute `workshop.attendee` | derived: GitHub user → Enablement-App learner id → `workshop`; an invalid value is normalised, never rejected |
 | `OPENAI_API_KEY` in `evals/.env` | optional | Phoenix LLM-as-a-judge (module 8 parts A/B) | use part C (deterministic) |
 
 The Dynatrace token scopes are declared in
