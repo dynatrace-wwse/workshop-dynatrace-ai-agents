@@ -67,6 +67,10 @@ aiwLoadLlmEnv(){
 }
 aiwLoadLlmEnv || true
 
+# Any OpenAI-compatible endpoint: WORKSHOP_LLM_BASE_URL + WORKSHOP_LLM_MODEL +
+# one key name (the dispenser writes all of them). Henrik's home-lab LiteLLM, a
+# shared LLM box, or DeepSeek (the default base URL) are all just this.
+: "${LLM_API_KEY:=${WORKSHOP_LLM_API_KEY:-}}"
 aiwHasLlmKey(){ [ -n "${DEEPSEEK_API_KEY:-}${LLM_API_KEY:-}" ]; }
 
 # ----------------------------------------------------------------------
@@ -364,7 +368,7 @@ deployOllama(){
 
 aiwLlmBackend(){
   if aiwHasLlmKey; then
-    printInfo "LLM backend: DeepSeek (key present)"
+    printInfo "LLM backend: ${WORKSHOP_LLM_MODEL} at ${WORKSHOP_LLM_BASE_URL} (key present)"
   else
     printWarn "No DEEPSEEK_API_KEY / LLM_API_KEY — agents will use the in-cluster Ollama model"
     deployOllama

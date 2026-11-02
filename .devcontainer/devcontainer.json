@@ -59,6 +59,15 @@
     "WORKSHOP_ROOM_PASSWORD": {
       "description": "Optional, instructor-led only. The room password from your workshop host; exchanged at startup for your own budget-capped model key."
     },
+    "WORKSHOP_LLM_BASE_URL": {
+      "description": "Optional. OpenAI-compatible endpoint for the agents (e.g. your LiteLLM proxy, https://host/v1). Default: DeepSeek."
+    },
+    "WORKSHOP_LLM_MODEL": {
+      "description": "Optional. Model name at WORKSHOP_LLM_BASE_URL (default deepseek-chat)."
+    },
+    "WORKSHOP_LLM_API_KEY": {
+      "description": "Optional. Key for WORKSHOP_LLM_BASE_URL (a per-attendee, budget-capped LiteLLM key)."
+    },
     "DEEPSEEK_API_KEY": {
       "description": "Optional. DeepSeek API key for the agents. Without it the agents use a small in-cluster Ollama model."
     },
