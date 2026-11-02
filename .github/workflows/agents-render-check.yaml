@@ -10,6 +10,7 @@ on:
     paths:
       - 'agents/**'
       - 'cluster/otel/**'
+      - 'cluster/check-prefix-render.sh'
       - 'cluster/dynatrace/optimization/**'
       - 'docs/assets/optimization/**'
       - '.devcontainer/util/my_functions.sh'
@@ -19,6 +20,7 @@ on:
     paths:
       - 'agents/**'
       - 'cluster/otel/**'
+      - 'cluster/check-prefix-render.sh'
       - 'cluster/dynatrace/optimization/**'
       - 'docs/assets/optimization/**'
       - '.devcontainer/util/my_functions.sh'
@@ -39,5 +41,5 @@ jobs:
           if ! command -v envsubst >/dev/null; then
             sudo apt-get update && sudo apt-get install -y gettext-base
           fi
-      - name: Render & consistency check (agents / MCP)
-        run: bash agents/check-render.sh
+      - name: Render & consistency check (collector, DQL assets, agents / MCP)
+        run: bash cluster/check-prefix-render.sh

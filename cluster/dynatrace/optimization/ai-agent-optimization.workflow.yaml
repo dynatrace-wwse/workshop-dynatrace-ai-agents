@@ -2,7 +2,7 @@
 #
 # Runs the "AI Agent Quality & Cost Guardian" daily over the last 24h so cost
 # and efficiency regressions surface automatically — the "make it continuous"
-# step of docs/06-optimize.md. Ships with the schedule DISABLED
+# step of docs/9-optimize.md. Ships with the schedule DISABLED
 # (trigger.schedule.isActive: false); flip it to true to go continuous.
 #
 # Deploy:

@@ -1,0 +1,63 @@
+{
+  "name": "AI agent tool grants (Phase 5 · ISI-6972)",
+  "description": "Source-of-truth lookup table: every tool each kagent agent is GRANTED (from agents/**/**.yaml toolNames). Left-join this against the tools an agent ACTUALLY calls in traces (gen_ai.operation.name == \"execute_tool\") to surface tools that are NEVER called — the prime 'remove tools the agent never uses' optimization (docs/9-optimize.md §2a). The 'tool' column is the join key; it must match gen_ai.tool.name as emitted on the tenant. 'agent' is the kagent metadata.name; 'traceServiceName' is the service.name observed in spans (confirmed for seta_sre_investigator; the bmad_* names follow the observed bmad_<role> pattern — verify on your tenant before trusting a crew-wide join).",
+  "keyField": "tool",
+  "notes": [
+    "Regenerate from the agent manifests whenever toolNames changes: the granted set lives in agents/sre/sre-agent.yaml and agents/bmad-crew/*.yaml.",
+    "The dashboard tile and notebook cell embed the SRE agent's granted rows inline via DQL `data record(...)` so the coverage query is self-contained (no manual table upload required).",
+    "To make the join crew-wide, confirm each agent's trace service.name and the gen_ai.tool.name format (GitHub-MCP tool names may be prefixed) on the tenant first.",
+    "Alternatively upload this file as a native Dynatrace lookup table and reference it with the `lookup` command by table name instead of the inline `data record(...)` block."
+  ],
+  "rows": [
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_get_resources", "category": "investigate-read", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_describe_resource", "category": "investigate-read", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_get_resource_yaml", "category": "investigate-read", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_get_pod_logs", "category": "investigate-read", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_get_events", "category": "investigate-read", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_get_available_api_resources", "category": "investigate-read", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_get_cluster_configuration", "category": "investigate-read", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_check_service_connectivity", "category": "k8s-networking", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_apply_manifest", "category": "operate-write", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_patch_resource", "category": "operate-write", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_scale", "category": "operate-write", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_rollout", "category": "operate-write", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_label_resource", "category": "operate-write", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_annotate_resource", "category": "operate-write", "server": "kagent-tool-server" },
+    { "agent": "sre-agent", "traceServiceName": "seta_sre_investigator", "tool": "k8s_execute_command", "category": "operate-write", "server": "kagent-tool-server" },
+
+    { "agent": "bmad-analyst", "traceServiceName": "bmad_analyst", "tool": "list_issues", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-analyst", "traceServiceName": "bmad_analyst", "tool": "issue_read", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-analyst", "traceServiceName": "bmad_analyst", "tool": "search_issues", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-analyst", "traceServiceName": "bmad_analyst", "tool": "issue_write", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-analyst", "traceServiceName": "bmad_analyst", "tool": "add_issue_comment", "category": "github-write", "server": "github-mcp-remote" },
+
+    { "agent": "bmad-pm", "traceServiceName": "bmad_pm", "tool": "list_issues", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-pm", "traceServiceName": "bmad_pm", "tool": "issue_read", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-pm", "traceServiceName": "bmad_pm", "tool": "issue_write", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-pm", "traceServiceName": "bmad_pm", "tool": "add_issue_comment", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-pm", "traceServiceName": "bmad_pm", "tool": "get_file_contents", "category": "github-read", "server": "github-mcp-remote" },
+
+    { "agent": "bmad-architect", "traceServiceName": "bmad_architect", "tool": "list_issues", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-architect", "traceServiceName": "bmad_architect", "tool": "issue_read", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-architect", "traceServiceName": "bmad_architect", "tool": "issue_write", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-architect", "traceServiceName": "bmad_architect", "tool": "add_issue_comment", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-architect", "traceServiceName": "bmad_architect", "tool": "get_file_contents", "category": "github-read", "server": "github-mcp-remote" },
+
+    { "agent": "bmad-developer", "traceServiceName": "bmad_developer", "tool": "get_file_contents", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-developer", "traceServiceName": "bmad_developer", "tool": "create_branch", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-developer", "traceServiceName": "bmad_developer", "tool": "create_or_update_file", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-developer", "traceServiceName": "bmad_developer", "tool": "push_files", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-developer", "traceServiceName": "bmad_developer", "tool": "create_pull_request", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-developer", "traceServiceName": "bmad_developer", "tool": "issue_read", "category": "github-read", "server": "github-mcp-remote" },
+
+    { "agent": "bmad-qa", "traceServiceName": "bmad_qa", "tool": "pull_request_read", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-qa", "traceServiceName": "bmad_qa", "tool": "list_pull_requests", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-qa", "traceServiceName": "bmad_qa", "tool": "pull_request_review_write", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-qa", "traceServiceName": "bmad_qa", "tool": "add_comment_to_pending_review", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-qa", "traceServiceName": "bmad_qa", "tool": "add_issue_comment", "category": "github-write", "server": "github-mcp-remote" },
+    { "agent": "bmad-qa", "traceServiceName": "bmad_qa", "tool": "issue_write", "category": "github-write", "server": "github-mcp-remote" },
+
+    { "agent": "bmad-orchestrator", "traceServiceName": "bmad_orchestrator", "tool": "list_issues", "category": "github-read", "server": "github-mcp-remote" },
+    { "agent": "bmad-orchestrator", "traceServiceName": "bmad_orchestrator", "tool": "issue_read", "category": "github-read", "server": "github-mcp-remote" }
+  ]
+}

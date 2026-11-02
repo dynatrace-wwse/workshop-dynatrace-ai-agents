@@ -795,6 +795,50 @@ print(sum(len(t.get("mcpServer",{}).get("toolNames") or []) for t in tools if t.
     || { printError "sre-agent still exposes every Dynatrace tool — run: applyLeanSreAgent"; return 1; }
 }
 
+# Henrik's optimization assets (cluster/dynatrace/optimization) filter every
+# DQL on workshop.attendee == "${WORKSHOP_PREFIX}". Render them with YOUR
+# prefix into .rendered/ (gitignored): the YAML for dtctl, the JSON for the
+# Dynatrace UI's Upload button. Replaces upstream's in-cluster docs site
+# (ISI-7007), which this framework does not run.
+renderOptimizationAssets(){
+  local src="${REPO_PATH}/cluster/dynatrace/optimization" json="${REPO_PATH}/docs/assets/optimization"
+  local out="${REPO_PATH}/.rendered/optimization" f
+  mkdir -p "$out"
+  export WORKSHOP_PREFIX
+  for f in "$src"/*.yaml "$json"/*.json; do
+    [ -f "$f" ] || continue
+    envsubst '${WORKSHOP_PREFIX}' < "$f" > "$out/$(basename "$f")"
+  done
+  if grep -l '\${WORKSHOP_PREFIX}' "$out"/* >/dev/null 2>&1; then
+    printError "Unrendered \${WORKSHOP_PREFIX} left in $out"; return 1
+  fi
+  printInfo "Rendered for workshop.attendee == \"${WORKSHOP_PREFIX}\" into ${out#"${REPO_PATH}"/}"
+  printInfo "dtctl: the .yaml files · Dynatrace UI upload: the .json files"
+}
+
+# Deploy the read-the-run notebook, the dashboard and the before/after
+# notebook with dtctl (needs a tenant + platform token).
+deployOptimizationAssets(){
+  if [ -z "${DT_ENVIRONMENT:-}" ] || [ -z "${DT_PLATFORM_TOKEN:-}" ]; then
+    printWarn "No Dynatrace tenant/platform token in this session — upload the .json files from .rendered/optimization in the Dynatrace UI instead"
+    renderOptimizationAssets; return 0
+  fi
+  renderOptimizationAssets || return 1
+  command -v dtctl >/dev/null 2>&1 || installDtctl || return 1
+  local d="${REPO_PATH}/.rendered/optimization"
+  dtctl create notebook -f "$d/ai-agent-workflow-steps.notebook.yaml" \
+    && dtctl apply -f "$d/ai-agent-optimization.dashboard.yaml" \
+    && dtctl create notebook -f "$d/ai-agent-optimization-before-after.notebook.yaml"
+}
+
+checkOptimizationAssetsRendered(){
+  local d="${REPO_PATH}/.rendered/optimization"
+  grep -qF "workshop.attendee == \"${WORKSHOP_PREFIX}\"" "$d/ai-agent-workflow-steps.notebook.yaml" 2>/dev/null \
+    && ! grep -lq '\${WORKSHOP_PREFIX}' "$d"/* 2>/dev/null \
+    && { printInfo "✅ Optimization assets rendered for workshop.attendee == \"${WORKSHOP_PREFIX}\""; return 0; } \
+    || { printError "Not rendered yet — run: renderOptimizationAssets"; return 1; }
+}
+
 # ======================================================================
 # Cleanup
 # ======================================================================

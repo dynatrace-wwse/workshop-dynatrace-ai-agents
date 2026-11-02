@@ -18,32 +18,32 @@ content:
         3. **Inefficient loops** — tasks that burned many `call_llm` hops re-sending the same context.
 
 
-        > Re-measure here **before and after** each change. Keep the change only if cost dropped and the eval pass rate (module 05) held. See `docs/06-optimize.md`.'
+        > Re-measure here **before and after** each change. Keep the change only if cost dropped and the eval pass rate (module 8) held. See `docs/9-optimize.md`.'
     sv-total-tokens:
       type: data
       title: Total tokens (crew)
-      query: fetch spans | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | summarize totalTokens = sum(gen_ai.usage.input_tokens) + sum(gen_ai.usage.output_tokens)
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | summarize totalTokens = sum(gen_ai.usage.input_tokens) + sum(gen_ai.usage.output_tokens)
       visualization: singleValue
       visualizationSettings: {}
       querySettings: {}
     sv-llm-calls:
       type: data
       title: LLM calls
-      query: fetch spans | filter service.namespace == "kagent" and span.name == "call_llm" | summarize llmCalls = count()
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens) | summarize llmCalls = count()
       visualization: singleValue
       visualizationSettings: {}
       querySettings: {}
     sv-tool-calls:
       type: data
       title: Tool calls
-      query: fetch spans | filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" | summarize toolCalls = count()
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" | summarize toolCalls = count()
       visualization: singleValue
       visualizationSettings: {}
       querySettings: {}
     sv-tasks:
       type: data
       title: Agent tasks
-      query: fetch spans | filter service.namespace == "kagent" and span.name == "call_llm" | summarize tasks = countDistinct(gen_ai.task.id)
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens) | summarize tasks = countDistinct(gen_ai.task.id)
       visualization: singleValue
       visualizationSettings: {}
       querySettings: {}
@@ -53,14 +53,14 @@ content:
     spend-bar:
       type: data
       title: Token spend by agent
-      query: fetch spans | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | summarize tokens = sum(gen_ai.usage.input_tokens) + sum(gen_ai.usage.output_tokens), by:{service.name} | sort tokens desc
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | summarize tokens = sum(gen_ai.usage.input_tokens) + sum(gen_ai.usage.output_tokens), by:{service.name} | sort tokens desc
       visualization: categoricalBarChart
       visualizationSettings: {}
       querySettings: {}
     ratio-table:
       type: data
       title: 'Input : output ratio (waste signature)'
-      query: 'fetch spans | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens), outputTokens = sum(gen_ai.usage.output_tokens), by:{agent = service.name} | fieldsAdd totalTokens = inputTokens + outputTokens, inOutRatio = round(toDouble(inputTokens) / outputTokens, decimals: 1), avgInputPerCall = round(toDouble(inputTokens) / llmCalls) | sort totalTokens desc'
+      query: 'fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens), outputTokens = sum(gen_ai.usage.output_tokens), by:{agent = service.name} | fieldsAdd totalTokens = inputTokens + outputTokens, inOutRatio = round(toDouble(inputTokens) / outputTokens, decimals: 1), avgInputPerCall = round(toDouble(inputTokens) / llmCalls) | sort totalTokens desc'
       visualization: table
       visualizationSettings: {}
       querySettings: {}
@@ -72,14 +72,26 @@ content:
     distinct-tools:
       type: data
       title: Distinct tools actually used (per agent)
-      query: fetch spans | filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)" | summarize distinctToolsUsed = countDistinct(gen_ai.tool.name), by:{agent = service.name} | sort distinctToolsUsed desc
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)" | summarize distinctToolsUsed = countDistinct(gen_ai.tool.name), by:{agent = service.name} | sort distinctToolsUsed desc
       visualization: categoricalBarChart
       visualizationSettings: {}
       querySettings: {}
     tools-table:
       type: data
       title: Tools called (by agent)
-      query: fetch spans | filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)" | summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name} | sort agent asc, calls desc
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)" | summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name} | sort agent asc, calls desc
+      visualization: table
+      visualizationSettings: {}
+      querySettings: {}
+    md-coverage:
+      type: markdown
+      content: '## 2a · Tool coverage — which granted tools are NEVER called
+
+        Left-joins the SRE agent''s **granted** tool set (from `agents/sre/sre-agent.yaml`, shipped as `tool-grants.lookup.json`) against the tools it **actually** called. Any row with `calls = 0` is a `NEVER CALLED — drop candidate`: pure input-token overhead on every prompt. Swap the `service.name` and the inline `data record(...)` block to score another agent.'
+    coverage-table:
+      type: data
+      title: Granted vs. called tools (SRE agent) — drop the zero-call rows
+      query: 'data record(tool = "k8s_get_resources"), record(tool = "k8s_describe_resource"), record(tool = "k8s_get_resource_yaml"), record(tool = "k8s_get_pod_logs"), record(tool = "k8s_get_events"), record(tool = "k8s_get_available_api_resources"), record(tool = "k8s_get_cluster_configuration"), record(tool = "k8s_check_service_connectivity"), record(tool = "k8s_apply_manifest"), record(tool = "k8s_patch_resource"), record(tool = "k8s_scale"), record(tool = "k8s_rollout"), record(tool = "k8s_label_resource"), record(tool = "k8s_annotate_resource"), record(tool = "k8s_execute_command") | lookup [fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and service.name == "${WORKSHOP_PREFIX}-sre-agent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)" | summarize calls = count(), by:{tool = gen_ai.tool.name}], sourceField:tool, lookupField:tool, prefix:"called_" | fieldsAdd calls = coalesce(called_calls, 0) | fieldsAdd verdict = if(calls == 0, "NEVER CALLED — drop candidate", else: "used") | fieldsRemove called_tool, called_calls | sort calls asc'
       visualization: table
       visualizationSettings: {}
       querySettings: {}
@@ -91,7 +103,7 @@ content:
     loops-table:
       type: data
       title: Tasks with ≥5 LLM hops (ranked by input tokens)
-      query: fetch spans | filter service.namespace == "kagent" and span.name == "call_llm" | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens), by:{agent = service.name, task = gen_ai.task.id} | filter llmCalls >= 5 | sort inputTokens desc | limit 25
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens) | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens), by:{agent = service.name, task = gen_ai.task.id} | filter llmCalls >= 5 | sort inputTokens desc | limit 25
       visualization: table
       visualizationSettings: {}
       querySettings: {}
@@ -101,7 +113,7 @@ content:
     trend:
       type: data
       title: Tokens over time by agent
-      query: fetch spans | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | fieldsAdd totalTok = gen_ai.usage.input_tokens + gen_ai.usage.output_tokens | makeTimeseries tokens = sum(totalTok), by:{service.name}
+      query: fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens) | fieldsAdd totalTok = gen_ai.usage.input_tokens + gen_ai.usage.output_tokens | makeTimeseries tokens = sum(totalTok), by:{service.name}
       visualization: lineChart
       visualizationSettings: {}
       querySettings: {}
@@ -161,23 +173,33 @@ content:
       y: 18
       w: 16
       h: 8
-    md-loops:
+    md-coverage:
       x: 0
       y: 26
       w: 24
       h: 2
-    loops-table:
+    coverage-table:
       x: 0
       y: 28
       w: 24
       h: 8
-    md-trend:
+    md-loops:
       x: 0
       y: 36
+      w: 24
+      h: 2
+    loops-table:
+      x: 0
+      y: 38
+      w: 24
+      h: 8
+    md-trend:
+      x: 0
+      y: 46
       w: 24
       h: 1
     trend:
       x: 0
-      y: 37
+      y: 47
       w: 24
       h: 8
