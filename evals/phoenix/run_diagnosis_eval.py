@@ -45,7 +45,6 @@ HERE = Path(__file__).resolve().parent          # evals/phoenix
 EVALS = HERE.parent                              # evals/
 sys.path.insert(0, str(EVALS))
 import ground_truth as gt  # noqa: E402
-import span_mapping  # noqa: E402  (sibling in phoenix/)
 
 DATA = HERE / "data" / "sample_diagnoses.jsonl"
 OUT = HERE / "out"
@@ -81,6 +80,9 @@ def load_from_phoenix(fixtures) -> list[dict]:
 
     endpoint = os.environ.get("PHOENIX_ENDPOINT", "http://localhost:6006")
     project = os.environ.get("PHOENIX_PROJECT", "default")
+    # Imported here: span_mapping needs pandas, the bundled (offline) grader must not.
+    import span_mapping
+
     client = Client(base_url=endpoint)
     # Filter to LLM spans server-side so the agent diagnosis spans aren't crowded
     # out of the limit window by otel-demo infra traffic (ISI-6962).
