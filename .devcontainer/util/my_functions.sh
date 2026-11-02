@@ -794,9 +794,10 @@ print(sum(len(t.get("mcpServer",{}).get("toolNames") or []) for t in tools if t.
   if ! aiwHasDynatraceMcp || ! aiwDynatraceMcpAccepted; then
     printInfo "Dynatrace MCP not available in this session — step not applicable"; return 0
   fi
-  [ "${n:-0}" -gt 0 ] \
-    && { printInfo "✅ sre-agent pins ${n} Dynatrace tool(s) instead of all of them"; return 0; } \
-    || { printError "sre-agent still exposes every Dynatrace tool — run: applyLeanSreAgent"; return 1; }
+  # The full agent pins eight read tools; the lean one five.
+  [ "${n:-0}" -gt 0 ] && [ "${n:-0}" -le 5 ] \
+    && { printInfo "✅ sre-agent pins ${n} Dynatrace tool(s) instead of eight"; return 0; } \
+    || { printError "sre-agent still carries ${n:-all} Dynatrace tools — run: applyLeanSreAgent"; return 1; }
 }
 
 # Henrik's optimization assets (cluster/dynatrace/optimization) filter every

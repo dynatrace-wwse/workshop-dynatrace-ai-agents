@@ -80,15 +80,24 @@ spec:
       # >>> dynatrace-tools  (installAgents drops this block when the session
       #     has no Dynatrace platform token: the stdio MCP server exits without
       #     one, and an unreachable tool server fails EVERY call of the agent)
-      # Dynatrace observability (dynatrace-mcp-remote). toolNames omitted on
-      # purpose: expose every discovered Dynatrace tool (problems/entities/logs/
-      # metrics/Davis) — the server itself is read-oriented. Narrow this later if
-      # you want to restrict the surface.
+      # Dynatrace observability (dynatrace-mcp-remote): the server's read tools.
+      # Its write tools (send_email, send_slack_message, send_event,
+      # create_dynatrace_notebook, reset_grail_budget) are never exposed to a
+      # learner's agent. Module 9 trims these eight to the five the traces use.
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
           name: dynatrace-mcp-remote
+          toolNames:
+            - get_environment_info
+            - list_problems
+            - list_vulnerabilities
+            - list_exceptions
+            - find_entity_by_name
+            - get_kubernetes_events
+            - verify_dql
+            - execute_dql
       # <<< dynatrace-tools
     a2aConfig:
       skills:

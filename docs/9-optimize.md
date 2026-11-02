@@ -388,7 +388,7 @@ fetch spans
 The workshop ships that cut ready-made: `agents/sre/sre-agent-lean.yaml` is the
 same agent with the Dynatrace MCP pinned to five tools (`list_problems`,
 `execute_dql`, `find_entity_by_name`, `get_kubernetes_events`,
-`get_environment_info`) instead of all seventeen. Apply it, send the same
+`get_environment_info`) instead of the eight read tools the full agent carries. Apply it, send the same
 prompts, and compare input-token counts in Dynatrace:
 
 ```bash
@@ -407,7 +407,7 @@ command: "source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && check
 expect:
   operator: exit-zero
 hint: "Run `applyLeanSreAgent` in the Terminal, then check again."
-explanation: "The agent's Dynatrace tool list is pinned — every prompt now carries five tool schemas instead of seventeen."
+explanation: "The agent's Dynatrace tool list is pinned — every prompt now carries five tool schemas instead of eight."
 -->
 
 <!-- LAB_SOLUTION

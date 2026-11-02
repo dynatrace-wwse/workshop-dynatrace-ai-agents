@@ -86,10 +86,8 @@ spec:
       # >>> dynatrace-tools  (installAgents drops this block when the session
       #     has no Dynatrace platform token: the stdio MCP server exits without
       #     one, and an unreachable tool server fails EVERY call of the agent)
-      # Dynatrace observability (dynatrace-mcp-remote). toolNames omitted on
-      # purpose: expose every discovered Dynatrace tool (problems/entities/logs/
-      # metrics/Davis) — the server itself is read-oriented. Narrow this later if
-      # you want to restrict the surface.
+      # Dynatrace observability (dynatrace-mcp-remote), pinned to the five
+      # tools the traces show the agent actually calls.
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
