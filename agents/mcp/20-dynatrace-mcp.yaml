@@ -45,9 +45,11 @@ spec:
       # npx needs a writable cache/home if kagent runs the pod as non-root.
       HOME: "/tmp"
       npm_config_cache: "/tmp/.npm"
+    # npx installs the package at start, and the server holds every DQL result
+    # it renders: 512Mi was OOMKilled on session init (staging walk 4).
     resources:
-      requests: { cpu: "50m", memory: "128Mi" }
-      limits:   { cpu: "500m", memory: "512Mi" }
+      requests: { cpu: "50m", memory: "256Mi" }
+      limits:   { cpu: "500m", memory: "1536Mi" }
 ---
 apiVersion: kagent.dev/v1alpha2
 kind: RemoteMCPServer
