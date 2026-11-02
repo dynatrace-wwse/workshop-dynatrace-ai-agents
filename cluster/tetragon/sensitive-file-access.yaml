@@ -37,16 +37,18 @@ spec:
   kprobes:
     - call: "security_file_permission"
       syscall: false
-      return: true
+      # NOTE: do NOT set `return: true` + `returnArgAction: "Post"` here. On
+      # Tetragon 1.7.x that combination fails to load the whole policy with
+      # "ReturnArgAction type 'Post' unsupported; ... use 'TrackSock'/'UntrackSock'",
+      # so the kprobe is never attached and NO event ever fires (this was the
+      # real cause of ISI-6953). We don't need the return value: the event is
+      # posted at kprobe entry by `matchActions: Post` below, keyed on the file
+      # path argument. Keep this an entry-only probe.
       args:
         - index: 0
           type: "file"      # the file being accessed
         - index: 1
           type: "int"       # requested access mask (MAY_READ=4, MAY_WRITE=2)
-      returnArg:
-        index: 0
-        type: "int"
-      returnArgAction: "Post"
       selectors:
         - matchArgs:
             - index: 0
@@ -58,6 +60,14 @@ spec:
                 - "/run/secrets/kubernetes.io/serviceaccount"
                 # Secrets/configmaps mounted into the container filesystem.
                 - "/var/run/secrets"
+                # The SA token is a *projected* volume: inside the container it
+                # lives at /var/run/secrets/... but the kernel resolves the
+                # open through `..data` symlinks, so `security_file_permission`'s
+                # d_path can surface the kubelet-side host path instead. Match it
+                # too so the read fires regardless of how the path is resolved.
+                # Still namespace-scoped — only agent-sandbox pods (which carry
+                # pod metadata) match; kubelet's own host reads do not.
+                - "/var/lib/kubelet/pods"
                 # Credentials that should never be read from inside a sandbox.
                 - "/etc/shadow"
                 - "/etc/passwd"

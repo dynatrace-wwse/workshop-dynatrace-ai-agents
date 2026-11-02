@@ -83,6 +83,69 @@ kubectl -n tetragon get pods
   known Codespace limitation rather than blocking the workshop. See
   [`cluster/tetragon/README.md`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/cluster/tetragon/README.md).
 
+### Tetragon is Ready but the sensitive-file policy fires no events
+
+You applied `sensitive-file-access.yaml`, started the `getevents` watch, and
+launched the `snoop` pod — but the stream stays empty. The Tetragon pods are
+healthy, so this is almost never a kernel problem. Work down this ladder:
+
+**1. Confirm the policy actually *loaded*, not just that `kubectl apply`
+succeeded.** `apply` only means the apiserver stored the custom resource — the
+Tetragon agent still has to load the kprobe selectors into the kernel, and it
+can **silently reject** the policy at load time (it only logs a warn, and leaves
+the kprobe un-attached, so **no event ever fires**). This is the single most
+common cause. Check the per-policy state:
+
+```bash
+kubectl -n tetragon exec ds/tetragon -c tetragon -- tetra tracingpolicy list
+```
+
+`STATE: enabled` is good. A `load_error` state (or an `ERROR` column) means the
+kprobe never attached. Look at *why* in the agent log:
+
+```bash
+kubectl -n tetragon logs ds/tetragon -c tetragon --tail=500 \
+  | grep -iE "tracing policy|detect-sensitive-file-access"
+```
+
+A line like `ReturnArgAction type 'Post' unsupported` means you are running a
+**stale copy of the policy** from before the fix in this repo. Re-apply the
+policy from this repository (the fix removed `returnArgAction: Post`):
+
+```bash
+kubectl delete -f cluster/tetragon/sensitive-file-access.yaml --ignore-not-found
+kubectl apply  -f cluster/tetragon/sensitive-file-access.yaml
+```
+
+**2. Give the kprobe a few seconds to attach, and keep the read in a loop.**
+`tetra getevents` is a **live tail** — it shows only events that happen *after*
+it attaches and never replays history. After `apply`, wait ~10 s for the agent
+to load the selectors, and make sure the `snoop` pod reads **in a loop** (the
+workshop one-liner does: `while true; do cat … ; sleep 2; done`). A one-shot
+`cat` can fire before the kprobe is live and you will see nothing.
+
+**3. Isolate the `--namespace` filter.** Drop it and watch the raw stream (or
+filter by pod) while the loop runs — this tells you whether the policy fired at
+all vs. whether the namespace filter dropped the event (pod metadata can take a
+few seconds to resolve):
+
+```bash
+kubectl -n tetragon exec ds/tetragon -c tetragon -- tetra getevents -o compact --pods snoop
+```
+
+**4. Read the output correctly.** The compact renderer prints a
+`security_file_permission` file read as a **`read`** action line — *not* the
+literal word "kprobe":
+
+```
+📚 read    agent-sandbox/snoop /bin/cat /etc/passwd
+```
+
+If you see `process`/`exit` lines for `snoop` but no `read` line, the pod is
+running but the policy is not loaded — go back to step 1. A reproducible
+end-to-end check lives in
+[`cluster/tetragon/validate-live.sh`](https://github.com/dynatrace-wwse/workshop-dynatrace-ai-agents/blob/main/cluster/tetragon/validate-live.sh).
+
 **Phoenix not Ready.** It uses one RWO PVC with `strategy: Recreate` — never two
 pods on the same volume.
 
@@ -152,15 +215,31 @@ Confirm kagent `otel.tracing` points at
 `otel-gateway-collector.opentelemetry-operator-system.svc:4317`, and that the
 tenant/token scopes include `openTelemetryTrace.ingest`.
 
+**Gateway logs `connection refused` to `phoenix.phoenix.svc...:4317` at startup.**
+Benign and self-healing — the gateway starts before Phoenix is Ready and retries.
+Once Phoenix is up the `otlp/phoenix` exporter connects and the warnings stop.
+Only investigate if it persists after `kubectl -n phoenix get pods` shows Phoenix
+`Running`.
+
+!!! note "`otlphttp`/`k8sattributes`/`resourcedetection` deprecation warnings"
+    `"otlphttp" alias is deprecated; use "otlp_http"` and the matching
+    `resource_detection` / `k8s_attributes` lines are informational in collector
+    0.161+. The old aliases still work — not an error, no action needed.
+
+**Phoenix shows the trace but Input / Output are empty.** The gateway copies the
+kagent/ADK `gcp.vertex.agent.llm_request` / `llm_response` attributes onto the
+OpenInference `input.value` / `output.value` keys Phoenix reads. A collector from
+before that change shows bare spans — re-render it with `installOtelGateway`.
+
 ---
 
 ## Module 7 — Diagnose
 
-**`run.sh inject 12` exits 2 with "requires the astroshop-lite app".** Scenario 12 is
+**`run.sh inject 12` exits 2 with "is opt-in … needs the astroshop-lite app".** Scenario 12 is
 the opt-in app scenario. Either skip it (run 01–03) or deploy the demo once with a
 single Helm install (the platform stack is already up):
-`deployOtelDemoLight`
-(`deployOtelDemoLight`). Scenarios
+`deployOtelDemoLight`. The yellow `[ warn ]` + cyan `[ info ]` lines are guidance,
+not a failure. Scenarios
 01–03 have no such dependency.
 
 **`unknown/ambiguous scenario id`.** Pass a numeric prefix (`01`, `12`) or the
