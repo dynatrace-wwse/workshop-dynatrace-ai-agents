@@ -34,6 +34,8 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 
+import span_mapping
+
 HERE = Path(__file__).resolve().parent
 DATA = HERE / "data" / "sample_llm_interactions.jsonl"
 OUT = HERE / "out"
@@ -51,7 +53,12 @@ def build_evaluators():
     if not os.environ.get("OPENAI_BASE_URL"):
         os.environ["OPENAI_BASE_URL"] = "https://api.deepseek.com/v1"
     if not os.environ.get("OPENAI_API_KEY"):
-        sys.exit("ERROR: set OPENAI_API_KEY (your DeepSeek/OpenAI judge key).")
+        sys.exit(
+            "ERROR: no judge key. Set OPENAI_API_KEY in evals/.env "
+            "(copy evals/.env.example — a DeepSeek key works, it's "
+            "OpenAI-compatible). Required for both the bundled and "
+            "--from-phoenix runs."
+        )
 
     llm = LLM(provider="openai", model=model)
 
@@ -92,44 +99,55 @@ def load_bundled() -> pd.DataFrame:
 def load_from_phoenix() -> pd.DataFrame:
     """Pull LLM spans from the running Phoenix server into the eval frame.
 
-    Maps gen_ai.* / OpenInference span attributes to the input/output/context
-    columns our evaluators reference. Keeps span_id so we can annotate back.
+    Maps OTel GenAI semconv *and* OpenInference span attributes to the
+    input/output/context columns our evaluators reference (see
+    `span_mapping.py`). Keeps span_id so we can annotate back.
     """
     from phoenix.client import Client
 
     endpoint = os.environ.get("PHOENIX_ENDPOINT", "http://localhost:6006")
     project = os.environ.get("PHOENIX_PROJECT", "default")
     client = Client(base_url=endpoint)
-    spans = client.spans.get_spans_dataframe(project_identifier=project, limit=200)
+    # Filter to LLM spans server-side so the sparse agent call_llm spans aren't
+    # crowded out of the limit window by otel-demo infra traffic (ISI-6962).
+    spans, filtered = span_mapping.fetch_llm_spans(client, project, limit=200)
     if spans is None or spans.empty:
         sys.exit(
             f"No spans in Phoenix project '{project}' at {endpoint}. "
             "Generate some agent traffic first, then retry."
         )
-
-    def pick(row, *keys):
-        for k in keys:
-            if k in row and pd.notna(row[k]) and str(row[k]).strip():
-                return row[k]
-        return ""
+    if filtered:
+        print(f"Filtered to LLM spans server-side ({span_mapping.LLM_SPAN_FILTER}).")
+    else:
+        print("(No span_kind=='LLM' spans matched — pulling unfiltered; results "
+              "may be crowded out by non-LLM traffic. See span_mapping.py.)")
 
     records = []
     for span_id, row in spans.iterrows():
-        inp = pick(row, "attributes.input.value", "attributes.gen_ai.prompt",
-                   "attributes.llm.input_messages")
-        out = pick(row, "attributes.output.value", "attributes.gen_ai.completion",
-                   "attributes.llm.output_messages")
+        inp = span_mapping.extract_input(row)
+        out = span_mapping.extract_output(row)
         if not inp and not out:
             continue  # not an LLM/agent span
         records.append({
-            "context": pick(row, "attributes.retrieval.documents",
-                            "attributes.gen_ai.context") or "(no retrieval context)",
-            "input": str(inp),
-            "output": str(out),
+            "context": span_mapping.extract_context(row) or "(no retrieval context)",
+            "input": inp,
+            "output": out,
             "span_id": str(span_id),
         })
     if not records:
-        sys.exit("Found spans but none carried LLM input/output attributes.")
+        present = span_mapping.attribute_columns(spans)
+        sys.exit(
+            f"Found {len(spans)} spans in project '{project}' but none carried "
+            "recognisable LLM input/output attributes.\n"
+            "Looked for OpenInference (input.value / output.value) and OTel "
+            "GenAI semconv (gen_ai.input.messages, gen_ai.prompt.N.content, "
+            "gen_ai.completion.N.content, GenAI log-events) keys.\n"
+            "Attribute columns actually present on these spans:\n  "
+            + ("\n  ".join(present) if present
+               else "(none — these look like non-LLM spans)")
+            + "\nIf your exporter uses a different key, add it to INPUT_KEYS / "
+            "OUTPUT_KEYS in phoenix/span_mapping.py."
+        )
     print(f"Pulled {len(records)} LLM spans from Phoenix project '{project}'")
     return pd.DataFrame(records)
 
@@ -194,6 +212,13 @@ def summarise(results: pd.DataFrame) -> None:
 
 def main() -> None:
     load_dotenv(HERE.parent / ".env")
+    # The workshop provisions the judge key as DEEPSEEK_API_KEY (fallback
+    # LLM_API_KEY); there is no OPENAI_API_KEY secret. Map it on so a correctly
+    # set-up Codespace works with no hand-written .env.
+    if not os.environ.get("OPENAI_API_KEY"):
+        _judge = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("LLM_API_KEY")
+        if _judge:
+            os.environ["OPENAI_API_KEY"] = _judge
     ap = argparse.ArgumentParser(description="Phoenix LLM-judge eval walkthrough")
     ap.add_argument("--from-phoenix", action="store_true",
                     help="evaluate live spans from the Phoenix server instead of the bundled dataset")

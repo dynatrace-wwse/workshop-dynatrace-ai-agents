@@ -24,10 +24,16 @@ dynatrace:
   environmentUrl: ${DT_ENVIRONMENT_URL}
   apiToken: ${DYNATRACE_API_TOKEN}
 
+# baseUrl must NOT include /v1: the dt-evals `validate` probe hardcodes
+# `${baseUrl}/v1/chat/completions`, so /v1 here → double /v1 → 404.
 judge:
   provider: openai
   model: deepseek-chat
-  baseUrl: https://api.deepseek.com/v1
+  # Injected by run-dt-eval.sh (envsubst) from WORKSHOP_LLM_BASE_URL_NOV1 — the bare
+  # (no-/v1) DeepSeek endpoint by default, or the per-attendee LiteLLM-proxy endpoint
+  # when a room password dispensed one (ISI-6996). apiKey is the minted virtual key
+  # in the proxy case (OPENAI_API_KEY falls back to DEEPSEEK_API_KEY / LLM_API_KEY).
+  baseUrl: ${WORKSHOP_LLM_BASE_URL_NOV1}
   apiKey: ${OPENAI_API_KEY}
   timeout: 60000
   maxRetries: 2

@@ -1,0 +1,70 @@
+# ISI-6966 — live verification of the `--from-phoenix` LLM-span filter.
+#
+# WHY THIS EXISTS
+#   ISI-6962 reported that `run_phoenix_eval.py --from-phoenix` dead-ended:
+#   project `default` is flooded with otel-demo infra spans, so a newest-N pull
+#   buried the sparse agent `call_llm` spans and the eval found 0 LLM spans. The
+#   fix (span_mapping.fetch_llm_spans) filters server-side to span_kind=='LLM'.
+#   Proving it needs a REAL Phoenix server, not just the offline unit tests — but
+#   it needs NO cluster, Dynatrace, or judge key, so a plain ubuntu-latest runner
+#   is enough (the CI-as-live pattern from ISI-6957/ISI-6955).
+#
+# WHAT IT EXERCISES
+#   evals/phoenix/verify_from_phoenix.py — launches Phoenix, ingests an infra
+#   flood + sparse LLM spans via OTLP, and ASSERTS the old newest-N pull maps 0
+#   LLM spans while the new server-side filter returns exactly the LLM spans with
+#   their input/output intact. The script's exit code is the job's exit code.
+#
+# HOW TO RUN (enablement edition: no secrets, fits a 2-vCPU runner)
+#   - any pull request touching evals/phoenix/**, OR
+#   - workflow_dispatch from the Actions tab.
+
+name: phoenix-from-phoenix (ISI-6966)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'evals/phoenix/**'
+      - '.github/workflows/phoenix-from-phoenix.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Phoenix server + client + OTLP exporter
+        run: |
+          python -m pip install --upgrade pip
+          # Pin the client to evals/pyproject.toml; the server only runs in CI.
+          pip install \
+            "arize-phoenix==20.19.0" \
+            "arize-phoenix-client==3.5.0" \
+            "opentelemetry-sdk" \
+            "opentelemetry-exporter-otlp-proto-http" \
+            "pandas>=2.0"
+
+      - name: Verify --from-phoenix filters to LLM spans (asserts the fix)
+        run: |
+          set -o pipefail
+          python evals/phoenix/verify_from_phoenix.py 2>&1 | tee phoenix-verify.log
+
+      - name: Upload evidence log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phoenix-from-phoenix-evidence
+          path: phoenix-verify.log
+          if-no-files-found: warn
+          retention-days: 30

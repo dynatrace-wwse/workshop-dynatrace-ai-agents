@@ -9,7 +9,7 @@ No judge key, no cluster, no network — these assert that:
      confabulated ones in the bundled Phoenix dataset,
   4. the digit-boundary matcher does not confuse `exit 1` with `exit 137`.
 
-Run: `cd evals && python -m pytest tests/ -q`  (or `uv run pytest`).
+Run: `cd evals && uv run --group dev pytest tests/ -q`.
 """
 from __future__ import annotations
 

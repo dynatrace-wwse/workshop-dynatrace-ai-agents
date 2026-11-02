@@ -113,6 +113,9 @@ spec:
       # heavier `opentelemetry-collector-contrib` image (or a custom OCB build).
       # We keep the OTTL transform below so the default k8s image works with no
       # extra image weight; swap to `genainormalizer` when you move to contrib.
+      # Note: genainormalizer only reads openinference/openllmetry sources, so the
+      # kagent/ADK gcp.vertex.agent.* -> OpenInference block below is still
+      # required even after adopting it.
       transform/genai-normalize:
         error_mode: ignore
         trace_statements:
@@ -122,6 +125,19 @@ spec:
               - set(attributes["gen_ai.usage.output_tokens"], attributes["llm.token_count.completion"]) where attributes["llm.token_count.completion"] != nil
               - set(attributes["gen_ai.request.model"], attributes["llm.model_name"]) where attributes["llm.model_name"] != nil
               - set(attributes["gen_ai.system"], attributes["llm.provider"]) where attributes["llm.provider"] != nil
+              # --- OpenInference enrichment for Phoenix (upstream ISI-6960) -------
+              # kagent (0.10.4) runs Google ADK, which records the LLM request and
+              # response JSON on the `call_llm` span under gcp.vertex.agent.*.
+              # Phoenix's trace UI and evals/phoenix/run_phoenix_eval.py
+              # --from-phoenix read the OpenInference keys input.value /
+              # output.value, which neither the vertex attrs nor the gen_ai.*
+              # mapping above produce. Copy them across ADDITIVELY — the originals
+              # stay intact for the Dynatrace export.
+              - set(attributes["openinference.span.kind"], "LLM") where attributes["gcp.vertex.agent.llm_request"] != nil or attributes["gcp.vertex.agent.llm_response"] != nil or name == "call_llm"
+              - set(attributes["input.value"], attributes["gcp.vertex.agent.llm_request"]) where attributes["gcp.vertex.agent.llm_request"] != nil
+              - set(attributes["input.mime_type"], "application/json") where attributes["gcp.vertex.agent.llm_request"] != nil
+              - set(attributes["output.value"], attributes["gcp.vertex.agent.llm_response"]) where attributes["gcp.vertex.agent.llm_response"] != nil
+              - set(attributes["output.mime_type"], "application/json") where attributes["gcp.vertex.agent.llm_response"] != nil
     exporters:
       debug:
         verbosity: basic

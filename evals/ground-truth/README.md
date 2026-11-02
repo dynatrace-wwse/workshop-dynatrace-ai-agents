@@ -42,8 +42,8 @@ fixture is the eval wiring, and the tests fail if the two disagree.
 The answer keys are owned by the scenarios (ISI-6848). If one changes:
 
 ```bash
-cd evals && python -m pytest tests/          # fails if a fixture drifted
-python dt-evals/gen_diagnosis_evaluators.py  # regenerate the dt-evals rubrics
+cd evals && uv run --group dev pytest tests/          # fails if a fixture drifted
+uv run python dt-evals/gen_diagnosis_evaluators.py  # regenerate the dt-evals rubrics
 ```
 
 Update the matching `<id>.json` (`pass_threshold`, `reference_answer`, tokens)
