@@ -571,7 +571,7 @@ checkAgentAnswered(){
   [ -s "$f" ] || { printError "No A2A reply recorded yet — run: askSreAgent"; return 1; }
   # `checkAgentAnswered sre-agent kagent-pods` (module 4): with a real model
   # wired, the "list the pods in kagent" answer must come from the tools — the
-  # reply has to name a pod that exists.
+  # reply has to name a pod (or its workload) that exists.
   # On the Ollama fallback a completed task is enough (ENH-156).
   local pods=""
   if aiwHasLlmKey && [ "${2:-}" = kagent-pods ]; then
@@ -585,9 +585,15 @@ r=d.get("result") or {}
 # back as a result with status.state "failed". Only a completed task counts.
 if d.get("error") or (r.get("status") or {}).get("state") != "completed":
     sys.exit(1)
+import re
 pods = sys.argv[2].split()
 if not pods:
     sys.exit(0)
+# A reply names a pod either in full or by its workload (the Deployment name,
+# without the ReplicaSet/pod hash: "kagent-controller" for
+# kagent-controller-77947db69f-smfcg) — a model reporting from the tool
+# output says both. Whole-word match, so "the kagent namespace" names nothing.
+names = set(pods) | {re.sub(r"-[a-z0-9]{6,10}-[a-z0-9]{5}$", "", p) for p in pods}
 texts = []
 def walk(o):
     if isinstance(o, dict):
@@ -597,7 +603,7 @@ def walk(o):
         for v in o: walk(v)
 walk(r)
 answer = "\n".join(texts)
-if any(p in answer for p in pods):
+if any(re.search(r"(?<![\w-])" + re.escape(n) + r"(?![\w-])", answer) for n in names):
     sys.exit(0)
 print("[check] the reply names none of the kagent pods — the agent did not use its tools")
 sys.exit(1)
