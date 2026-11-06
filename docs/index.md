@@ -53,6 +53,23 @@ flowchart LR
 8. **Evaluate** — Phoenix (Arize) + dt-evals.
 9. **Optimize** — find unused tools/skills and cut token spend.
 
+## The model your agents use
+
+The agents need a capable tool-calling model. In an **instructor-led
+delivery** the trainer runs a shared model for the room (Qwen3-32B on a GPU
+box) and reads out two things: a **dispenser URL** and a **room password**.
+In the **Terminal** tab, run
+
+```bash
+useWorkshopModel
+```
+
+and paste them when asked (the password is not echoed). You get your **own**,
+budget-capped key; your agents are re-wired to the shared model in about a
+minute. Without it, everything still runs on a small model inside your cluster
+(`qwen2.5:3b`) — every step and check works, but the agents' answers are
+slower and often wrong, so ask your trainer for the password first.
+
 ## Start here
 
 New to kagent? Read **[1. kagent in 5 minutes](1-kagent-in-5-minutes.md)** for

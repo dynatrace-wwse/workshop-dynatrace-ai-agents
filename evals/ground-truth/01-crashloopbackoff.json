@@ -10,7 +10,7 @@
   "required_signals": [
     {"id": "crashloop-reason", "desc": "reason: CrashLoopBackOff on the pod/container status", "any_of": ["crashloopbackoff"]},
     {"id": "backoff-event", "desc": "the event 'Back-off restarting failed container'", "any_of": ["back-off restarting", "backoff restarting", "back off restarting"]},
-    {"id": "nonzero-exit", "desc": "lastState.terminated.exitCode = 1 / reason: Error / non-zero exit", "any_of": ["exitcode", "exit code 1", "exit 1", "reason: error", "non-zero exit", "nonzero exit", "exits non-zero"]},
+    {"id": "nonzero-exit", "desc": "lastState.terminated.exitCode = 1 / reason: Error / non-zero exit", "any_of": ["exitcode", "exit code 1", "exit code of 1", "code 1", "exit 1", "reason: error", "non-zero exit", "nonzero exit", "exits non-zero"]},
     {"id": "fatal-log", "desc": "the failing start command / fatal log line from the pod logs", "any_of": ["billing_db_url", "config load failed", "config error", "exiting", "is not set"]}
   ],
   "root_cause_any_of": ["crash-loop", "crash loop", "crashloop", "exits", "exit 1", "startup", "start command", "config", "non-zero"],

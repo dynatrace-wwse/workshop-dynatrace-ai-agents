@@ -164,7 +164,11 @@ def grade(diagnosis: str, fx: Fixture) -> GradeResult:
     its own channel, so it never trips a `must_not_claim` token; that is the
     property this grader exploits to stay judge-free.
     """
-    text_lc = diagnosis.lower()
+    # Markdown is how agents answer: "exit code `1`" is the same fact as
+    # "exit code 1", so code spans are unwrapped and whitespace collapsed
+    # before matching (live SRO walk 2026-11-06: four correct qwen3-32b
+    # diagnoses failed nonzero-exit on backticks / "exit code of 1").
+    text_lc = re.sub(r"\s+", " ", diagnosis.replace("`", "")).lower()
     res = GradeResult(
         scenario=fx.scenario,
         pass_threshold=fx.pass_threshold,

@@ -3,8 +3,35 @@
 > **Audience:** the person *running* an instructor-led delivery, not attendees.
 > Ported from Henrik Rexed's upstream (ISI-7001). The proxy is **optional** in
 > this edition: without it attendees fall back to their own `DEEPSEEK_API_KEY`
-> or the in-cluster Ollama model, and the Dynatrace Enablement App never uses it.
+> or the in-cluster Ollama model. In the Dynatrace Enablement App learners type
+> the two values into `useWorkshopModel` (next section).
 > Attendees supply only `WORKSHOP_ROOM_PASSWORD` and `WORKSHOP_DISPENSER_URL`.
+
+## Enablement App delivery (COE / production): the shared Qwen3-32B box
+
+For a trainer-led delivery in the Dynatrace Enablement App the room runs on
+**one shared GPU box** (`g7e.2xlarge`, vLLM `Qwen/Qwen3-32B-FP8` served as
+`qwen3-32b`, LiteLLM per-learner keys, the same room-password dispenser
+contract as below). It is launched **on demand** by the platform operator for
+the delivery and terminated after it. The operator commands, measurements and
+guarantees live in the tooling repo: `tools/llm-box/README.md`
+(`dynatrace-wwse/enablement-framework-tooling`), section *Production delivery*.
+
+| When | Who | What |
+|---|---|---|
+| ≥ 30 min before start (cold start ≈ 18 min) | operator | launch the box `--on-demand`, bootstrap, run `ready.sh` until it prints `READY` |
+| before start | operator → trainer | dispenser URL (`https://<ip>.sslip.io/dispense`) + room password, privately |
+| at start | trainer → room | read out / show both; learners run **`useWorkshopModel`** in the Terminal tab and paste them |
+| during | learner | `useWorkshopModel` again after a password rotation; agents keep the in-cluster model until it succeeds |
+| after the delivery | operator | `revoke-room.sh`, then `teardown.sh <instance-id>` (prints `terminated`) |
+
+Sizing: one box ≈ 50 learners (64 concurrent agent requests measured, 0
+errors); the room cap is 60 keys and every `useWorkshopModel` run mints one.
+Each key expires after 36 h and is budget-capped. Nothing here needs a
+Dynatrace credential; the box holds none.
+
+> **Upstream (Henrik's home-lab) proxy.** The rest of this page is Henrik's
+> DeepSeek-backed LiteLLM host. Same client, same contract, different host.
 
 This page is the pre-session / post-session checklist for the **shared model
 proxy** that backs the room-password flow. Attendees reach DeepSeek through a
