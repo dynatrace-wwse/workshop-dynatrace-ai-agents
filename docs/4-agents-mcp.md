@@ -153,7 +153,7 @@ kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent
 type: shell-verification
 question: "Verify the SRE agent answered your prompt over A2A"
 buttonText: "Check answer"
-command: "source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkAgentAnswered sre-agent"
+command: "source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkAgentAnswered sre-agent kagent-pods"
 expect:
   operator: exit-zero
 hint: "Run `askSreAgent` in the Terminal first. On the in-cluster model the first answer can take 1–2 minutes while the model loads."
@@ -166,7 +166,7 @@ commands:
   - askSreAgent "List the pods in the kagent namespace and tell me if any are unhealthy." 420
 verify:
   - source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkAgents
-  - source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkAgentAnswered sre-agent
+  - source .devcontainer/util/source_framework.sh >/dev/null 2>&1 && checkAgentAnswered sre-agent kagent-pods
 reveal: |
   `installAgents` renders the MCP layer with your tokens (envsubst at apply
   time, never committed), renders `agents/sre` and `agents/bmad-crew` with

@@ -563,13 +563,38 @@ checkAgentAnswered(){
   local agent="${1:-sre-agent}"; agent="${agent#"${WORKSHOP_PREFIX}"-}"
   local f="/tmp/aiw-last-${agent}.json"
   [ -s "$f" ] || { printError "No A2A reply recorded yet — run: askSreAgent"; return 1; }
-  python3 - "$f" <<'PY' && { printInfo "✅ ${agent} answered over A2A"; return 0; }
+  # `checkAgentAnswered sre-agent kagent-pods` (module 4): with a real model
+  # wired, the "list the pods in kagent" answer must come from the tools — the
+  # reply has to name a pod that exists.
+  # On the Ollama fallback a completed task is enough (ENH-156).
+  local pods=""
+  if aiwHasLlmKey && [ "${2:-}" = kagent-pods ]; then
+    pods="$(kubectl -n kagent get pods -o name 2>/dev/null | sed 's#^pod/##' | tr '\n' ' ')"
+  fi
+  python3 - "$f" "$pods" <<'PY' && { printInfo "✅ ${agent} answered over A2A"; return 0; }
 import json,sys
 d=json.load(open(sys.argv[1]))
 r=d.get("result") or {}
 # A JSON-RPC result is not an answer: a task the agent could not run comes
 # back as a result with status.state "failed". Only a completed task counts.
-sys.exit(0 if not d.get("error") and (r.get("status") or {}).get("state") == "completed" else 1)
+if d.get("error") or (r.get("status") or {}).get("state") != "completed":
+    sys.exit(1)
+pods = sys.argv[2].split()
+if not pods:
+    sys.exit(0)
+texts = []
+def walk(o):
+    if isinstance(o, dict):
+        if o.get("kind") == "text" and "text" in o: texts.append(o["text"])
+        for v in o.values(): walk(v)
+    elif isinstance(o, list):
+        for v in o: walk(v)
+walk(r)
+answer = "\n".join(texts)
+if any(p in answer for p in pods):
+    sys.exit(0)
+print("[check] the reply names none of the kagent pods — the agent did not use its tools")
+sys.exit(1)
 PY
   printError "${agent} did not complete the task — check the model backend and tools (kubectl -n kagent logs deploy/$(aiwAgent "$agent"))"; return 1
 }
@@ -776,11 +801,21 @@ PY
   return $rc
 }
 
+# With a real model wired (shared box, own key) the diagnosis must be RIGHT:
+# grade PASS against expected-diagnosis.md. On the in-cluster Ollama fallback a
+# small model's answer is illustrative (ENH-156), so a graded FAIL still lets
+# the learner continue — but says so instead of showing a green tick for it.
 checkDiagnosisGraded(){
   local id="${1:-01}" g="/tmp/aiw-grade-${1:-01}.txt"
   grep -qE 'PASS|FAIL' "$g" 2>/dev/null \
-    && { printInfo "✅ Graded: $(cat "$g")"; return 0; } \
     || { printError "Not graded yet — run: gradeLiveDiagnosis ${id}"; return 1; }
+  if grep -q -- '-> PASS' "$g"; then printInfo "✅ Graded: $(cat "$g")"; return 0; fi
+  if aiwHasLlmKey; then
+    printError "Diagnosis graded FAIL: $(cat "$g") — compare with scenarios/${id}*/expected-diagnosis.md, then diagnoseScenario ${id} again"
+    return 1
+  fi
+  printWarn "Graded: $(cat "$g") — illustrative on the in-cluster model; run useWorkshopModel for the shared model"
+  return 0
 }
 
 runGroundTruthTests(){
