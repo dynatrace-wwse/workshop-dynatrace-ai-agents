@@ -360,8 +360,14 @@ dispenseLlmKey(){
 #   useWorkshopModel [https://<host>/dispense]
 useWorkshopModel(){
   local WORKSHOP_DISPENSER_URL="${1:-${WORKSHOP_DISPENSER_URL:-}}" WORKSHOP_ROOM_PASSWORD="${WORKSHOP_ROOM_PASSWORD:-}"
-  [ -n "$WORKSHOP_DISPENSER_URL" ] || read -r -p "Dispenser URL from your trainer (https://…/dispense): " WORKSHOP_DISPENSER_URL
-  [ -n "$WORKSHOP_ROOM_PASSWORD" ] || { read -r -s -p "Room password from your trainer: " WORKSHOP_ROOM_PASSWORD; echo; }
+  # printf + plain `read`: the learner's shell is zsh, where `read -p` means
+  # "read from the coprocess", not "prompt" — it would hang or fail there.
+  if [ -z "$WORKSHOP_DISPENSER_URL" ]; then
+    printf 'Dispenser URL from your trainer (https://…/dispense): '; read -r WORKSHOP_DISPENSER_URL
+  fi
+  if [ -z "$WORKSHOP_ROOM_PASSWORD" ]; then
+    printf 'Room password from your trainer: '; read -r -s WORKSHOP_ROOM_PASSWORD; echo
+  fi
   export WORKSHOP_DISPENSER_URL WORKSHOP_ROOM_PASSWORD
   if ! bash "${REPO_PATH}/.devcontainer/dispense-llm.sh" "$_AIW_LLM_ENV" || ! aiwLoadLlmEnv; then
     printError "No key dispensed — check the URL and password with your trainer. Your agents keep their current model."
