@@ -20,6 +20,12 @@ Everything is injected for you, per learner:
 
 You create **no** tokens. Open the **Terminal** tab and continue.
 
+In an instructor-led delivery your trainer also gives you a **dispenser URL**
+and a **room password** for the shared workshop model. Run `useWorkshopModel`
+and paste both (the password is not echoed); it mints your own capped key and
+re-wires your agents to the shared model. Run it again if the trainer rotates
+the password.
+
 **GitHub Codespace**
 
 1. Create a Codespace on this repository (**Code → Codespaces → Create
@@ -56,6 +62,11 @@ cd .devcontainer && make start
        DeepSeek key. Re-run `dispenseLlmKey` if the host rotates the password.
     2. **Your own `DEEPSEEK_API_KEY`.**
     3. **In-cluster model** — otherwise.
+
+    In the Enablement App there are no Codespace secrets: route 1 is
+    `useWorkshopModel`, which asks for the URL and password in the terminal.
+    At a trainer-led delivery the host behind them is a shared **Qwen3-32B**
+    GPU box (model `qwen3-32b`), not DeepSeek — same OpenAI-compatible API.
 
     When none of the first two is present — the default in the Enablement App — the
     platform deploys **Ollama** with a small tool-calling model

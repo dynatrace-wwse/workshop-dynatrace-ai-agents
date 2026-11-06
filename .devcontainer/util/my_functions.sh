@@ -350,6 +350,31 @@ dispenseLlmKey(){
   aiwHasLlmKey && kubectl get ns kagent >/dev/null 2>&1 && installAgents
 }
 
+# Instructor-led delivery in the Enablement App: there are no Codespace
+# secrets, so the trainer reads out a dispenser URL and a room password and the
+# learner types them here. The password is read without echo and lives only in
+# this function's environment (never in shell history, argv or a file other
+# than the 0600 temp file dispense-llm.sh uses), then the agents are re-wired
+# to the shared model and the in-cluster Ollama is scaled to zero to give its
+# CPU back. On any failure nothing changes: the agents stay on what they had.
+#   useWorkshopModel [https://<host>/dispense]
+useWorkshopModel(){
+  local WORKSHOP_DISPENSER_URL="${1:-${WORKSHOP_DISPENSER_URL:-}}" WORKSHOP_ROOM_PASSWORD="${WORKSHOP_ROOM_PASSWORD:-}"
+  [ -n "$WORKSHOP_DISPENSER_URL" ] || read -r -p "Dispenser URL from your trainer (https://…/dispense): " WORKSHOP_DISPENSER_URL
+  [ -n "$WORKSHOP_ROOM_PASSWORD" ] || { read -r -s -p "Room password from your trainer: " WORKSHOP_ROOM_PASSWORD; echo; }
+  export WORKSHOP_DISPENSER_URL WORKSHOP_ROOM_PASSWORD
+  if ! bash "${REPO_PATH}/.devcontainer/dispense-llm.sh" "$_AIW_LLM_ENV" || ! aiwLoadLlmEnv; then
+    printError "No key dispensed — check the URL and password with your trainer. Your agents keep their current model."
+    return 1
+  fi
+  printInfo "Shared workshop model: ${WORKSHOP_LLM_MODEL} at ${WORKSHOP_LLM_BASE_URL} (your own capped key)"
+  kubectl get ns kagent >/dev/null 2>&1 || return 0
+  installAgents || return 1
+  kubectl -n ollama scale deploy/ollama --replicas=0 >/dev/null 2>&1 \
+    && printInfo "In-cluster Ollama scaled to 0 (fallback: deployOllama)"
+  return 0
+}
+
 deployOllama(){
   printInfoSection "Ollama (offline LLM: ${AIW_OLLAMA_MODEL})"
   export AIW_OLLAMA_IMAGE AIW_OLLAMA_MODEL
