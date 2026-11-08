@@ -331,6 +331,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-model-your-agents-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      The model your agents use
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#start-here" class="md-nav__link">
     <span class="md-ellipsis">
       Start here
@@ -612,6 +621,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-model-your-agents-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      The model your agents use
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#start-here" class="md-nav__link">
     <span class="md-ellipsis">
       Start here
@@ -681,6 +699,18 @@ Observability</strong> — all inside one environment with a local Kubernetes cl
 <li><strong>Evaluate</strong> — Phoenix (Arize) + dt-evals.</li>
 <li><strong>Optimize</strong> — find unused tools/skills and cut token spend.</li>
 </ol>
+<h2 id="the-model-your-agents-use">The model your agents use<a class="headerlink" href="#the-model-your-agents-use" title="Permanent link">#</a></h2>
+<p>The agents need a capable tool-calling model. In an <strong>instructor-led
+delivery</strong> the trainer runs a shared model for the room (Qwen3-32B on a GPU
+box) and reads out two things: a <strong>dispenser URL</strong> and a <strong>room password</strong>.
+In the <strong>Terminal</strong> tab, run</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>useWorkshopModel
+</span></code></pre></div>
+<p>and paste them when asked (the password is not echoed). You get your <strong>own</strong>,
+budget-capped key; your agents are re-wired to the shared model in about a
+minute. Without it, everything still runs on a small model inside your cluster
+(<code>qwen2.5:3b</code>) — every step and check works, but the agents' answers are
+slower and often wrong, so ask your trainer for the password first.</p>
 <h2 id="start-here">Start here<a class="headerlink" href="#start-here" title="Permanent link">#</a></h2>
 <p>New to kagent? Read <strong><a href="1-kagent-in-5-minutes/">1. kagent in 5 minutes</a></strong> for
 the mental model, then continue in order. Every hands-on step has a check, and
