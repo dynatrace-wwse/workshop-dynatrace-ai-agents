@@ -25,7 +25,9 @@ gave you both values) → a **direct endpoint + key** (`WORKSHOP_LLM_BASE_URL` /
 `WORKSHOP_LLM_MODEL` / `WORKSHOP_LLM_API_KEY`, or `DEEPSEEK_API_KEY` for DeepSeek)
 → the **in-cluster Ollama** model. Tool calling needs a capable model: the MCP
 tool set is large, so prefer ≥ 30B on a shared box; `qwen2.5:3b` proves the
-wiring only. The Enablement App injects none of these, so it always runs on Ollama.
+wiring only. The Enablement App injects none of these: there, the learner runs
+`useWorkshopModel` and types the URL and room password the trainer reads out
+(Ollama otherwise).
 
 ## Room-password model proxy (optional)
 

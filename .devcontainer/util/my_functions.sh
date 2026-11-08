@@ -350,6 +350,37 @@ dispenseLlmKey(){
   aiwHasLlmKey && kubectl get ns kagent >/dev/null 2>&1 && installAgents
 }
 
+# Instructor-led delivery in the Enablement App: there are no Codespace
+# secrets, so the trainer reads out a dispenser URL and a room password and the
+# learner types them here. The password is read without echo and lives only in
+# this function's environment (never in shell history, argv or a file other
+# than the 0600 temp file dispense-llm.sh uses), then the agents are re-wired
+# to the shared model and the in-cluster Ollama is scaled to zero to give its
+# CPU back. On any failure nothing changes: the agents stay on what they had.
+#   useWorkshopModel [https://<host>/dispense]
+useWorkshopModel(){
+  local WORKSHOP_DISPENSER_URL="${1:-${WORKSHOP_DISPENSER_URL:-}}" WORKSHOP_ROOM_PASSWORD="${WORKSHOP_ROOM_PASSWORD:-}"
+  # printf + plain `read`: the learner's shell is zsh, where `read -p` means
+  # "read from the coprocess", not "prompt" — it would hang or fail there.
+  if [ -z "$WORKSHOP_DISPENSER_URL" ]; then
+    printf 'Dispenser URL from your trainer (https://…/dispense): '; read -r WORKSHOP_DISPENSER_URL
+  fi
+  if [ -z "$WORKSHOP_ROOM_PASSWORD" ]; then
+    printf 'Room password from your trainer: '; read -r -s WORKSHOP_ROOM_PASSWORD; echo
+  fi
+  export WORKSHOP_DISPENSER_URL WORKSHOP_ROOM_PASSWORD
+  if ! bash "${REPO_PATH}/.devcontainer/dispense-llm.sh" "$_AIW_LLM_ENV" || ! aiwLoadLlmEnv; then
+    printError "No key dispensed — check the URL and password with your trainer. Your agents keep their current model."
+    return 1
+  fi
+  printInfo "Shared workshop model: ${WORKSHOP_LLM_MODEL} at ${WORKSHOP_LLM_BASE_URL} (your own capped key)"
+  kubectl get ns kagent >/dev/null 2>&1 || return 0
+  installAgents || return 1
+  kubectl -n ollama scale deploy/ollama --replicas=0 >/dev/null 2>&1 \
+    && printInfo "In-cluster Ollama scaled to 0 (fallback: deployOllama)"
+  return 0
+}
+
 deployOllama(){
   printInfoSection "Ollama (offline LLM: ${AIW_OLLAMA_MODEL})"
   export AIW_OLLAMA_IMAGE AIW_OLLAMA_MODEL
@@ -538,13 +569,44 @@ checkAgentAnswered(){
   local agent="${1:-sre-agent}"; agent="${agent#"${WORKSHOP_PREFIX}"-}"
   local f="/tmp/aiw-last-${agent}.json"
   [ -s "$f" ] || { printError "No A2A reply recorded yet — run: askSreAgent"; return 1; }
-  python3 - "$f" <<'PY' && { printInfo "✅ ${agent} answered over A2A"; return 0; }
+  # `checkAgentAnswered sre-agent kagent-pods` (module 4): with a real model
+  # wired, the "list the pods in kagent" answer must come from the tools — the
+  # reply has to name a pod (or its workload) that exists.
+  # On the Ollama fallback a completed task is enough (ENH-156).
+  local pods=""
+  if aiwHasLlmKey && [ "${2:-}" = kagent-pods ]; then
+    pods="$(kubectl -n kagent get pods -o name 2>/dev/null | sed 's#^pod/##' | tr '\n' ' ')"
+  fi
+  python3 - "$f" "$pods" <<'PY' && { printInfo "✅ ${agent} answered over A2A"; return 0; }
 import json,sys
 d=json.load(open(sys.argv[1]))
 r=d.get("result") or {}
 # A JSON-RPC result is not an answer: a task the agent could not run comes
 # back as a result with status.state "failed". Only a completed task counts.
-sys.exit(0 if not d.get("error") and (r.get("status") or {}).get("state") == "completed" else 1)
+if d.get("error") or (r.get("status") or {}).get("state") != "completed":
+    sys.exit(1)
+import re
+pods = sys.argv[2].split()
+if not pods:
+    sys.exit(0)
+# A reply names a pod either in full or by its workload (the Deployment name,
+# without the ReplicaSet/pod hash: "kagent-controller" for
+# kagent-controller-77947db69f-smfcg) — a model reporting from the tool
+# output says both. Whole-word match, so "the kagent namespace" names nothing.
+names = set(pods) | {re.sub(r"-[a-z0-9]{6,10}-[a-z0-9]{5}$", "", p) for p in pods}
+texts = []
+def walk(o):
+    if isinstance(o, dict):
+        if o.get("kind") == "text" and "text" in o: texts.append(o["text"])
+        for v in o.values(): walk(v)
+    elif isinstance(o, list):
+        for v in o: walk(v)
+walk(r)
+answer = "\n".join(texts)
+if any(re.search(r"(?<![\w-])" + re.escape(n) + r"(?![\w-])", answer) for n in names):
+    sys.exit(0)
+print("[check] the reply names none of the kagent pods — the agent did not use its tools")
+sys.exit(1)
 PY
   printError "${agent} did not complete the task — check the model backend and tools (kubectl -n kagent logs deploy/$(aiwAgent "$agent"))"; return 1
 }
@@ -751,11 +813,21 @@ PY
   return $rc
 }
 
+# With a real model wired (shared box, own key) the diagnosis must be RIGHT:
+# grade PASS against expected-diagnosis.md. On the in-cluster Ollama fallback a
+# small model's answer is illustrative (ENH-156), so a graded FAIL still lets
+# the learner continue — but says so instead of showing a green tick for it.
 checkDiagnosisGraded(){
   local id="${1:-01}" g="/tmp/aiw-grade-${1:-01}.txt"
   grep -qE 'PASS|FAIL' "$g" 2>/dev/null \
-    && { printInfo "✅ Graded: $(cat "$g")"; return 0; } \
     || { printError "Not graded yet — run: gradeLiveDiagnosis ${id}"; return 1; }
+  if grep -q -- '-> PASS' "$g"; then printInfo "✅ Graded: $(cat "$g")"; return 0; fi
+  if aiwHasLlmKey; then
+    printError "Diagnosis graded FAIL: $(cat "$g") — compare with scenarios/${id}*/expected-diagnosis.md, then diagnoseScenario ${id} again"
+    return 1
+  fi
+  printWarn "Graded: $(cat "$g") — illustrative on the in-cluster model; run useWorkshopModel for the shared model"
+  return 0
 }
 
 runGroundTruthTests(){
